@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { LogOut, Users, Package, BarChart3 } from "lucide-react"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { OverviewTab } from "@/components/admin/overview-tab"
+import { UsersTab } from "@/components/admin/users-tab"
 import { DriversTab } from "@/components/admin/drivers-tab"
 import { CustomersTab } from "@/components/admin/customers-tab"
 import { DeliveriesTab } from "@/components/admin/deliveries-tab"
@@ -27,7 +28,7 @@ import { DriverStats } from "@/components/driver/driver-stats"
 import { AssignedDeliveries } from "@/components/driver/assigned-deliveries"
 import { DriverNotifications } from "@/components/driver/driver-notifications"
 import { DriverQuickActions } from "@/components/driver/driver-quick-actions"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 
 function Dashboard() {
@@ -101,6 +102,7 @@ function Dashboard() {
 
           <main className="flex-1 p-6">
             {activeTab === "overview" && <OverviewTab />}
+            {activeTab === "users" && <UsersTab />}
             {activeTab === "drivers" && <DriversTab />}
             {activeTab === "customers" && <CustomersTab />}
             {activeTab === "deliveries" && <DeliveriesTab />}
@@ -328,10 +330,28 @@ function Dashboard() {
   )
 }
 
+function ClientOnlyDashboard() {
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  if (!isClient) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  return <Dashboard />
+}
+
 export default function HomePage() {
   return (
     <ProtectedRoute>
-      <Dashboard />
+      <ClientOnlyDashboard />
     </ProtectedRoute>
   )
 }

@@ -38,6 +38,7 @@ const translations = {
     "nav.alerts": "Alerts & Notifications",
     "nav.settings": "System Settings",
     "nav.adminPanel": "Admin Panel",
+    "nav.userManagement": "User Management",
     "nav.driverManagement": "Driver Management",
     "nav.customerManagement": "Customer Management",
     "nav.deliveryTasks": "Delivery Tasks",
@@ -390,6 +391,7 @@ const translations = {
     "nav.alerts": "التنبيهات والإشعارات",
     "nav.settings": "إعدادات النظام",
     "nav.adminPanel": "لوحة الإدارة",
+    "nav.userManagement": "إدارة المستخدمين",
     "nav.driverManagement": "إدارة السائقين",
     "nav.customerManagement": "إدارة العملاء",
     "nav.deliveryTasks": "مهام التوصيل",
@@ -722,8 +724,11 @@ const translations = {
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguage] = useState<Language>("en")
+  const [isClient, setIsClient] = useState(false)
 
   useEffect(() => {
+    setIsClient(true)
+    // Check for saved language only on client side
     const savedLang = localStorage.getItem("language") as Language
     if (savedLang && (savedLang === "en" || savedLang === "ar")) {
       setLanguage(savedLang)
@@ -731,10 +736,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    localStorage.setItem("language", language)
-    document.documentElement.lang = language
-    document.documentElement.dir = language === "ar" ? "rtl" : "ltr"
-  }, [language])
+    if (isClient) {
+      localStorage.setItem("language", language)
+      document.documentElement.lang = language
+      document.documentElement.dir = language === "ar" ? "rtl" : "ltr"
+    }
+  }, [language, isClient])
 
   const t = (key: string): string => {
     return translations[language][key as keyof (typeof translations)[typeof language]] || key

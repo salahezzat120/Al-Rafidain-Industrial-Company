@@ -9,12 +9,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isClient, setIsClient] = useState(false)
 
   useEffect(() => {
-    // Check for stored user session
+    setIsClient(true)
+    // Check for stored user session only on client side
     const storedUser = localStorage.getItem("delivery-user")
     if (storedUser) {
-      setUser(JSON.parse(storedUser))
+      try {
+        setUser(JSON.parse(storedUser))
+      } catch (error) {
+        console.error("Error parsing stored user:", error)
+        localStorage.removeItem("delivery-user")
+      }
     }
     setIsLoading(false)
   }, [])
@@ -25,7 +32,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const authenticatedUser = await authenticateUser(email, password)
       if (authenticatedUser) {
         setUser(authenticatedUser)
-        localStorage.setItem("delivery-user", JSON.stringify(authenticatedUser))
+        if (isClient) {
+          localStorage.setItem("delivery-user", JSON.stringify(authenticatedUser))
+        }
         return true
       }
       return false
@@ -36,7 +45,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null)
-    localStorage.removeItem("delivery-user")
+    if (isClient) {
+      localStorage.removeItem("delivery-user")
+    }
   }
 
   return <AuthContext.Provider value={{ user, login, logout, isLoading }}>{children}</AuthContext.Provider>

@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   UserCheck,
+  UserPlus,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useLanguage } from "@/contexts/language-context"
@@ -30,6 +31,7 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
 
   const sidebarItems = [
     { id: "overview", label: t("nav.overview"), icon: LayoutDashboard },
+    { id: "users", label: t("nav.userManagement"), icon: UserPlus },
     { id: "drivers", label: t("nav.driverManagement"), icon: Users },
     { id: "customers", label: t("nav.customerManagement"), icon: UserCheck },
     { id: "vehicles", label: t("nav.vehicles"), icon: Truck },
