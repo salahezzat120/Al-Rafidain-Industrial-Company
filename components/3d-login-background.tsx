@@ -1,8 +1,8 @@
 "use client"
 
 import { Canvas } from "@react-three/fiber"
-import { OrbitControls, Environment, Float, Text3D, MeshDistortMaterial } from "@react-three/drei"
-import { useRef } from "react"
+import { OrbitControls, Environment, Float, MeshDistortMaterial } from "@react-three/drei"
+import { useRef, useState, useEffect } from "react"
 import { useFrame } from "@react-three/fiber"
 import type * as THREE from "three"
 
@@ -72,33 +72,30 @@ function FloatingOrbs() {
           </mesh>
         </Float>
       ))}
-    </group>
+        </group>
   )
 }
 
-export function ThreeDLoginBackground() {
+function DeliveryText() {
+  const textRef = useRef<THREE.Group>(null)
+
+  useFrame((state) => {
+    if (textRef.current) {
+      textRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.3) * 0.1
+    }
+  })
+
   return (
-    <div className="fixed inset-0 -z-10">
-      <Canvas
-        camera={{ position: [0, 0, 10], fov: 60 }}
-        style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}
-      >
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[10, 10, 5]} intensity={1} />
-        <pointLight position={[-10, -10, -5]} intensity={0.5} color="#3b82f6" />
-
-        <AnimatedTruck position={[-4, 2, 0]} />
-        <AnimatedTruck position={[4, -1, -2]} />
-
-        <AnimatedPackage position={[-2, -2, 1]} />
-        <AnimatedPackage position={[3, 1, -1]} />
-        <AnimatedPackage position={[0, 3, 2]} />
-
-        <FloatingOrbs />
-
-        <Float speed={0.5} rotationIntensity={0.1} floatIntensity={0.3}>
-          <Text3D font="/fonts/Inter_Bold.json" size={0.8} height={0.1} position={[-3, -4, 0]}>
-            DELIVERY
+    <Float speed={0.5} rotationIntensity={0.1} floatIntensity={0.3}>
+      <group ref={textRef} position={[-3, -4, 0]}>
+        {/* Create "DELIVERY" text using basic geometries */}
+        {Array.from("DELIVERY").map((letter, i) => (
+          <mesh
+            key={i}
+            position={[i * 0.6, 0, 0]}
+            scale={[0.4, 0.8, 0.1]}
+          >
+            <boxGeometry />
             <MeshDistortMaterial
               color="#ffffff"
               distort={0.1}
@@ -108,19 +105,62 @@ export function ThreeDLoginBackground() {
               transparent
               opacity={0.8}
             />
-          </Text3D>
-        </Float>
+          </mesh>
+        ))}
+      </group>
+    </Float>
+  )
+}
 
-        <Environment preset="city" />
-        <OrbitControls
-          enableZoom={false}
-          enablePan={false}
-          autoRotate
-          autoRotateSpeed={0.5}
-          maxPolarAngle={Math.PI / 2}
-          minPolarAngle={Math.PI / 2}
-        />
-      </Canvas>
+function ThreeDCanvas() {
+  return (
+    <Canvas
+      camera={{ position: [0, 0, 10], fov: 60 }}
+      style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}
+    >
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[10, 10, 5]} intensity={1} />
+      <pointLight position={[-10, -10, -5]} intensity={0.5} color="#3b82f6" />
+
+      <AnimatedTruck position={[-4, 2, 0]} />
+      <AnimatedTruck position={[4, -1, -2]} />
+
+      <AnimatedPackage position={[-2, -2, 1]} />
+      <AnimatedPackage position={[3, 1, -1]} />
+      <AnimatedPackage position={[0, 3, 2]} />
+
+      <FloatingOrbs />
+      <DeliveryText />
+
+      <Environment preset="city" />
+      <OrbitControls
+        enableZoom={false}
+        enablePan={false}
+        autoRotate
+        autoRotateSpeed={0.5}
+        maxPolarAngle={Math.PI / 2}
+        minPolarAngle={Math.PI / 2}
+      />
+    </Canvas>
+  )
+}
+
+export function ThreeDLoginBackground() {
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  if (!isClient) {
+    return (
+      <div className="fixed inset-0 -z-10 bg-gradient-to-br from-blue-500 to-purple-600" />
+    )
+  }
+
+  return (
+    <div className="fixed inset-0 -z-10">
+      <ThreeDCanvas />
     </div>
   )
 }
