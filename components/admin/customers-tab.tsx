@@ -1,92 +1,65 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Package, Filter, Download, Star } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Package, Filter, Download, Star, Navigation, CheckCircle, XCircle, Calendar, Loader2, FileText, FileSpreadsheet, Eye, MessageSquare, History, Trash2, Edit, UserCheck } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from "@/components/ui/dropdown-menu"
 import { CustomerProfileModal } from "./customer-profile-modal"
 import { AddCustomerModal } from "./add-customer-modal"
 import { useLanguage } from "@/contexts/language-context"
-
-const mockCustomers = [
-  {
-    id: "C001",
-    name: "John Doe",
-    email: "john.doe@email.com",
-    phone: "+1 (555) 123-4567",
-    address: "123 Main St, Downtown, City 12345",
-    status: "active",
-    totalOrders: 45,
-    totalSpent: 2340.5,
-    lastOrder: "2024-01-15",
-    rating: 4.8,
-    preferredDeliveryTime: "Morning (9-12 PM)",
-    avatar: "/placeholder.svg?height=40&width=40",
-    joinDate: "2023-06-15",
-    notes: "Prefers contactless delivery",
-  },
-  {
-    id: "C002",
-    name: "Jane Smith",
-    email: "jane.smith@email.com",
-    phone: "+1 (555) 234-5678",
-    address: "456 Oak Ave, North Zone, City 12345",
-    status: "active",
-    totalOrders: 78,
-    totalSpent: 4567.25,
-    lastOrder: "2024-01-14",
-    rating: 4.9,
-    preferredDeliveryTime: "Afternoon (1-5 PM)",
-    avatar: "/placeholder.svg?height=40&width=40",
-    joinDate: "2023-03-22",
-    notes: "Regular customer, always tips well",
-  },
-  {
-    id: "C003",
-    name: "Bob Johnson",
-    email: "bob.johnson@email.com",
-    phone: "+1 (555) 345-6789",
-    address: "789 Pine Rd, East District, City 12345",
-    status: "inactive",
-    totalOrders: 12,
-    totalSpent: 890.75,
-    lastOrder: "2023-11-20",
-    rating: 4.2,
-    preferredDeliveryTime: "Evening (5-8 PM)",
-    avatar: "/placeholder.svg?height=40&width=40",
-    joinDate: "2023-08-10",
-    notes: "Moved to new address",
-  },
-  {
-    id: "C004",
-    name: "Alice Brown",
-    email: "alice.brown@email.com",
-    phone: "+1 (555) 456-7890",
-    address: "321 Elm St, West Zone, City 12345",
-    status: "vip",
-    totalOrders: 156,
-    totalSpent: 8920.0,
-    lastOrder: "2024-01-16",
-    rating: 5.0,
-    preferredDeliveryTime: "Flexible",
-    avatar: "/placeholder.svg?height=40&width=40",
-    joinDate: "2022-12-05",
-    notes: "VIP customer, priority handling",
-  },
-]
+import { getCustomers, Customer } from "@/lib/customers"
+import { useToast } from "@/hooks/use-toast"
 
 export function CustomersTab() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [customers, setCustomers] = useState(mockCustomers)
-  const [selectedCustomer, setSelectedCustomer] = useState<any>(null)
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const { t } = useLanguage()
+  const { toast } = useToast()
+
+  // Fetch customers from Supabase
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+        
+        const { data, error } = await getCustomers()
+        
+        if (error) {
+          setError(error)
+          toast({
+            title: "Error",
+            description: `Failed to load customers: ${error}`,
+            variant: "destructive",
+          })
+        } else if (data) {
+          setCustomers(data)
+        }
+      } catch (err) {
+        console.error('Error fetching customers:', err)
+        setError('An unexpected error occurred')
+        toast({
+          title: "Error",
+          description: "Failed to load customers. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchCustomers()
+  }, [toast])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -101,11 +74,33 @@ export function CustomersTab() {
     }
   }
 
+  const getVisitStatusColor = (visitStatus: string) => {
+    switch (visitStatus) {
+      case "visited":
+        return "bg-green-100 text-green-800"
+      case "not_visited":
+        return "bg-red-100 text-red-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getVisitStatusIcon = (visitStatus: string) => {
+    switch (visitStatus) {
+      case "visited":
+        return <CheckCircle className="h-3 w-3 text-green-600" />
+      case "not_visited":
+        return <XCircle className="h-3 w-3 text-red-600" />
+      default:
+        return <XCircle className="h-3 w-3 text-gray-600" />
+    }
+  }
+
   const filteredCustomers = customers.filter(
     (customer) =>
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.id.toLowerCase().includes(searchTerm.toLowerCase()),
+      customer.customer_id.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
   const handleViewProfile = (customer: any) => {
@@ -113,25 +108,299 @@ export function CustomersTab() {
     setIsProfileModalOpen(true)
   }
 
-  const handleSaveCustomer = (updatedCustomer: any) => {
-    setCustomers((prev) => prev.map((c) => (c.id === updatedCustomer.id ? updatedCustomer : c)))
-    setIsProfileModalOpen(false)
+  const handleSaveCustomer = async (updatedCustomer: Customer) => {
+    try {
+      // Update the customer in the local state
+      setCustomers((prev) => prev.map((c) => (c.id === updatedCustomer.id ? updatedCustomer : c)))
+      setIsProfileModalOpen(false)
+      
+      toast({
+        title: "Success",
+        description: "Customer updated successfully!",
+      })
+    } catch (err) {
+      console.error('Error updating customer:', err)
+      toast({
+        title: "Error",
+        description: "Failed to update customer. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleAddCustomer = (newCustomer: any) => {
-    setCustomers((prev) => [...prev, newCustomer])
+  const handleAddCustomer = async (newCustomer: any) => {
+    try {
+      // Refresh customers from Supabase after adding a new one
+      const { data, error } = await getCustomers()
+      
+      if (error) {
+        toast({
+          title: "Warning",
+          description: "Customer added but failed to refresh the list. Please refresh the page.",
+          variant: "destructive",
+        })
+      } else if (data) {
+        setCustomers(data)
+        toast({
+          title: "Success",
+          description: "Customer added successfully!",
+        })
+      }
+    } catch (err) {
+      console.error('Error refreshing customers:', err)
+      // Still add the customer to local state as fallback
+      setCustomers(prev => [...prev, newCustomer])
+    }
   }
 
   const getCustomerStats = () => {
     const active = customers.filter((c) => c.status === "active").length
     const vip = customers.filter((c) => c.status === "vip").length
     const inactive = customers.filter((c) => c.status === "inactive").length
-    const totalRevenue = customers.reduce((sum, c) => sum + c.totalSpent, 0)
+    const totalRevenue = customers.reduce((sum, c) => sum + c.total_spent, 0)
 
     return { active, vip, inactive, totalRevenue }
   }
 
   const stats = getCustomerStats()
+
+  // Export functions
+  const exportToCSV = () => {
+    const headers = [
+      'Customer ID', 'Name', 'Email', 'Phone', 'Address', 'Status', 
+      'Total Orders', 'Total Spent', 'Rating', 'Last Order Date',
+      'Latitude', 'Longitude', 'Visit Status', 'Last Visit Date', 'Visit Notes'
+    ]
+    
+    const csvContent = [
+      headers.join(','),
+      ...filteredCustomers.map(customer => [
+        customer.customer_id,
+        `"${customer.name}"`,
+        customer.email,
+        customer.phone,
+        `"${customer.address}"`,
+        customer.status,
+        customer.total_orders,
+        customer.total_spent,
+        customer.rating,
+        customer.last_order_date || '',
+        customer.latitude || '',
+        customer.longitude || '',
+        customer.visit_status,
+        customer.last_visit_date || '',
+        `"${customer.visit_notes || ''}"`
+      ].join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `customers_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    toast({
+      title: "Export Successful",
+      description: "Customer data exported to CSV file",
+    })
+  }
+
+  const exportToExcel = () => {
+    // For Excel export, we'll create a simple HTML table that can be opened in Excel
+    const tableHeaders = [
+      'Customer ID', 'Name', 'Email', 'Phone', 'Address', 'Status', 
+      'Total Orders', 'Total Spent', 'Rating', 'Last Order Date',
+      'Latitude', 'Longitude', 'Visit Status', 'Last Visit Date', 'Visit Notes'
+    ]
+    
+    const tableRows = filteredCustomers.map(customer => [
+      customer.customer_id,
+      customer.name,
+      customer.email,
+      customer.phone,
+      customer.address,
+      customer.status,
+      customer.total_orders,
+      customer.total_spent,
+      customer.rating,
+      customer.last_order_date || '',
+      customer.latitude || '',
+      customer.longitude || '',
+      customer.visit_status,
+      customer.last_visit_date || '',
+      customer.visit_notes || ''
+    ])
+
+    const htmlContent = `
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <table>
+            <thead>
+              <tr>${tableHeaders.map(header => `<th>${header}</th>`).join('')}</tr>
+            </thead>
+            <tbody>
+              ${tableRows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `
+
+    const blob = new Blob([htmlContent], { type: 'application/vnd.ms-excel' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `customers_${new Date().toISOString().split('T')[0]}.xls`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    toast({
+      title: "Export Successful",
+      description: "Customer data exported to Excel file",
+    })
+  }
+
+  const exportToPDF = () => {
+    // Simple PDF export using browser's print functionality
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      const tableHeaders = [
+        'Customer ID', 'Name', 'Email', 'Phone', 'Address', 'Status', 
+        'Total Orders', 'Total Spent', 'Rating', 'Last Order Date',
+        'Latitude', 'Longitude', 'Visit Status', 'Last Visit Date', 'Visit Notes'
+      ]
+      
+      const tableRows = filteredCustomers.map(customer => [
+        customer.customer_id,
+        customer.name,
+        customer.email,
+        customer.phone,
+        customer.address,
+        customer.status,
+        customer.total_orders,
+        customer.total_spent,
+        customer.rating,
+        customer.last_order_date || '',
+        customer.latitude || '',
+        customer.longitude || '',
+        customer.visit_status,
+        customer.last_visit_date || '',
+        customer.visit_notes || ''
+      ])
+
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Customer Export - ${new Date().toLocaleDateString()}</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 20px; }
+              h1 { color: #333; text-align: center; }
+              table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+              th { background-color: #f2f2f2; font-weight: bold; }
+              tr:nth-child(even) { background-color: #f9f9f9; }
+            </style>
+          </head>
+          <body>
+            <h1>Customer Management Export</h1>
+            <p><strong>Export Date:</strong> ${new Date().toLocaleDateString()}</p>
+            <p><strong>Total Customers:</strong> ${filteredCustomers.length}</p>
+            <table>
+              <thead>
+                <tr>${tableHeaders.map(header => `<th>${header}</th>`).join('')}</tr>
+              </thead>
+              <tbody>
+                ${tableRows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}
+              </tbody>
+            </table>
+          </body>
+        </html>
+      `)
+      printWindow.document.close()
+      printWindow.print()
+      
+      toast({
+        title: "Export Successful",
+        description: "Customer data exported to PDF",
+      })
+    }
+  }
+
+  // Customer action handlers
+  const handleMarkAsVisited = (customer: Customer) => {
+    // TODO: Implement mark as visited functionality
+    toast({
+      title: "Feature Coming Soon",
+      description: "Mark as visited functionality will be implemented soon",
+    })
+  }
+
+  const handleScheduleVisit = (customer: Customer) => {
+    // TODO: Implement schedule visit functionality
+    toast({
+      title: "Feature Coming Soon",
+      description: "Schedule visit functionality will be implemented soon",
+    })
+  }
+
+  const handleViewOnMap = (customer: Customer) => {
+    if (customer.latitude && customer.longitude) {
+      const mapUrl = `https://www.google.com/maps?q=${customer.latitude},${customer.longitude}`
+      window.open(mapUrl, '_blank')
+    } else {
+      toast({
+        title: "No Location Data",
+        description: "This customer doesn't have GPS coordinates",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleSendMessage = (customer: Customer) => {
+    // TODO: Implement send message functionality
+    toast({
+      title: "Feature Coming Soon",
+      description: "Send message functionality will be implemented soon",
+    })
+  }
+
+  const handleCreateOrder = (customer: Customer) => {
+    // TODO: Implement create order functionality
+    toast({
+      title: "Feature Coming Soon",
+      description: "Create order functionality will be implemented soon",
+    })
+  }
+
+  const handleViewHistory = (customer: Customer) => {
+    // TODO: Implement view history functionality
+    toast({
+      title: "Feature Coming Soon",
+      description: "View history functionality will be implemented soon",
+    })
+  }
+
+  const handleDeactivateCustomer = (customer: Customer) => {
+    // TODO: Implement deactivate customer functionality
+    toast({
+      title: "Feature Coming Soon",
+      description: "Deactivate customer functionality will be implemented soon",
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -142,10 +411,28 @@ export function CustomersTab() {
           <p className="text-gray-600">{t("manageCustomerRelationships")}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            {t("export")}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <Download className="h-4 w-4 mr-2" />
+                {t("export")}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={exportToCSV}>
+                <FileText className="h-4 w-4 mr-2" />
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToExcel}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Export as Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToPDF}>
+                <FileText className="h-4 w-4 mr-2" />
+                Export as PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button onClick={() => setIsAddModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             {t("add")} Customer
@@ -232,8 +519,25 @@ export function CustomersTab() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {filteredCustomers.map((customer) => (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <span className="ml-2">Loading customers...</span>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <p className="text-red-600 mb-4">Error loading customers: {error}</p>
+              <Button onClick={() => window.location.reload()} variant="outline">
+                Retry
+              </Button>
+            </div>
+          ) : filteredCustomers.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No customers found</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredCustomers.map((customer) => (
               <div key={customer.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50">
                 <Avatar className="h-12 w-12">
                   <AvatarImage src={customer.avatar || "/placeholder.svg"} alt={customer.name} />
@@ -245,10 +549,10 @@ export function CustomersTab() {
                   </AvatarFallback>
                 </Avatar>
 
-                <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-4">
+                <div className="flex-1 grid grid-cols-1 md:grid-cols-7 gap-4">
                   <div>
                     <p className="font-medium text-gray-900">{customer.name}</p>
-                    <p className="text-sm text-gray-500">ID: {customer.id}</p>
+                    <p className="text-sm text-gray-500">ID: {customer.customer_id}</p>
                   </div>
 
                   <div>
@@ -271,8 +575,8 @@ export function CustomersTab() {
                   </div>
 
                   <div>
-                    <p className="text-sm font-medium">{customer.totalOrders} orders</p>
-                    <p className="text-sm text-gray-600">${customer.totalSpent.toLocaleString()}</p>
+                    <p className="text-sm font-medium">{customer.total_orders} orders</p>
+                    <p className="text-sm text-gray-600">${customer.total_spent.toLocaleString()}</p>
                   </div>
 
                   <div>
@@ -280,31 +584,89 @@ export function CustomersTab() {
                       <Star className="h-3 w-3 text-yellow-500 fill-current" />
                       <span className="text-sm font-medium">{customer.rating}</span>
                     </div>
-                    <p className="text-sm text-gray-600">Last: {customer.lastOrder}</p>
+                    <p className="text-sm text-gray-600">Last: {customer.last_order_date || "Never"}</p>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-1 text-sm text-gray-600 mb-1">
+                      <Navigation className="h-3 w-3" />
+                      <span className="text-xs">
+                        {customer.latitude && customer.longitude 
+                          ? `${customer.latitude.toFixed(4)}, ${customer.longitude.toFixed(4)}`
+                          : "No GPS"
+                        }
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {getVisitStatusIcon(customer.visit_status)}
+                      <Badge className={`text-xs ${getVisitStatusColor(customer.visit_status)}`}>
+                        {customer.visit_status === "visited" ? "Visited" : "Not Visited"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-1 text-sm text-gray-600 mb-1">
+                      <Calendar className="h-3 w-3" />
+                      <span className="text-xs">
+                        {customer.last_visit_date ? customer.last_visit_date : "No visits"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 truncate max-w-[120px]" title={customer.visit_notes}>
+                      {customer.visit_notes ? customer.visit_notes : "No notes"}
+                    </p>
                   </div>
 
                   <div className="flex items-center justify-end">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" className="w-56">
                         <DropdownMenuItem onClick={() => handleViewProfile(customer)}>
-                          {t("viewProfile")}
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Profile
                         </DropdownMenuItem>
-                        <DropdownMenuItem>{t("createOrder")}</DropdownMenuItem>
-                        <DropdownMenuItem>{t("viewHistory")}</DropdownMenuItem>
-                        <DropdownMenuItem>{t("sendMessage")}</DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">{t("deactivate")}</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleCreateOrder(customer)}>
+                          <Package className="h-4 w-4 mr-2" />
+                          Create Order
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleViewHistory(customer)}>
+                          <History className="h-4 w-4 mr-2" />
+                          View History
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleSendMessage(customer)}>
+                          <MessageSquare className="h-4 w-4 mr-2" />
+                          Send Message
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleViewOnMap(customer)}>
+                          <Navigation className="h-4 w-4 mr-2" />
+                          View on Map
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleMarkAsVisited(customer)}>
+                          <UserCheck className="h-4 w-4 mr-2" />
+                          Mark as Visited
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleScheduleVisit(customer)}>
+                          <Calendar className="h-4 w-4 mr-2" />
+                          Schedule Visit
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-red-600" onClick={() => handleDeactivateCustomer(customer)}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Deactivate Customer
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

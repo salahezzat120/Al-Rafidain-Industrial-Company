@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,23 +11,35 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { User, Star, Package, Clock, MapPin, Save, X, DollarSign, TrendingUp } from "lucide-react"
+import { User, Star, Package, Clock, MapPin, Save, X, DollarSign, TrendingUp, Navigation, CheckCircle, XCircle, Calendar, Loader2, AlertCircle } from "lucide-react"
+import { updateCustomer, Customer as SupabaseCustomer } from "@/lib/customers"
+import { useToast } from "@/hooks/use-toast"
 
 interface Customer {
   id: string
+  customer_id: string
   name: string
   email: string
   phone: string
   address: string
-  status: string
-  totalOrders: number
-  totalSpent: number
-  lastOrder: string
+  status: 'active' | 'vip' | 'inactive'
+  total_orders: number
+  total_spent: number
+  last_order_date?: string
   rating: number
-  preferredDeliveryTime: string
-  avatar?: string
-  joinDate?: string
+  preferred_delivery_time: string
+  avatar_url?: string
+  join_date?: string
   notes?: string
+  // GPS/Geolocation fields
+  latitude?: number
+  longitude?: number
+  // Visit tracking fields
+  visit_status: 'visited' | 'not_visited'
+  last_visit_date?: string
+  visit_notes?: string
+  created_at?: string
+  updated_at?: string
 }
 
 interface CustomerProfileModalProps {
@@ -40,12 +52,108 @@ interface CustomerProfileModalProps {
 export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: CustomerProfileModalProps) {
   const [editedCustomer, setEditedCustomer] = useState<Customer | null>(customer)
   const [isEditing, setIsEditing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const { toast } = useToast()
+
+  // Update editedCustomer when customer prop changes
+  useEffect(() => {
+    if (customer) {
+      setEditedCustomer(customer)
+    }
+  }, [customer])
 
   if (!customer || !editedCustomer) return null
 
-  const handleSave = () => {
-    onSave(editedCustomer)
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+
+    if (!editedCustomer.name.trim()) {
+      newErrors.name = "Name is required"
+    }
+    if (!editedCustomer.email.trim()) {
+      newErrors.email = "Email is required"
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editedCustomer.email)) {
+      newErrors.email = "Please enter a valid email"
+    }
+    if (!editedCustomer.phone.trim()) {
+      newErrors.phone = "Phone is required"
+    }
+    if (!editedCustomer.address.trim()) {
+      newErrors.address = "Address is required"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSave = async () => {
+    if (!validateForm()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fix the errors before saving",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      const updateData = {
+        id: editedCustomer.id,
+        name: editedCustomer.name,
+        email: editedCustomer.email,
+        phone: editedCustomer.phone,
+        address: editedCustomer.address,
+        status: editedCustomer.status,
+        preferred_delivery_time: editedCustomer.preferred_delivery_time,
+        notes: editedCustomer.notes,
+        latitude: editedCustomer.latitude || undefined,
+        longitude: editedCustomer.longitude || undefined,
+        visit_status: editedCustomer.visit_status,
+        last_visit_date: editedCustomer.last_visit_date || undefined,
+        visit_notes: editedCustomer.visit_notes,
+      }
+
+      const { data, error } = await updateCustomer(updateData)
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: `Failed to update customer: ${error}`,
+          variant: "destructive",
+        })
+        return
+      }
+
+      if (data) {
+        // Update the local state with the returned data
+        const updatedCustomer = data as Customer
+        setEditedCustomer(updatedCustomer)
+        onSave(updatedCustomer)
+        setIsEditing(false)
+        setErrors({})
+        toast({
+          title: "Success",
+          description: "Customer updated successfully!",
+        })
+      }
+    } catch (err) {
+      console.error('Unexpected error updating customer:', err)
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleCancel = () => {
+    setEditedCustomer(customer)
     setIsEditing(false)
+    setErrors({})
   }
 
   const recentOrders = [
@@ -89,7 +197,7 @@ export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: Cust
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-3">
               <Avatar className="h-12 w-12">
-                <AvatarImage src={customer.avatar || "/placeholder.svg"} alt={customer.name} />
+                <AvatarImage src={customer.avatar_url || "/placeholder.svg"} alt={customer.name} />
                 <AvatarFallback>
                   {customer.name
                     .split(" ")
@@ -99,17 +207,26 @@ export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: Cust
               </Avatar>
               <div>
                 <h2 className="text-xl font-bold">{customer.name}</h2>
-                <p className="text-sm text-gray-600">Customer ID: {customer.id}</p>
+                <p className="text-sm text-gray-600">Customer ID: {customer.customer_id}</p>
               </div>
             </DialogTitle>
             <div className="flex items-center gap-2">
               {isEditing ? (
                 <>
-                  <Button onClick={handleSave} size="sm">
-                    <Save className="h-4 w-4 mr-2" />
-                    Save
+                  <Button onClick={handleSave} size="sm" disabled={isSaving}>
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Save
+                      </>
+                    )}
                   </Button>
-                  <Button variant="outline" onClick={() => setIsEditing(false)} size="sm">
+                  <Button variant="outline" onClick={handleCancel} size="sm" disabled={isSaving}>
                     <X className="h-4 w-4 mr-2" />
                     Cancel
                   </Button>
@@ -124,9 +241,10 @@ export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: Cust
         </DialogHeader>
 
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="orders">Order History</TabsTrigger>
+            <TabsTrigger value="visits">Visits</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="preferences">Preferences</TabsTrigger>
           </TabsList>
@@ -144,11 +262,20 @@ export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: Cust
                   <div>
                     <Label htmlFor="name">Full Name</Label>
                     {isEditing ? (
-                      <Input
-                        id="name"
-                        value={editedCustomer.name}
-                        onChange={(e) => setEditedCustomer({ ...editedCustomer, name: e.target.value })}
-                      />
+                      <>
+                        <Input
+                          id="name"
+                          value={editedCustomer.name}
+                          onChange={(e) => setEditedCustomer({ ...editedCustomer, name: e.target.value })}
+                          className={errors.name ? "border-red-500" : ""}
+                        />
+                        {errors.name && (
+                          <div className="flex items-center gap-1 text-sm text-red-600 mt-1">
+                            <AlertCircle className="h-4 w-4" />
+                            {errors.name}
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <p className="text-sm font-medium mt-1">{customer.name}</p>
                     )}
@@ -157,12 +284,21 @@ export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: Cust
                   <div>
                     <Label htmlFor="email">Email</Label>
                     {isEditing ? (
-                      <Input
-                        id="email"
-                        type="email"
-                        value={editedCustomer.email}
-                        onChange={(e) => setEditedCustomer({ ...editedCustomer, email: e.target.value })}
-                      />
+                      <>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={editedCustomer.email}
+                          onChange={(e) => setEditedCustomer({ ...editedCustomer, email: e.target.value })}
+                          className={errors.email ? "border-red-500" : ""}
+                        />
+                        {errors.email && (
+                          <div className="flex items-center gap-1 text-sm text-red-600 mt-1">
+                            <AlertCircle className="h-4 w-4" />
+                            {errors.email}
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <p className="text-sm font-medium mt-1">{customer.email}</p>
                     )}
@@ -171,11 +307,20 @@ export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: Cust
                   <div>
                     <Label htmlFor="phone">Phone</Label>
                     {isEditing ? (
-                      <Input
-                        id="phone"
-                        value={editedCustomer.phone}
-                        onChange={(e) => setEditedCustomer({ ...editedCustomer, phone: e.target.value })}
-                      />
+                      <>
+                        <Input
+                          id="phone"
+                          value={editedCustomer.phone}
+                          onChange={(e) => setEditedCustomer({ ...editedCustomer, phone: e.target.value })}
+                          className={errors.phone ? "border-red-500" : ""}
+                        />
+                        {errors.phone && (
+                          <div className="flex items-center gap-1 text-sm text-red-600 mt-1">
+                            <AlertCircle className="h-4 w-4" />
+                            {errors.phone}
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <p className="text-sm font-medium mt-1">{customer.phone}</p>
                     )}
@@ -184,14 +329,56 @@ export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: Cust
                   <div>
                     <Label htmlFor="address">Address</Label>
                     {isEditing ? (
-                      <Textarea
-                        id="address"
-                        value={editedCustomer.address}
-                        onChange={(e) => setEditedCustomer({ ...editedCustomer, address: e.target.value })}
-                      />
+                      <>
+                        <Textarea
+                          id="address"
+                          value={editedCustomer.address}
+                          onChange={(e) => setEditedCustomer({ ...editedCustomer, address: e.target.value })}
+                          className={errors.address ? "border-red-500" : ""}
+                        />
+                        {errors.address && (
+                          <div className="flex items-center gap-1 text-sm text-red-600 mt-1">
+                            <AlertCircle className="h-4 w-4" />
+                            {errors.address}
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <p className="text-sm font-medium mt-1">{customer.address}</p>
                     )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="latitude">GPS Latitude</Label>
+                      {isEditing ? (
+                        <Input
+                          id="latitude"
+                          type="number"
+                          step="any"
+                          value={editedCustomer.latitude || ""}
+                          onChange={(e) => setEditedCustomer({ ...editedCustomer, latitude: parseFloat(e.target.value) || undefined })}
+                          placeholder="e.g., 33.3152"
+                        />
+                      ) : (
+                        <p className="text-sm font-medium mt-1">{customer.latitude || "Not set"}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="longitude">GPS Longitude</Label>
+                      {isEditing ? (
+                        <Input
+                          id="longitude"
+                          type="number"
+                          step="any"
+                          value={editedCustomer.longitude || ""}
+                          onChange={(e) => setEditedCustomer({ ...editedCustomer, longitude: parseFloat(e.target.value) || undefined })}
+                          placeholder="e.g., 44.3661"
+                        />
+                      ) : (
+                        <p className="text-sm font-medium mt-1">{customer.longitude || "Not set"}</p>
+                      )}
+                    </div>
                   </div>
 
                   <div>
@@ -199,7 +386,7 @@ export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: Cust
                     {isEditing ? (
                       <Select
                         value={editedCustomer.status}
-                        onValueChange={(value) => setEditedCustomer({ ...editedCustomer, status: value })}
+                        onValueChange={(value) => setEditedCustomer({ ...editedCustomer, status: value as 'active' | 'vip' | 'inactive' })}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -227,11 +414,11 @@ export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: Cust
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="text-center p-3 bg-blue-50 rounded-lg">
-                      <p className="text-2xl font-bold text-blue-600">{customer.totalOrders}</p>
+                      <p className="text-2xl font-bold text-blue-600">{customer.total_orders}</p>
                       <p className="text-sm text-blue-700">Total Orders</p>
                     </div>
                     <div className="text-center p-3 bg-green-50 rounded-lg">
-                      <p className="text-2xl font-bold text-green-600">${customer.totalSpent.toLocaleString()}</p>
+                      <p className="text-2xl font-bold text-green-600">${customer.total_spent.toLocaleString()}</p>
                       <p className="text-sm text-green-700">Total Spent</p>
                     </div>
                   </div>
@@ -246,12 +433,12 @@ export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: Cust
 
                   <div>
                     <Label>Join Date</Label>
-                    <p className="text-sm font-medium mt-1">{customer.joinDate || "June 15, 2023"}</p>
+                    <p className="text-sm font-medium mt-1">{customer.join_date || "June 15, 2023"}</p>
                   </div>
 
                   <div>
                     <Label>Last Order</Label>
-                    <p className="text-sm font-medium mt-1">{customer.lastOrder}</p>
+                    <p className="text-sm font-medium mt-1">{customer.last_order_date || "Never"}</p>
                   </div>
 
                   <div>
@@ -305,6 +492,140 @@ export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: Cust
             </Card>
           </TabsContent>
 
+          <TabsContent value="visits" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5" />
+                    Visit Status
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>Current Status</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      {customer.visit_status === "visited" ? (
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-600" />
+                      )}
+                      <Badge className={customer.visit_status === "visited" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                        {customer.visit_status === "visited" ? "Visited" : "Not Visited"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Last Visit Date</Label>
+                    <p className="text-sm font-medium mt-1">
+                      {customer.last_visit_date || "No visits recorded"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label>Visit Notes</Label>
+                    {isEditing ? (
+                      <Textarea
+                        value={editedCustomer.visit_notes || ""}
+                        onChange={(e) => setEditedCustomer({ ...editedCustomer, visit_notes: e.target.value })}
+                        placeholder="Add visit notes..."
+                        rows={3}
+                      />
+                    ) : (
+                      <p className="text-sm font-medium mt-1">
+                        {customer.visit_notes || "No visit notes"}
+                      </p>
+                    )}
+                  </div>
+
+                  {isEditing && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="visitStatus">Update Status</Label>
+                        <Select
+                          value={editedCustomer.visit_status || "not_visited"}
+                          onValueChange={(value) => setEditedCustomer({ ...editedCustomer, visit_status: value as 'visited' | 'not_visited' })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="not_visited">Not Visited</SelectItem>
+                            <SelectItem value="visited">Visited</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="lastVisitDate">Last Visit Date</Label>
+                        <Input
+                          id="lastVisitDate"
+                          type="date"
+                          value={editedCustomer.last_visit_date || ""}
+                          onChange={(e) => setEditedCustomer({ ...editedCustomer, last_visit_date: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Navigation className="h-5 w-5" />
+                    Location Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>GPS Coordinates</Label>
+                    <div className="p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm font-mono">
+                        {customer.latitude && customer.longitude 
+                          ? `${customer.latitude}, ${customer.longitude}`
+                          : "No GPS coordinates available"
+                        }
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Address</Label>
+                    <p className="text-sm font-medium mt-1">{customer.address}</p>
+                  </div>
+
+                  {customer.latitude && customer.longitude && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-800">
+                        <strong>Map Link:</strong> 
+                        <a 
+                          href={`https://www.google.com/maps?q=${customer.latitude},${customer.longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="ml-1 text-blue-600 hover:underline"
+                        >
+                          View on Google Maps
+                        </a>
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm">
+                      <Navigation className="h-4 w-4 mr-2" />
+                      Get Directions
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Schedule Visit
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
           <TabsContent value="analytics" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
@@ -339,12 +660,12 @@ export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: Cust
                 <CardContent className="space-y-4">
                   <div className="text-center p-4 bg-purple-50 rounded-lg">
                     <p className="text-2xl font-bold text-purple-600">
-                      ${(customer.totalSpent / customer.totalOrders).toFixed(2)}
+                      ${customer.total_orders > 0 ? (customer.total_spent / customer.total_orders).toFixed(2) : "0.00"}
                     </p>
                     <p className="text-sm text-purple-700">Average Order Value</p>
                   </div>
                   <div className="text-center p-4 bg-orange-50 rounded-lg">
-                    <p className="text-2xl font-bold text-orange-600">${(customer.totalSpent / 12).toFixed(2)}</p>
+                    <p className="text-2xl font-bold text-orange-600">${(customer.total_spent / 12).toFixed(2)}</p>
                     <p className="text-sm text-orange-700">Monthly Average</p>
                   </div>
                 </CardContent>
@@ -365,8 +686,8 @@ export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: Cust
                   <Label htmlFor="deliveryTime">Preferred Delivery Time</Label>
                   {isEditing ? (
                     <Select
-                      value={editedCustomer.preferredDeliveryTime}
-                      onValueChange={(value) => setEditedCustomer({ ...editedCustomer, preferredDeliveryTime: value })}
+                      value={editedCustomer.preferred_delivery_time}
+                      onValueChange={(value) => setEditedCustomer({ ...editedCustomer, preferred_delivery_time: value })}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -379,7 +700,7 @@ export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: Cust
                       </SelectContent>
                     </Select>
                   ) : (
-                    <p className="text-sm font-medium mt-1">{customer.preferredDeliveryTime}</p>
+                    <p className="text-sm font-medium mt-1">{customer.preferred_delivery_time}</p>
                   )}
                 </div>
 
