@@ -11,7 +11,7 @@ import {
   MapPin, 
   Navigation, 
   Clock, 
-  Speed, 
+  Gauge, 
   Route, 
   Phone, 
   MessageCircle,
@@ -301,7 +301,7 @@ export function LiveTrackingModal({ driver, isOpen, onClose }: LiveTrackingModal
                           <div className="flex items-center gap-4 text-xs text-gray-500">
                             <span>{location.timestamp}</span>
                             <span className="flex items-center gap-1">
-                              <Speed className="h-3 w-3" />
+                              <Gauge className="h-3 w-3" />
                               {location.speed} km/h
                             </span>
                           </div>

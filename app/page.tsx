@@ -22,6 +22,7 @@ import { AlertsTab } from "@/components/admin/alerts-tab"
 import { SettingsTab } from "@/components/admin/settings-tab"
 import { VisitsTab } from "@/components/admin/visits-tab"
 import { MessagingTab } from "@/components/admin/messaging-tab"
+import { AfterSalesTab } from "@/components/admin/after-sales-tab"
 import { ChatBot } from "@/components/chatbot/chatbot"
 import { AssignDeliveryModal } from "@/components/supervisor/assign-delivery-modal"
 import { ManageDriversModal } from "@/components/supervisor/manage-drivers-modal"
@@ -116,9 +117,10 @@ function Dashboard() {
             {activeTab === "tracking" && <TrackingTab />}
             {activeTab === "analytics" && <AnalyticsTab />}
             {activeTab === "alerts" && <AlertsTab />}
-            {activeTab === "visits" && <VisitsTab />}
-            {activeTab === "messaging" && <MessagingTab />}
-            {activeTab === "settings" && <SettingsTab />}
+          {activeTab === "visits" && <VisitsTab />}
+          {activeTab === "messaging" && <MessagingTab />}
+          {activeTab === "after-sales" && <AfterSalesTab />}
+          {activeTab === "settings" && <SettingsTab />}
           </main>
         </div>
       </div>

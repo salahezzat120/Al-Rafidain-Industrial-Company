@@ -18,6 +18,7 @@ import {
   UserPlus,
   Calendar,
   MessageSquare,
+  Headphones,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useLanguage } from "@/contexts/language-context"
@@ -43,6 +44,7 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
     { id: "alerts", label: t("nav.alerts"), icon: Bell },
     { id: "visits", label: t("visitManagement"), icon: Calendar },
     { id: "messaging", label: t("internalMessaging"), icon: MessageSquare },
+    { id: "after-sales", label: t("afterSalesSupport"), icon: Headphones },
     { id: "settings", label: t("nav.settings"), icon: Settings },
   ]
 
