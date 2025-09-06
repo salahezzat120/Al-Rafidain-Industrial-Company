@@ -30,6 +30,8 @@ import { DriverNotifications } from "@/components/driver/driver-notifications"
 import { DriverQuickActions } from "@/components/driver/driver-quick-actions"
 import { useState, useEffect } from "react"
 import Image from "next/image"
+import dynamic from "next/dynamic"
+import { NoSSR } from "@/components/no-ssr"
 
 function Dashboard() {
   const { user, logout } = useAuth()
@@ -348,10 +350,25 @@ function ClientOnlyDashboard() {
   return <Dashboard />
 }
 
+const DynamicDashboard = dynamic(() => Promise.resolve(ClientOnlyDashboard), {
+  ssr: false,
+  loading: () => (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    </div>
+  )
+})
+
 export default function HomePage() {
   return (
-    <ProtectedRoute>
-      <ClientOnlyDashboard />
-    </ProtectedRoute>
+    <NoSSR fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <ProtectedRoute>
+        <DynamicDashboard />
+      </ProtectedRoute>
+    </NoSSR>
   )
 }

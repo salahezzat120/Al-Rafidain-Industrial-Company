@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Star, Truck, Filter, Download } from "lucide-react"
+import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Star, Truck, Filter, Download, Navigation } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { DriverProfileModal } from "./driver-profile-modal"
 import { AddDriverModal } from "./add-driver-modal"
+import { LiveTrackingModal } from "./live-tracking-modal"
 import { useLanguage } from "@/contexts/language-context"
 
 const mockDrivers = [
@@ -28,6 +29,8 @@ const mockDrivers = [
     licenseNumber: "DL123456789",
     emergencyContact: "Jane Johnson - (555) 987-6543",
     address: "123 Main St, City, State 12345",
+    coverageAreas: ["Downtown District", "North Zone", "Business District"],
+    idImage: "/placeholder.svg?height=200&width=300",
   },
   {
     id: "2",
@@ -44,6 +47,8 @@ const mockDrivers = [
     licenseNumber: "DL987654321",
     emergencyContact: "Tom Wilson - (555) 876-5432",
     address: "456 Oak Ave, City, State 12345",
+    coverageAreas: ["North Zone", "East District", "Industrial Area"],
+    idImage: "/placeholder.svg?height=200&width=300",
   },
   {
     id: "3",
@@ -60,6 +65,8 @@ const mockDrivers = [
     licenseNumber: "DL456789123",
     emergencyContact: "Lisa Chen - (555) 765-4321",
     address: "789 Pine Rd, City, State 12345",
+    coverageAreas: ["East District", "Residential Sector A"],
+    idImage: null,
   },
   {
     id: "4",
@@ -76,6 +83,8 @@ const mockDrivers = [
     licenseNumber: "DL789123456",
     emergencyContact: "Carlos Rodriguez - (555) 654-3210",
     address: "321 Elm St, City, State 12345",
+    coverageAreas: ["West Zone", "South Zone", "Residential Sector B"],
+    idImage: "/placeholder.svg?height=200&width=300",
   },
 ]
 
@@ -85,6 +94,7 @@ export function DriversTab() {
   const [selectedDriver, setSelectedDriver] = useState<any>(null)
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false)
 
   const { t } = useLanguage()
 
@@ -110,6 +120,11 @@ export function DriversTab() {
   const handleViewProfile = (driver: any) => {
     setSelectedDriver(driver)
     setIsProfileModalOpen(true)
+  }
+
+  const handleLiveTracking = (driver: any) => {
+    setSelectedDriver(driver)
+    setIsTrackingModalOpen(true)
   }
 
   const handleSaveDriver = (updatedDriver: any) => {
@@ -286,23 +301,55 @@ export function DriversTab() {
                       <p className="text-sm font-medium">
                         {t("vehicle")}: {driver.vehicle}
                       </p>
+                      {driver.coverageAreas && driver.coverageAreas.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {driver.coverageAreas.slice(0, 2).map((area, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-100 text-blue-800"
+                            >
+                              {area}
+                            </span>
+                          ))}
+                          {driver.coverageAreas.length > 2 && (
+                            <span className="text-xs text-gray-500">
+                              +{driver.coverageAreas.length - 2} more
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleViewProfile(driver)}>
-                          {t("viewProfile")}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>{t("assignTask")}</DropdownMenuItem>
-                        <DropdownMenuItem>{t("viewHistory")}</DropdownMenuItem>
-                        <DropdownMenuItem>{t("sendMessage")}</DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">{t("suspend")}</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleLiveTracking(driver)}
+                        className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                      >
+                        <Navigation className="h-3 w-3 mr-1" />
+                        Track
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewProfile(driver)}>
+                            {t("viewProfile")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleLiveTracking(driver)}>
+                            <Navigation className="h-4 w-4 mr-2" />
+                            Live Tracking
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>{t("assignTask")}</DropdownMenuItem>
+                          <DropdownMenuItem>{t("viewHistory")}</DropdownMenuItem>
+                          <DropdownMenuItem>{t("sendMessage")}</DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-600">{t("suspend")}</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -320,6 +367,12 @@ export function DriversTab() {
       />
 
       <AddDriverModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAdd={handleAddDriver} />
+
+      <LiveTrackingModal
+        driver={selectedDriver}
+        isOpen={isTrackingModalOpen}
+        onClose={() => setIsTrackingModalOpen(false)}
+      />
     </div>
   )
 }

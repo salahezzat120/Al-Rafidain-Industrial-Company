@@ -12,7 +12,8 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { User, Star, Truck, Calendar, Clock, Award, CheckCircle, Save, X, BarChart3 } from "lucide-react"
+import { User, Star, Truck, Calendar, Clock, Award, CheckCircle, Save, X, BarChart3, MapPin, Camera, Navigation } from "lucide-react"
+import { useLanguage } from "@/contexts/language-context"
 
 interface Driver {
   id: string
@@ -29,6 +30,8 @@ interface Driver {
   licenseNumber?: string
   emergencyContact?: string
   address?: string
+  coverageAreas?: string[]
+  idImage?: string
 }
 
 interface DriverProfileModalProps {
@@ -39,6 +42,7 @@ interface DriverProfileModalProps {
 }
 
 export function DriverProfileModal({ driver, isOpen, onClose, onSave }: DriverProfileModalProps) {
+  const { t } = useLanguage()
   const [editedDriver, setEditedDriver] = useState<Driver | null>(driver)
   const [isEditing, setIsEditing] = useState(false)
 
@@ -104,10 +108,11 @@ export function DriverProfileModal({ driver, isOpen, onClose, onSave }: DriverPr
         </DialogHeader>
 
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="performance">Performance</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="profile">{t("viewProfile")}</TabsTrigger>
+            <TabsTrigger value="performance">{t("performance")}</TabsTrigger>
+            <TabsTrigger value="coverage">{t("coverage")}</TabsTrigger>
+            <TabsTrigger value="history">{t("movementHistory")}</TabsTrigger>
             <TabsTrigger value="schedule">Schedule</TabsTrigger>
           </TabsList>
 
@@ -315,6 +320,78 @@ export function DriverProfileModal({ driver, isOpen, onClose, onSave }: DriverPr
                     <div className="text-center p-3 bg-yellow-50 rounded-lg">
                       <p className="text-2xl font-bold text-yellow-600">4.8</p>
                       <p className="text-sm text-yellow-700">Avg Rating</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="coverage" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    {t("coverageAreas")}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {driver.coverageAreas && driver.coverageAreas.length > 0 ? (
+                      driver.coverageAreas.map((area, index) => (
+                        <div key={index} className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg">
+                          <MapPin className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-medium">{area}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <MapPin className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                        <p>{t("noCoverageAssigned")}</p>
+                        <p className="text-sm">{t("contactAdmin")}</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Camera className="h-5 w-5" />
+                    {t("idVerification")}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {driver.idImage ? (
+                      <div className="relative">
+                        <img
+                          src={driver.idImage}
+                          alt="Driver ID"
+                          className="w-full h-48 object-cover rounded-lg border"
+                        />
+                        <div className="absolute top-2 right-2">
+                          <Badge className="bg-green-100 text-green-800">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            {t("verified")}
+                          </Badge>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        <Camera className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                        <p>{t("noIdUploaded")}</p>
+                        <p className="text-sm">{t("verificationPending")}</p>
+                      </div>
+                    )}
+                    
+                    <div className="pt-4 border-t">
+                      <Button variant="outline" className="w-full">
+                        <Navigation className="h-4 w-4 mr-2" />
+                        {t("startLiveTracking")}
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
