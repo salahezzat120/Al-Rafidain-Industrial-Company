@@ -20,6 +20,9 @@ import { TrackingTab } from "@/components/admin/tracking-tab"
 import { AnalyticsTab } from "@/components/admin/analytics-tab"
 import { AlertsTab } from "@/components/admin/alerts-tab"
 import { SettingsTab } from "@/components/admin/settings-tab"
+import { VisitsTab } from "@/components/admin/visits-tab"
+import { MessagingTab } from "@/components/admin/messaging-tab"
+import { ChatBot } from "@/components/chatbot/chatbot"
 import { AssignDeliveryModal } from "@/components/supervisor/assign-delivery-modal"
 import { ManageDriversModal } from "@/components/supervisor/manage-drivers-modal"
 import { ReportsModal } from "@/components/supervisor/reports-modal"
@@ -41,6 +44,7 @@ function Dashboard() {
   const [manageDriversOpen, setManageDriversOpen] = useState(false)
   const [reportsOpen, setReportsOpen] = useState(false)
   const [trackVehiclesOpen, setTrackVehiclesOpen] = useState(false)
+  const [isChatBotMinimized, setIsChatBotMinimized] = useState(false)
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -112,6 +116,8 @@ function Dashboard() {
             {activeTab === "tracking" && <TrackingTab />}
             {activeTab === "analytics" && <AnalyticsTab />}
             {activeTab === "alerts" && <AlertsTab />}
+            {activeTab === "visits" && <VisitsTab />}
+            {activeTab === "messaging" && <MessagingTab />}
             {activeTab === "settings" && <SettingsTab />}
           </main>
         </div>
@@ -328,6 +334,13 @@ function Dashboard() {
       <ManageDriversModal isOpen={manageDriversOpen} onClose={() => setManageDriversOpen(false)} />
       <ReportsModal isOpen={reportsOpen} onClose={() => setReportsOpen(false)} />
       <TrackVehiclesModal isOpen={trackVehiclesOpen} onClose={() => setTrackVehiclesOpen(false)} />
+      
+      {/* ChatBot */}
+      <ChatBot 
+        isMinimized={isChatBotMinimized}
+        onMinimize={() => setIsChatBotMinimized(true)}
+        onMaximize={() => setIsChatBotMinimized(false)}
+      />
     </div>
   )
 }

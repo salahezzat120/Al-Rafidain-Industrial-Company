@@ -16,6 +16,8 @@ import {
   ChevronRight,
   UserCheck,
   UserPlus,
+  Calendar,
+  MessageSquare,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useLanguage } from "@/contexts/language-context"
@@ -39,6 +41,8 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
     { id: "tracking", label: t("nav.tracking"), icon: MapPin },
     { id: "analytics", label: t("nav.analytics"), icon: BarChart3 },
     { id: "alerts", label: t("nav.alerts"), icon: Bell },
+    { id: "visits", label: t("visitManagement"), icon: Calendar },
+    { id: "messaging", label: t("internalMessaging"), icon: MessageSquare },
     { id: "settings", label: t("nav.settings"), icon: Settings },
   ]
 
