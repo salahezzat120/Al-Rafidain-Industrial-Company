@@ -83,3 +83,51 @@ export const safeSupabaseQuery = async <T>(
     }
   }
 }
+
+export const getDrivers = async (): Promise<{ data: any[] | null; error: string | null }> => {
+  return safeSupabaseQuery(async () => {
+    const { data, error } = await supabase
+      .from('drivers')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching drivers:', error)
+      console.error('Error details:', JSON.stringify(error, null, 2))
+      return { data: null, error: error.message || 'Unknown error occurred' }
+    }
+
+    return { data, error: null }
+  })
+}
+
+export const addDriver = async (driverData: {
+  name: string,
+  email: string,
+  phone: string,
+  status?: string,
+  location?: string,
+  rating?: number,
+  deliveries?: number,
+  vehicle?: string,
+  avatar_url?: string,
+  join_date?: string,
+  license_number?: string,
+  emergency_contact?: string,
+  address?: string,
+  coverage_areas?: string[]
+}): Promise<{ data: any | null; error: string | null }> => {
+  return safeSupabaseQuery(async () => {
+    const { data, error } = await supabase
+      .from('drivers')
+      .insert([driverData])
+
+    if (error) {
+      console.error('Error adding driver:', error)
+      console.error('Error details:', JSON.stringify(error, null, 2))
+      return { data: null, error: error.message || 'Unknown error occurred' }
+    }
+
+    return { data, error: null }
+  })
+}
