@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
 import { Search, Phone, MapPin, Clock, MessageSquare } from "lucide-react"
+import { getDrivers } from "@/lib/supabase-utils"
 
 interface ManageDriversModalProps {
   isOpen: boolean
@@ -16,50 +17,20 @@ interface ManageDriversModalProps {
 
 export function ManageDriversModal({ isOpen, onClose }: ManageDriversModalProps) {
   const [searchTerm, setSearchTerm] = useState("")
+  const [drivers, setDrivers] = useState<any[]>([])
 
-  // Mock driver data
-  const drivers = [
-    {
-      id: "1",
-      name: "John Smith",
-      phone: "+1 (555) 123-4567",
-      status: "available",
-      location: "Downtown",
-      currentDeliveries: 0,
-      completedToday: 8,
-      avatar: "/driver-avatar.png",
-    },
-    {
-      id: "2",
-      name: "Sarah Johnson",
-      phone: "+1 (555) 234-5678",
-      status: "on-route",
-      location: "North Side",
-      currentDeliveries: 2,
-      completedToday: 12,
-      avatar: "/driver-avatar.png",
-    },
-    {
-      id: "3",
-      name: "Mike Wilson",
-      phone: "+1 (555) 345-6789",
-      status: "available",
-      location: "East End",
-      currentDeliveries: 0,
-      completedToday: 6,
-      avatar: "/driver-avatar.png",
-    },
-    {
-      id: "4",
-      name: "Lisa Brown",
-      phone: "+1 (555) 456-7890",
-      status: "busy",
-      location: "South District",
-      currentDeliveries: 3,
-      completedToday: 9,
-      avatar: "/driver-avatar.png",
-    },
-  ]
+  useEffect(() => {
+    const fetchDrivers = async () => {
+      const { data, error } = await getDrivers()
+      if (error) {
+        console.error('Error fetching drivers:', error)
+      } else {
+        setDrivers(data || [])
+      }
+    }
+
+    fetchDrivers()
+  }, [])
 
   const getStatusColor = (status: string) => {
     switch (status) {

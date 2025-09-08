@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,91 +12,31 @@ import { DriverProfileModal } from "./driver-profile-modal"
 import { AddDriverModal } from "./add-driver-modal"
 import { LiveTrackingModal } from "./live-tracking-modal"
 import { useLanguage } from "@/contexts/language-context"
-
-const mockDrivers = [
-  {
-    id: "1",
-    name: "Mike Johnson",
-    email: "mike.johnson@delivery.com",
-    phone: "+1 (555) 123-4567",
-    status: "active",
-    location: "Downtown District",
-    rating: 4.8,
-    deliveries: 156,
-    vehicle: "VH-001",
-    avatar: "/placeholder.svg?height=40&width=40",
-    joinDate: "January 15, 2024",
-    licenseNumber: "DL123456789",
-    emergencyContact: "Jane Johnson - (555) 987-6543",
-    address: "123 Main St, City, State 12345",
-    coverageAreas: ["Downtown District", "North Zone", "Business District"],
-    idImage: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "2",
-    name: "Sarah Wilson",
-    email: "sarah.wilson@delivery.com",
-    phone: "+1 (555) 234-5678",
-    status: "on-route",
-    location: "North Zone",
-    rating: 4.9,
-    deliveries: 203,
-    vehicle: "VH-007",
-    avatar: "/placeholder.svg?height=40&width=40",
-    joinDate: "December 3, 2023",
-    licenseNumber: "DL987654321",
-    emergencyContact: "Tom Wilson - (555) 876-5432",
-    address: "456 Oak Ave, City, State 12345",
-    coverageAreas: ["North Zone", "East District", "Industrial Area"],
-    idImage: "/placeholder.svg?height=200&width=300",
-  },
-  {
-    id: "3",
-    name: "David Chen",
-    email: "david.chen@delivery.com",
-    phone: "+1 (555) 345-6789",
-    status: "offline",
-    location: "East District",
-    rating: 4.6,
-    deliveries: 89,
-    vehicle: "VH-012",
-    avatar: "/placeholder.svg?height=40&width=40",
-    joinDate: "March 20, 2024",
-    licenseNumber: "DL456789123",
-    emergencyContact: "Lisa Chen - (555) 765-4321",
-    address: "789 Pine Rd, City, State 12345",
-    coverageAreas: ["East District", "Residential Sector A"],
-    idImage: null,
-  },
-  {
-    id: "4",
-    name: "Emma Rodriguez",
-    email: "emma.rodriguez@delivery.com",
-    phone: "+1 (555) 456-7890",
-    status: "active",
-    location: "West Zone",
-    rating: 4.7,
-    deliveries: 134,
-    vehicle: "VH-018",
-    avatar: "/placeholder.svg?height=40&width=40",
-    joinDate: "February 8, 2024",
-    licenseNumber: "DL789123456",
-    emergencyContact: "Carlos Rodriguez - (555) 654-3210",
-    address: "321 Elm St, City, State 12345",
-    coverageAreas: ["West Zone", "South Zone", "Residential Sector B"],
-    idImage: "/placeholder.svg?height=200&width=300",
-  },
-]
+import { getDrivers } from "@/lib/supabase-utils"
+import * as XLSX from 'xlsx';
 
 export function DriversTab() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [drivers, setDrivers] = useState(mockDrivers)
+  const [drivers, setDrivers] = useState<any[]>([])
   const [selectedDriver, setSelectedDriver] = useState<any>(null)
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false)
 
   const { t } = useLanguage()
+
+  useEffect(() => {
+    const fetchDrivers = async () => {
+      const { data, error } = await getDrivers()
+      if (error) {
+        console.error('Error fetching drivers:', error)
+      } else {
+        setDrivers(data || [])
+      }
+    }
+
+    fetchDrivers()
+  }, [])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -147,6 +87,13 @@ export function DriversTab() {
 
   const stats = getStatusStats()
 
+  const exportToExcel = (drivers) => {
+    const worksheet = XLSX.utils.json_to_sheet(drivers);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Drivers');
+    XLSX.writeFile(workbook, 'drivers.xlsx');
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -156,7 +103,7 @@ export function DriversTab() {
           <p className="text-gray-600">{t("manageDeliveryTeam")}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => exportToExcel(drivers)}>
             <Download className="h-4 w-4 mr-2" />
             {t("export")}
           </Button>

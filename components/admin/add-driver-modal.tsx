@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { User, Truck, AlertCircle, Upload, MapPin, Camera } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
+import { addDriver } from "@/lib/supabase-utils"
 
 interface AddDriverModalProps {
   isOpen: boolean
@@ -61,35 +62,44 @@ export function AddDriverModal({ isOpen, onClose, onAdd }: AddDriverModalProps) 
 
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
     const newDriver = {
-      id: `DR${Date.now()}`,
-      ...formData,
-      rating: 0,
-      deliveries: 0,
-      joinDate: new Date().toLocaleDateString(),
-      avatar: "/placeholder.svg?height=40&width=40",
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      address: formData.address,
+      license_number: formData.licenseNumber,
+      emergency_contact: formData.emergencyContact,
+      vehicle: formData.vehicle,
+      status: formData.status,
+      coverage_areas: formData.coverageAreas,
+      // Add other fields as needed
     }
 
-    onAdd(newDriver)
-    setFormData({
-      name: "",
-      email: "",
-      phone: "",
-      address: "",
-      licenseNumber: "",
-      emergencyContact: "",
-      vehicle: "",
-      status: "active",
-      idImage: null,
-      coverageAreas: [],
-    })
-    setIdImagePreview(null)
-    setErrors({})
+    const { data, error } = await addDriver(newDriver)
+
+    if (error) {
+      console.error('Error adding driver:', error)
+      // Handle error (e.g., show a notification)
+    } else {
+      onAdd(data)
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        address: "",
+        licenseNumber: "",
+        emergencyContact: "",
+        vehicle: "",
+        status: "active",
+        idImage: null,
+        coverageAreas: [],
+      })
+      setIdImagePreview(null)
+      setErrors({})
+      onClose()
+    }
+
     setIsSubmitting(false)
-    onClose()
   }
 
   const handleInputChange = (field: string, value: string) => {
@@ -131,6 +141,13 @@ export function AddDriverModal({ isOpen, onClose, onAdd }: AddDriverModalProps) 
     { key: "residentialSectorB", value: "Residential Sector B" },
     { key: "businessDistrict", value: "Business District" },
     { key: "airportZone", value: "Airport Zone" }
+  ]
+
+  const statusOptions = [
+    { value: "available", label: t("available") },
+    { value: "busy", label: t("busy") },
+    { value: "offline", label: t("offline") },
+    { value: "on_route", label: t("onRoute") }
   ]
 
   return (
@@ -257,8 +274,11 @@ export function AddDriverModal({ isOpen, onClose, onAdd }: AddDriverModalProps) 
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="active">{t("active")}</SelectItem>
-                      <SelectItem value="offline">{t("offline")}</SelectItem>
+                      {statusOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

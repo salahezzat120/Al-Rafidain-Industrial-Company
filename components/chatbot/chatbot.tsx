@@ -35,7 +35,9 @@ interface ChatBotProps {
 
 export function ChatBot({ className = "", isMinimized = false, onMinimize, onMaximize }: ChatBotProps) {
   const { user } = useAuth()
-  const { t } = useLanguage()
+  const { language, t } = useLanguage()
+  const [feedback, setFeedback] = useState<null | 'up' | 'down'>(null)
+  const [feedbackComment, setFeedbackComment] = useState("")
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState("")
   const [isTyping, setIsTyping] = useState(false)
@@ -65,11 +67,11 @@ export function ChatBot({ className = "", isMinimized = false, onMinimize, onMax
       // In real app, this would fetch from API
       const mockMessages: ChatMessage[] = [
         {
-          id: "1",
+          id: "welcome",
           sender_id: "bot",
           sender_name: "Al-Rafidain Assistant",
           sender_role: "Bot",
-          message: `${t("welcomeToAssistant")}\n\n• ${t("visitSchedules")}\n• ${t("systemAlerts")}\n• ${t("deliveryTracking")}\n• ${t("companyInformation")}\n\n${t("howCanIAssist")}`,
+          message: buildWelcomeMessage(),
           message_type: "bot",
           timestamp: new Date().toISOString(),
           is_read: true
@@ -81,13 +83,18 @@ export function ChatBot({ className = "", isMinimized = false, onMinimize, onMax
     }
   }
 
+  // Update the welcome message when language changes
+  useEffect(() => {
+    setMessages(prev => prev.map(m => m.id === 'welcome' ? { ...m, message: buildWelcomeMessage() } : m))
+  }, [language])
+
   const handleSendMessage = async () => {
     if (!input.trim()) return
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       sender_id: user?.id || "1",
-      sender_name: user?.email || "User",
+      sender_name: user?.email || (user?.id ?? "User"),
       sender_role: user?.role || "User",
       message: input,
       message_type: "user",
@@ -180,13 +187,16 @@ export function ChatBot({ className = "", isMinimized = false, onMinimize, onMax
     { label: t("todaysVisits"), icon: Calendar, action: () => setInput(t("chatbotResponses.showTodaysVisits")) },
     { label: t("activeAlerts"), icon: AlertTriangle, action: () => setInput(t("chatbotResponses.anyAlerts")) },
     { label: t("delegateStatus"), icon: User, action: () => setInput(t("chatbotResponses.delegateStatus")) },
-    { label: t("deliveryInfo"), icon: Truck, action: () => setInput(t("chatbotResponses.deliveryInformation")) }
+    { label: t("deliveryInfo"), icon: Truck, action: () => setInput(t("chatbotResponses.deliveryInformation")) },
+    { label: t("scheduleVisit"), icon: Calendar, action: () => setInput(t("scheduleVisit")) }
   ]
 
   if (isMinimized) {
     return (
-      <div className={`fixed bottom-4 right-4 z-50 ${className}`}>
+      <div className={`fixed bottom-4 ${language === 'ar' ? 'left-4' : 'right-4'} z-50 ${className}`}>
         <Button
+          aria-label={t("maximize")}
+          title={t("maximize")}
           onClick={onMaximize}
           className="rounded-full h-14 w-14 shadow-lg"
           size="icon"
@@ -198,10 +208,10 @@ export function ChatBot({ className = "", isMinimized = false, onMinimize, onMax
   }
 
   return (
-    <div className={`fixed bottom-4 right-4 z-50 w-96 h-[500px] ${className}`}>
-      <Card className="h-full flex flex-col shadow-xl">
+    <div className={`fixed bottom-4 ${language === 'ar' ? 'left-4' : 'right-4'} z-50 w-96 max-w-[94vw] h-[500px] ${className}`}>
+      <Card className="h-full flex flex-col shadow-xl" role="dialog" aria-label={t("assistantTitle")}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <div className="flex items-center space-x-2">
+          <div className={`flex items-center ${language === 'ar' ? 'space-x-reverse space-x-2' : 'space-x-2'}`}>
             <Avatar className="h-8 w-8">
               <AvatarImage src="/bot-avatar.png" />
               <AvatarFallback>
@@ -209,18 +219,20 @@ export function ChatBot({ className = "", isMinimized = false, onMinimize, onMax
               </AvatarFallback>
             </Avatar>
             <div>
-              <CardTitle className="text-lg">Al-Rafidain Assistant</CardTitle>
-              <div className="flex items-center space-x-1">
-                <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+              <CardTitle className="text-lg">{t("assistantTitle")}</CardTitle>
+              <div className={`flex items-center ${language === 'ar' ? 'space-x-reverse space-x-1' : 'space-x-1'}`}>
+                <div className="h-2 w-2 bg-green-500 rounded-full" aria-hidden />
                 <span className="text-xs text-gray-500">{t("online")}</span>
               </div>
             </div>
           </div>
-          <div className="flex items-center space-x-1">
+          <div className={`flex items-center ${language === 'ar' ? 'space-x-reverse space-x-1' : 'space-x-1'}`}>
             <Badge variant="secondary" className="text-xs">
               {t("aiAssistant")}
             </Badge>
             <Button
+              aria-label={t("minimize")}
+              title={t("minimize")}
               variant="ghost"
               size="sm"
               onClick={onMinimize}
@@ -234,47 +246,56 @@ export function ChatBot({ className = "", isMinimized = false, onMinimize, onMax
         <CardContent className="flex-1 flex flex-col p-0">
           <ScrollArea className="flex-1 px-4">
             <div className="space-y-4 py-4">
+              {/* Personalized greeting bubble shown once at top */}
+              <div className="flex justify-start">
+                <div className={`flex items-start ${language === 'ar' ? 'space-x-reverse space-x-2' : 'space-x-2'}`}>
+                  <Avatar className="h-6 w-6 mt-1">
+                    <AvatarImage src="/bot-avatar.png" />
+                    <AvatarFallback>
+                      <Bot className="h-3 w-3" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="bg-gray-100 rounded-lg px-3 py-2">
+                    <p className="text-sm">
+                      {t("hello")} {user?.email ? user.email.split('@')[0] : ''}. {t("howCanIAssist")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {messages.map((msg) => (
                 <div
                   key={msg.id}
                   className={`flex ${msg.message_type === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`flex items-start space-x-2 max-w-[80%] ${
-                    msg.message_type === 'user' ? 'flex-row-reverse space-x-reverse' : ''
-                  }`}>
+                  <div className={`flex items-start max-w-[80%] ${language === 'ar' ? 'space-x-reverse' : ''} ${msg.message_type === 'user' ? 'flex-row-reverse' : ''}`}>
                     <Avatar className="h-6 w-6 mt-1">
                       <AvatarImage src={msg.sender_role === 'Bot' ? '/bot-avatar.png' : '/user-avatar.png'} />
                       <AvatarFallback>
                         {msg.sender_role === 'Bot' ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
                       </AvatarFallback>
                     </Avatar>
-                    <div className={`rounded-lg px-3 py-2 ${
-                      msg.message_type === 'user' 
-                        ? 'bg-blue-500 text-white' 
-                        : 'bg-gray-100 text-gray-900'
-                    }`}>
+                    <div className={`rounded-lg px-3 py-2 ${msg.message_type === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-900'}`}>
                       <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
-                      <p className={`text-xs mt-1 ${
-                        msg.message_type === 'user' ? 'text-blue-100' : 'text-gray-500'
-                      }`}>
+                      <p className={`text-xs mt-1 ${msg.message_type === 'user' ? 'text-blue-100' : 'text-gray-500'}`}>
                         {new Date(msg.timestamp).toLocaleTimeString()}
                       </p>
                     </div>
                   </div>
                 </div>
               ))}
-              
+
               {isTyping && (
                 <div className="flex justify-start">
-                  <div className="flex items-start space-x-2">
+                  <div className={`flex items-start ${language === 'ar' ? 'space-x-reverse space-x-2' : 'space-x-2'}`}>
                     <Avatar className="h-6 w-6 mt-1">
                       <AvatarImage src="/bot-avatar.png" />
                       <AvatarFallback>
                         <Bot className="h-3 w-3" />
                       </AvatarFallback>
                     </Avatar>
-                    <div className="bg-gray-100 rounded-lg px-3 py-2">
-                      <div className="flex space-x-1">
+                    <div className="bg-gray-100 rounded-lg px-3 py-2" aria-live="polite">
+                      <div className={`flex ${language === 'ar' ? 'space-x-reverse space-x-1' : 'space-x-1'}`}>
                         <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                         <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                         <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
@@ -283,12 +304,12 @@ export function ChatBot({ className = "", isMinimized = false, onMinimize, onMax
                   </div>
                 </div>
               )}
-              
+
               <div ref={messagesEndRef} />
             </div>
           </ScrollArea>
 
-          {/* Quick Actions */}
+          {/* Quick Actions + Feedback */}
           <div className="px-4 py-2 border-t">
             <div className="flex flex-wrap gap-1 mb-2">
               {quickActions.map((action, index) => (
@@ -298,14 +319,51 @@ export function ChatBot({ className = "", isMinimized = false, onMinimize, onMax
                   size="sm"
                   onClick={action.action}
                   className="text-xs h-7"
+                  aria-label={action.label}
+                  title={action.label}
                 >
                   <action.icon className="h-3 w-3 mr-1" />
                   {action.label}
                 </Button>
               ))}
             </div>
-            
-            <div className="flex items-center space-x-2">
+
+            {/* Feedback controls */}
+            <div className={`flex items-center ${language === 'ar' ? 'space-x-reverse space-x-2' : 'space-x-2'} mb-2`}>
+              <span className="text-xs text-gray-500">{t("provideFeedback")}:</span>
+              <Button
+                variant={feedback === 'up' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFeedback(feedback === 'up' ? null : 'up')}
+                aria-pressed={feedback === 'up'}
+                aria-label={t("helpful")}
+                title={t("helpful")}
+              >
+                <CheckCircle className="h-3 w-3" />
+              </Button>
+              <Button
+                variant={feedback === 'down' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFeedback(feedback === 'down' ? null : 'down')}
+                aria-pressed={feedback === 'down'}
+                aria-label={t("notHelpful")}
+                title={t("notHelpful")}
+              >
+                <AlertTriangle className="h-3 w-3" />
+              </Button>
+              <Input
+                value={feedbackComment}
+                onChange={(e) => setFeedbackComment(e.target.value)}
+                placeholder={t("optionalComment")}
+                className="h-8 text-xs"
+                aria-label={t("optionalComment")}
+              />
+              <Button size="sm" onClick={() => { setFeedback(null); setFeedbackComment("") }} aria-label={t("submit")} title={t("submit")}>
+                {t("submit")}
+              </Button>
+            </div>
+
+            <div className={`flex items-center ${language === 'ar' ? 'space-x-reverse space-x-2' : 'space-x-2'}`}>
               <Input
                 ref={inputRef}
                 placeholder={t("askMeAnything")}
@@ -314,11 +372,14 @@ export function ChatBot({ className = "", isMinimized = false, onMinimize, onMax
                 onKeyPress={handleKeyPress}
                 className="flex-1"
                 disabled={isTyping}
+                aria-label={t("askMeAnything")}
               />
               <Button 
                 onClick={handleSendMessage} 
                 disabled={!input.trim() || isTyping}
                 size="sm"
+                aria-label={t("send")}
+                title={t("send")}
               >
                 <Send className="h-4 w-4" />
               </Button>
