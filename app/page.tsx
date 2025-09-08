@@ -15,6 +15,7 @@ import { UsersTab } from "@/components/admin/users-tab"
 import EmployeesTab from "@/components/admin/employees-tab"
 import { DriversTab } from "@/components/admin/drivers-tab"
 import { CustomersTab } from "@/components/admin/customers-tab"
+import PaymentsTab from "@/components/admin/payments-tab"
 import { DeliveriesTab } from "@/components/admin/deliveries-tab"
 import { VehiclesTab } from "@/components/admin/vehicles-tab"
 import { TrackingTab } from "@/components/admin/tracking-tab"
@@ -114,6 +115,7 @@ function Dashboard() {
             {activeTab === "employees" && <EmployeesTab />}
             {activeTab === "drivers" && <DriversTab />}
             {activeTab === "customers" && <CustomersTab />}
+            {activeTab === "payments" && <PaymentsTab />}
             {activeTab === "deliveries" && <DeliveriesTab />}
             {activeTab === "vehicles" && <VehiclesTab />}
             {activeTab === "tracking" && <TrackingTab />}

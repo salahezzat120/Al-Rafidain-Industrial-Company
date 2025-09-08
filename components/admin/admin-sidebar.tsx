@@ -19,6 +19,7 @@ import {
   Calendar,
   MessageSquare,
   Headphones,
+  DollarSign,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useLanguage } from "@/contexts/language-context"
@@ -38,6 +39,7 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
     { id: "employees", label: "Employee Management", icon: Users },
     { id: "drivers", label: t("nav.driverManagement"), icon: Users },
     { id: "customers", label: t("nav.customerManagement"), icon: UserCheck },
+    { id: "payments", label: "Payment Tracking", icon: DollarSign },
     { id: "vehicles", label: t("nav.vehicles"), icon: Truck },
     { id: "deliveries", label: t("nav.deliveryTasks"), icon: Package },
     { id: "tracking", label: t("nav.tracking"), icon: MapPin },
