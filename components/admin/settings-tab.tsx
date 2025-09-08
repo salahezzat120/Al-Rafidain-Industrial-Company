@@ -30,6 +30,11 @@ export function SettingsTab() {
     pushNotifications: true,
     dataRetention: "12",
     backupFrequency: "daily",
+    workingHours: { start: "09:00", end: "17:00" },
+    customerTypes: ['active', 'vip', 'inactive'],
+    coverageZones: ['Downtown', 'North Zone', 'East District'],
+    selectedCustomerType: 'active',
+    selectedCoverageZone: 'Downtown',
   })
 
   const handleSettingChange = (key: string, value: any) => {
@@ -175,6 +180,55 @@ export function SettingsTab() {
                       onCheckedChange={(checked) => handleSettingChange("realTimeTracking", checked)}
                     />
                   </div>
+                </div>
+                <div>
+                  <Label htmlFor="workingHours">{t("workingHours")}</Label>
+                  <div className="flex space-x-2">
+                    <Input
+                      id="workingHoursStart"
+                      value={settings.workingHours.start}
+                      onChange={(e) => handleSettingChange("workingHours", { ...settings.workingHours, start: e.target.value })}
+                      placeholder="Start Time"
+                    />
+                    <Input
+                      id="workingHoursEnd"
+                      value={settings.workingHours.end}
+                      onChange={(e) => handleSettingChange("workingHours", { ...settings.workingHours, end: e.target.value })}
+                      placeholder="End Time"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="customerTypes">{t("customerTypes")}</Label>
+                  <Select
+                    value={settings.selectedCustomerType}
+                    onValueChange={(value) => handleSettingChange("selectedCustomerType", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {settings.customerTypes.map((type) => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="coverageZones">{t("coverageZones")}</Label>
+                  <Select
+                    value={settings.selectedCoverageZone}
+                    onValueChange={(value) => handleSettingChange("selectedCoverageZone", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {settings.coverageZones.map((zone) => (
+                        <SelectItem key={zone} value={zone}>{zone}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardContent>
             </Card>
