@@ -49,6 +49,10 @@ export function VisitsTab() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [selectedVisit, setSelectedVisit] = useState<Visit | null>(null)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
+  const [filterDelegate, setFilterDelegate] = useState('')
+  const [filterRegion, setFilterRegion] = useState('')
+  const [filterCustomer, setFilterCustomer] = useState('')
+  const [filterDate, setFilterDate] = useState('')
 
   // Mock delegates data - in real app, this would come from API
   const delegates = [
@@ -241,6 +245,19 @@ export function VisitsTab() {
     } catch (error) {
       console.error('Error marking alert as read:', error)
     }
+  }
+
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0]
+    if (file) {
+      // Handle file upload logic here
+      console.log('Uploading file:', file.name)
+    }
+  }
+
+  const handleStatusChange = (visitId, status) => {
+    // Update visit status logic here
+    console.log(`Updating visit ${visitId} status to ${status}`)
   }
 
   const getStatusColor = (status: string) => {
@@ -464,28 +481,35 @@ export function VisitsTab() {
 
       {/* Filters */}
       <div className="flex items-center space-x-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            placeholder="Search visits..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
+        <Input type="file" onChange={handleFileUpload} />
+        <Select value={filterDelegate} onValueChange={setFilterDelegate}>
           <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by status" />
+            <SelectValue placeholder="Filter by delegate" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="scheduled">Scheduled</SelectItem>
-            <SelectItem value="in_progress">In Progress</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="late">Late</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
+            <SelectItem value="all">All Delegates</SelectItem>
+            {delegates.map(delegate => (
+              <SelectItem key={delegate.id} value={delegate.id}>{delegate.name}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
+        <Input
+          type="text"
+          placeholder="Filter by region"
+          value={filterRegion}
+          onChange={(e) => setFilterRegion(e.target.value)}
+        />
+        <Input
+          type="text"
+          placeholder="Filter by customer"
+          value={filterCustomer}
+          onChange={(e) => setFilterCustomer(e.target.value)}
+        />
+        <Input
+          type="date"
+          value={filterDate}
+          onChange={(e) => setFilterDate(e.target.value)}
+        />
       </div>
 
       {/* Visits List */}
@@ -510,7 +534,6 @@ export function VisitsTab() {
                       <Badge variant="destructive">TIME EXCEEDED</Badge>
                     )}
                   </div>
-                  
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
                     <div className="flex items-center space-x-2">
                       <User className="h-4 w-4" />
@@ -527,13 +550,21 @@ export function VisitsTab() {
                       </span>
                     </div>
                   </div>
-                  
                   {visit.notes && (
                     <p className="text-sm text-gray-600 mt-2">{visit.notes}</p>
                   )}
                 </div>
-                
                 <div className="flex items-center space-x-2">
+                  <Select value={visit.status} onValueChange={(value) => handleStatusChange(visit.id, value)}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="missed">Missed</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Button
                     variant="outline"
                     size="sm"
