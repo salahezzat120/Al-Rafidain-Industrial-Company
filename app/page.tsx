@@ -12,6 +12,7 @@ import { LogOut, Users, Package, BarChart3 } from "lucide-react"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { OverviewTab } from "@/components/admin/overview-tab"
 import { UsersTab } from "@/components/admin/users-tab"
+import EmployeesTab from "@/components/admin/employees-tab"
 import { DriversTab } from "@/components/admin/drivers-tab"
 import { CustomersTab } from "@/components/admin/customers-tab"
 import { DeliveriesTab } from "@/components/admin/deliveries-tab"
@@ -110,6 +111,7 @@ function Dashboard() {
           <main className="flex-1 p-6">
             {activeTab === "overview" && <OverviewTab />}
             {activeTab === "users" && <UsersTab />}
+            {activeTab === "employees" && <EmployeesTab />}
             {activeTab === "drivers" && <DriversTab />}
             {activeTab === "customers" && <CustomersTab />}
             {activeTab === "deliveries" && <DeliveriesTab />}
