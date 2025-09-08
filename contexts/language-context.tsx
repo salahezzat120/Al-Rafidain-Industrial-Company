@@ -476,6 +476,10 @@ const translations = {
     website: "Website",
     operationalSettings: "Operational Settings",
     workingHours: "Working Hours",
+    customerTypes: "Customer Types",
+    coverageZones: "Coverage Zones",
+    startTime: "Start Time",
+    endTime: "End Time",
     deliveryRadius: "Delivery Radius",
     maxDeliveriesPerDriver: "Max Deliveries per Driver",
     userManagement: "User Management",
@@ -700,6 +704,17 @@ const translations = {
     "idImageRequired": "Official ID image is required",
     "coverageRequired": "At least one coverage area is required",
     "ensureAccuracy": "Please ensure all required information is accurate. The driver will receive login credentials via email after registration.",
+
+    // Visits
+    uploadTasks: "Upload Tasks",
+    filterByDelegate: "Filter by Delegate",
+    filterByRegion: "Filter by Region",
+    filterByCustomer: "Filter by Customer",
+    filterByDate: "Filter by Date",
+    status: "Status",
+    pending: "Pending",
+    completed: "Completed",
+    missed: "Missed",
   },
   ar: {
     // Auth
@@ -948,6 +963,10 @@ const translations = {
     website: "الموقع الإلكتروني",
     operationalSettings: "الإعدادات التشغيلية",
     workingHours: "ساعات العمل",
+    customerTypes: "أنواع العملاء",
+    coverageZones: "مناطق التغطية",
+    startTime: "وقت البدء",
+    endTime: "وقت الانتهاء",
     deliveryRadius: "نطاق التوصيل",
     maxDeliveriesPerDriver: "الحد الأقصى للتوصيلات لكل سائق",
     userManagement: "إدارة المستخدمين",
@@ -1385,6 +1404,17 @@ const translations = {
     technician: "فني",
     nextFollowUp: "المتابعة التالية",
     assignedTo: "معين لـ",
+
+    // Visits
+    uploadTasks: "تحميل المهام",
+    filterByDelegate: "تصفية حسب المندوب",
+    filterByRegion: "تصفية حسب المنطقة",
+    filterByCustomer: "تصفية حسب العميل",
+    filterByDate: "تصفية حسب التاريخ",
+    status: "الحالة",
+    pending: "معلق",
+    completed: "مكتمل",
+    missed: "مفقود"
   },
 }
 

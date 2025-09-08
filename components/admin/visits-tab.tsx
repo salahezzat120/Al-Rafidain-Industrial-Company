@@ -481,10 +481,10 @@ export function VisitsTab() {
 
       {/* Filters */}
       <div className="flex items-center space-x-4">
-        <Input type="file" onChange={handleFileUpload} />
+        <Input type="file" onChange={handleFileUpload} aria-label={t("uploadTasks")} />
         <Select value={filterDelegate} onValueChange={setFilterDelegate}>
           <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by delegate" />
+            <SelectValue placeholder={t("filterByDelegate")} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Delegates</SelectItem>
@@ -495,13 +495,13 @@ export function VisitsTab() {
         </Select>
         <Input
           type="text"
-          placeholder="Filter by region"
+          placeholder={t("filterByRegion")}
           value={filterRegion}
           onChange={(e) => setFilterRegion(e.target.value)}
         />
         <Input
           type="text"
-          placeholder="Filter by customer"
+          placeholder={t("filterByCustomer")}
           value={filterCustomer}
           onChange={(e) => setFilterCustomer(e.target.value)}
         />
@@ -509,6 +509,7 @@ export function VisitsTab() {
           type="date"
           value={filterDate}
           onChange={(e) => setFilterDate(e.target.value)}
+          aria-label={t("filterByDate")}
         />
       </div>
 
@@ -557,12 +558,12 @@ export function VisitsTab() {
                 <div className="flex items-center space-x-2">
                   <Select value={visit.status} onValueChange={(value) => handleStatusChange(visit.id, value)}>
                     <SelectTrigger className="w-32">
-                      <SelectValue />
+                      <SelectValue placeholder={t("status")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="missed">Missed</SelectItem>
+                      <SelectItem value="pending">{t("pending")}</SelectItem>
+                      <SelectItem value="completed">{t("completed")}</SelectItem>
+                      <SelectItem value="missed">{t("missed")}</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button
