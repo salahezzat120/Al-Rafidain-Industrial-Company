@@ -715,6 +715,18 @@ const translations = {
     pending: "Pending",
     completed: "Completed",
     missed: "Missed",
+
+    assistantTitle: "Al-Rafidain Assistant",
+    hello: "Hello",
+    send: "Send",
+    minimize: "Minimize",
+    maximize: "Open Assistant",
+    provideFeedback: "Provide feedback",
+    feedbackThanks: "Thanks for your feedback!",
+    helpful: "Helpful",
+    notHelpful: "Not helpful",
+    optionalComment: "Optional comment",
+    submit: "Submit",
   },
   ar: {
     // Auth
@@ -1414,7 +1426,19 @@ const translations = {
     status: "الحالة",
     pending: "معلق",
     completed: "مكتمل",
-    missed: "مفقود"
+    missed: "مفقود",
+
+    assistantTitle: "مساعد الرفيدان",
+    hello: "مرحباً",
+    send: "إرسال",
+    minimize: "تصغير",
+    maximize: "فتح المساعد",
+    provideFeedback: "أرسل ملاحظاتك",
+    feedbackThanks: "شكراً لملاحظاتك!",
+    helpful: "مفيد",
+    notHelpful: "غير مفيد",
+    optionalComment: "تعليق اختياري",
+    submit: "إرسال"
   },
 }
 
