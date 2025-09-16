@@ -158,6 +158,29 @@ export function RepresentativesTab() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modals */}
+      <AddRepresentativeModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onAdd={handleAddRepresentative}
+      />
+
+      <RepresentativeProfileModal
+        representative={selectedRepresentative}
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        onSave={(representative) => {
+          // Handle save logic
+          setIsProfileModalOpen(false);
+        }}
+      />
+
+      <LiveTrackingModal
+        representative={selectedRepresentative}
+        isOpen={isTrackingModalOpen}
+        onClose={() => setIsTrackingModalOpen(false)}
+      />
     </div>
   );
 }
