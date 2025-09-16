@@ -13,7 +13,7 @@ import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { OverviewTab } from "@/components/admin/overview-tab"
 import { UsersTab } from "@/components/admin/users-tab"
 import EmployeesTab from "@/components/admin/employees-tab"
-import { DriversTab } from "@/components/admin/drivers-tab"
+import { RepresentativesTab } from "@/components/admin/representatives-tab";
 import { CustomersTab } from "@/components/admin/customers-tab"
 import PaymentsTab from "@/components/admin/payments-tab"
 import { DeliveriesTab } from "@/components/admin/deliveries-tab"
@@ -29,13 +29,13 @@ import { MessagingTab } from "@/components/admin/messaging-tab"
 import { AfterSalesTab } from "@/components/admin/after-sales-tab"
 import { ChatBot } from "@/components/chatbot/chatbot"
 import { AssignDeliveryModal } from "@/components/supervisor/assign-delivery-modal"
-import { ManageDriversModal } from "@/components/supervisor/manage-drivers-modal"
+import { ManageRepresentativesModal } from "@/components/supervisor/manage-representatives-modal";
 import { ReportsModal } from "@/components/supervisor/reports-modal"
 import { TrackVehiclesModal } from "@/components/supervisor/track-vehicles-modal"
 import { DriverStats } from "@/components/driver/driver-stats"
 import { AssignedDeliveries } from "@/components/driver/assigned-deliveries"
 import { DriverNotifications } from "@/components/driver/driver-notifications"
-import { DriverQuickActions } from "@/components/driver/driver-quick-actions"
+import { RepresentativeQuickActions } from "@/components/representative/representative-quick-actions";
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import dynamic from "next/dynamic"
@@ -50,6 +50,7 @@ function Dashboard() {
   const [reportsOpen, setReportsOpen] = useState(false)
   const [trackVehiclesOpen, setTrackVehiclesOpen] = useState(false)
   const [isChatBotMinimized, setIsChatBotMinimized] = useState(false)
+  const [manageRepresentativesOpen, setManageRepresentativesOpen] = useState(false);
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -115,7 +116,7 @@ function Dashboard() {
             {activeTab === "overview" && <OverviewTab />}
             {activeTab === "users" && <UsersTab />}
             {activeTab === "employees" && <EmployeesTab />}
-            {activeTab === "drivers" && <DriversTab />}
+            {activeTab === "representatives" && <RepresentativesTab />}
             {activeTab === "customers" && <CustomersTab />}
             {activeTab === "payments" && <PaymentsTab />}
             {activeTab === "deliveries" && <DeliveriesTab />}
@@ -187,15 +188,15 @@ function Dashboard() {
             <p className="text-gray-600">{t("dashboard.deliveryOverview")}</p>
           </div>
 
-          <DriverStats />
+          <RepresentativeStats />
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
               <AssignedDeliveries />
             </div>
             <div className="space-y-6">
-              <DriverNotifications />
-              <DriverQuickActions />
+              <RepresentativeNotifications />
+              <RepresentativeQuickActions />
             </div>
           </div>
         </main>
@@ -265,7 +266,7 @@ function Dashboard() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t("dashboard.activeDrivers")}</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("dashboard.activeRepresentatives")}</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -341,9 +342,10 @@ function Dashboard() {
       </main>
 
       <AssignDeliveryModal isOpen={assignDeliveryOpen} onClose={() => setAssignDeliveryOpen(false)} />
-      <ManageDriversModal isOpen={manageDriversOpen} onClose={() => setManageDriversOpen(false)} />
+      <ManageRepresentativesModal isOpen={manageRepresentativesOpen} onClose={() => setManageRepresentativesOpen(false)} />
       <ReportsModal isOpen={reportsOpen} onClose={() => setReportsOpen(false)} />
       <TrackVehiclesModal isOpen={trackVehiclesOpen} onClose={() => setTrackVehiclesOpen(false)} />
+      <ManageRepresentativesModal isOpen={manageRepresentativesOpen} onClose={() => setManageRepresentativesOpen(false)} />
       
       {/* ChatBot */}
       <ChatBot 

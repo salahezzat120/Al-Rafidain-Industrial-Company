@@ -533,12 +533,12 @@ export default function AddEmployeeModal({ open, onOpenChange, onAdd }: AddEmplo
                     <div className="flex items-center space-x-2">
                       <input
                         type="checkbox"
-                        id="can_manage_drivers"
+                        id="can_manage_representatives"
                         checked={formData.can_manage_drivers || false}
                         onChange={(e) => setFormData(prev => ({ ...prev, can_manage_drivers: e.target.checked }))}
                         className="rounded"
                       />
-                      <Label htmlFor="can_manage_drivers" className="text-sm">Manage Drivers</Label>
+                      <Label htmlFor="can_manage_representatives" className="text-sm">Manage Representatives</Label>
                     </div>
                     <div className="flex items-center space-x-2">
                       <input

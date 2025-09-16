@@ -31,7 +31,7 @@ export function AssignDeliveryModal({ isOpen, onClose }: AssignDeliveryModalProp
     notes: "",
   })
 
-  const availableDrivers = [
+  const availableRepresentatives = [
     { id: "1", name: "John Smith", status: "available", location: "Downtown" },
     { id: "2", name: "Sarah Johnson", status: "available", location: "North Side" },
     { id: "3", name: "Mike Wilson", status: "available", location: "East End" },
@@ -104,23 +104,23 @@ export function AssignDeliveryModal({ isOpen, onClose }: AssignDeliveryModalProp
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="driver">{t("task.assignDriver")}</Label>
+            <Label htmlFor="representative">{t("task.assignRepresentative")}</Label>
             <Select value={formData.driver} onValueChange={(value) => setFormData({ ...formData, driver: value })}>
               <SelectTrigger>
-                <SelectValue placeholder={t("supervisor.selectDriver")} />
+                <SelectValue placeholder={t("supervisor.selectRepresentative")} />
               </SelectTrigger>
               <SelectContent>
-                {availableDrivers.map((driver) => (
-                  <SelectItem key={driver.id} value={driver.id} disabled={driver.status === "busy"}>
+                {availableRepresentatives.map((representative) => (
+                  <SelectItem key={representative.id} value={representative.id} disabled={representative.status === "busy"}>
                     <div className="flex items-center justify-between w-full">
                       <div>
-                        <div className="font-medium">{driver.name}</div>
+                        <div className="font-medium">{representative.name}</div>
                         <div className="text-sm text-gray-500 flex items-center gap-1">
                           <MapPin className="h-3 w-3" />
-                          {driver.location}
+                          {representative.location}
                         </div>
                       </div>
-                      <Badge variant={driver.status === "available" ? "default" : "secondary"}>{driver.status}</Badge>
+                      <Badge variant={representative.status === "available" ? "default" : "secondary"}>{representative.status}</Badge>
                     </div>
                   </SelectItem>
                 ))}

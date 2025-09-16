@@ -347,7 +347,7 @@ export function DeliveriesTab() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => handleViewDetails(task)}>{t("viewDetails")}</DropdownMenuItem>
-                        <DropdownMenuItem>{t("assignDriver")}</DropdownMenuItem>
+                        <DropdownMenuItem>{t("assignRepresentative")}</DropdownMenuItem>
                         <DropdownMenuItem>{t("updateStatus")}</DropdownMenuItem>
                         <DropdownMenuItem>{t("trackLocation")}</DropdownMenuItem>
                         <DropdownMenuItem className="text-red-600">{t("cancelTask")}</DropdownMenuItem>

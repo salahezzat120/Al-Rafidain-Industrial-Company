@@ -45,7 +45,7 @@ export function ReportsModal({ isOpen, onClose }: ReportsModalProps) {
 
   const currentData = reportData[timeRange as keyof typeof reportData]
 
-  const topDrivers = [
+  const topRepresentatives = [
     { name: "Sarah Johnson", deliveries: 24, onTime: "98%", rating: 4.9 },
     { name: "Mike Wilson", deliveries: 21, onTime: "95%", rating: 4.8 },
     { name: "John Smith", deliveries: 19, onTime: "92%", rating: 4.7 },
@@ -164,27 +164,27 @@ export function ReportsModal({ isOpen, onClose }: ReportsModalProps) {
             </CardContent>
           </Card>
 
-          {/* Top Performing Drivers */}
+          {/* Top Performing Representatives */}
           <Card>
             <CardHeader>
-              <CardTitle>Top Performing Drivers</CardTitle>
+              <CardTitle>Top Performing Representatives</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {topDrivers.map((driver, index) => (
-                  <div key={driver.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                {topRepresentatives.map((representative, index) => (
+                  <div key={representative.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center gap-3">
                       <Badge variant="outline" className="w-8 h-8 rounded-full flex items-center justify-center">
                         {index + 1}
                       </Badge>
                       <div>
-                        <p className="font-medium">{driver.name}</p>
-                        <p className="text-sm text-gray-600">{driver.deliveries} deliveries</p>
+                        <p className="font-medium">{representative.name}</p>
+                        <p className="text-sm text-gray-600">{representative.deliveries} deliveries</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium">{driver.onTime} on-time</p>
-                      <p className="text-sm text-gray-600">⭐ {driver.rating}</p>
+                      <p className="font-medium">{representative.onTime} on-time</p>
+                      <p className="text-sm text-gray-600">⭐ {representative.rating}</p>
                     </div>
                   </div>
                 ))}

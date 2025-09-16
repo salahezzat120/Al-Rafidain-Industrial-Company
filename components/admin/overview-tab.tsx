@@ -28,7 +28,7 @@ export function OverviewTab() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t("activeDrivers")}</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("activeRepresentatives")}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>

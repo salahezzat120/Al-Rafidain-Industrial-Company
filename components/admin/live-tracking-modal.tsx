@@ -22,7 +22,7 @@ import {
 } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
 
-interface Driver {
+interface Representative {
   id: string
   name: string
   email: string
@@ -45,12 +45,12 @@ interface Driver {
 }
 
 interface LiveTrackingModalProps {
-  driver: Driver | null
+  representative: Representative | null
   isOpen: boolean
   onClose: () => void
 }
 
-export function LiveTrackingModal({ driver, isOpen, onClose }: LiveTrackingModalProps) {
+export function LiveTrackingModal({ representative, isOpen, onClose }: LiveTrackingModalProps) {
   const { t } = useLanguage()
   const [isTracking, setIsTracking] = useState(false)
   const [currentLocation, setCurrentLocation] = useState<{
@@ -78,7 +78,7 @@ export function LiveTrackingModal({ driver, isOpen, onClose }: LiveTrackingModal
   useEffect(() => {
     let interval: NodeJS.Timeout
 
-    if (isTracking && driver) {
+    if (isTracking && representative) {
       // Simulate real-time location updates
       interval = setInterval(() => {
         const randomLocation = mockLocations[Math.floor(Math.random() * mockLocations.length)]
@@ -95,7 +95,7 @@ export function LiveTrackingModal({ driver, isOpen, onClose }: LiveTrackingModal
     return () => {
       if (interval) clearInterval(interval)
     }
-  }, [isTracking, driver])
+  }, [isTracking, representative])
 
   const startTracking = () => {
     setIsTracking(true)
@@ -120,7 +120,7 @@ export function LiveTrackingModal({ driver, isOpen, onClose }: LiveTrackingModal
     }
   }
 
-  if (!driver) return null
+  if (!representative) return null
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -129,17 +129,17 @@ export function LiveTrackingModal({ driver, isOpen, onClose }: LiveTrackingModal
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-3">
               <Avatar className="h-12 w-12">
-                <AvatarImage src={driver.avatar || "/placeholder.svg"} alt={driver.name} />
+                <AvatarImage src={representative.avatar || "/placeholder.svg"} alt={representative.name} />
                 <AvatarFallback>
-                  {driver.name
+                  {representative.name
                     .split(" ")
                     .map((n) => n[0])
                     .join("")}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h2 className="text-xl font-bold">Live Tracking - {driver.name}</h2>
-                <p className="text-sm text-gray-600">Driver ID: {driver.id}</p>
+                <h2 className="text-xl font-bold">Live Tracking - {representative.name}</h2>
+                <p className="text-sm text-gray-600">Representative ID: {representative.id}</p>
               </div>
             </DialogTitle>
             <div className="flex items-center gap-2">
@@ -213,8 +213,8 @@ export function LiveTrackingModal({ driver, isOpen, onClose }: LiveTrackingModal
                   <CardContent className="space-y-4">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">{t("common.status")}:</span>
-                      <Badge className={getStatusColor(driver.status)}>
-                        {driver.status.toUpperCase()}
+                      <Badge className={getStatusColor(representative.status)}>
+                        {representative.status.toUpperCase()}
                       </Badge>
                     </div>
                     
@@ -264,15 +264,15 @@ export function LiveTrackingModal({ driver, isOpen, onClose }: LiveTrackingModal
                   <CardContent className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-sm">{t("vehicle")}:</span>
-                      <span className="text-sm font-medium">{driver.vehicle}</span>
+                      <span className="text-sm font-medium">{representative.vehicle}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm">{t("avgRating")}:</span>
-                      <span className="text-sm font-medium">{driver.rating}/5</span>
+                      <span className="text-sm font-medium">{representative.rating}/5</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm">{t("deliveries")}:</span>
-                      <span className="text-sm font-medium">{driver.deliveries}</span>
+                      <span className="text-sm font-medium">{representative.deliveries}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -329,15 +329,15 @@ export function LiveTrackingModal({ driver, isOpen, onClose }: LiveTrackingModal
                 <CardContent className="space-y-3">
                   <div>
                     <p className="text-sm font-medium">{t("auth.email")}</p>
-                    <p className="text-sm text-gray-600">{driver.email}</p>
+                    <p className="text-sm text-gray-600">{representative.email}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium">{t("phoneNumber")}</p>
-                    <p className="text-sm text-gray-600">{driver.phone}</p>
+                    <p className="text-sm text-gray-600">{representative.phone}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium">{t("address")}</p>
-                    <p className="text-sm text-gray-600">{driver.location}</p>
+                    <p className="text-sm text-gray-600">{representative.location}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -349,15 +349,15 @@ export function LiveTrackingModal({ driver, isOpen, onClose }: LiveTrackingModal
                 <CardContent className="space-y-3">
                   <div>
                     <p className="text-sm font-medium">{t("avgRating")}</p>
-                    <p className="text-sm text-gray-600">{driver.rating}/5.0</p>
+                    <p className="text-sm text-gray-600">{representative.rating}/5.0</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium">{t("deliveries")}</p>
-                    <p className="text-sm text-gray-600">{driver.deliveries}</p>
+                    <p className="text-sm text-gray-600">{representative.deliveries}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium">{t("vehicle")}</p>
-                    <p className="text-sm text-gray-600">{driver.vehicle}</p>
+                    <p className="text-sm text-gray-600">{representative.vehicle}</p>
                   </div>
                 </CardContent>
               </Card>

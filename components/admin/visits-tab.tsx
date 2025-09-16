@@ -535,7 +535,7 @@ export function VisitsTab() {
                       <Badge variant="destructive">TIME EXCEEDED</Badge>
                     )}
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600">
                     <div className="flex items-center space-x-2">
                       <User className="h-4 w-4" />
                       <span>{visit.delegate_name}</span>
@@ -545,9 +545,15 @@ export function VisitsTab() {
                       <span>{visit.customer_address}</span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Calendar className="h-4 w-4" />
+                      <Clock className="h-4 w-4" />
                       <span>
-                        {new Date(visit.scheduled_start_time).toLocaleString()}
+                        {t("startTime")}: {new Date(visit.scheduled_start_time).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Clock className="h-4 w-4" />
+                      <span>
+                        {t("endTime")}: {new Date(visit.scheduled_end_time).toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -611,13 +617,25 @@ export function VisitsTab() {
                   </Badge>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Scheduled Start</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t("scheduledStartTime")}</Label>
                   <p>{new Date(selectedVisit.scheduled_start_time).toLocaleString()}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-gray-500">Scheduled End</Label>
+                  <Label className="text-sm font-medium text-gray-500">{t("scheduledEndTime")}</Label>
                   <p>{new Date(selectedVisit.scheduled_end_time).toLocaleString()}</p>
                 </div>
+                {selectedVisit.actual_start_time && (
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">{t("actualStartTime")}</Label>
+                    <p>{new Date(selectedVisit.actual_start_time).toLocaleString()}</p>
+                  </div>
+                )}
+                {selectedVisit.actual_end_time && (
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">{t("actualEndTime")}</Label>
+                    <p>{new Date(selectedVisit.actual_end_time).toLocaleString()}</p>
+                  </div>
+                )}
                 <div>
                   <Label className="text-sm font-medium text-gray-500">Address</Label>
                   <p>{selectedVisit.customer_address}</p>

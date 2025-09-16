@@ -84,15 +84,15 @@ export const safeSupabaseQuery = async <T>(
   }
 }
 
-export const getDrivers = async (): Promise<{ data: any[] | null; error: string | null }> => {
+export const getRepresentatives = async (): Promise<{ data: any[] | null; error: string | null }> => {
   return safeSupabaseQuery(async () => {
     const { data, error } = await supabase
-      .from('drivers')
+      .from('representatives')
       .select('*')
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Error fetching drivers:', error)
+      console.error('Error fetching representatives:', error)
       console.error('Error details:', JSON.stringify(error, null, 2))
       return { data: null, error: error.message || 'Unknown error occurred' }
     }
@@ -101,7 +101,13 @@ export const getDrivers = async (): Promise<{ data: any[] | null; error: string 
   })
 }
 
-export const addDriver = async (driverData: {
+// Generate unique representative ID
+const generateRepresentativeId = async (): Promise<string> => {
+  const randomNum = Math.floor(10000000 + Math.random() * 90000000).toString();
+  return randomNum;
+}
+
+export const addRepresentative = async (representativeData: {
   name: string,
   email: string,
   phone: string,
@@ -118,16 +124,18 @@ export const addDriver = async (driverData: {
   coverage_areas?: string[]
 }): Promise<{ data: any | null; error: string | null }> => {
   return safeSupabaseQuery(async () => {
+    const representativeId = await generateRepresentativeId();
     const { data, error } = await supabase
-      .from('drivers')
-      .insert([driverData])
+      .from('representatives')
+      .insert([{ ...representativeData, representative_id: representativeId }])
+      .select()
+      .single();
 
     if (error) {
-      console.error('Error adding driver:', error)
-      console.error('Error details:', JSON.stringify(error, null, 2))
-      return { data: null, error: error.message || 'Unknown error occurred' }
+      console.error('Error adding representative:', error);
+      return { data: null, error: error.message || 'Unknown error occurred' };
     }
 
-    return { data, error: null }
-  })
-}
+    return { data, error: null };
+  });
+};

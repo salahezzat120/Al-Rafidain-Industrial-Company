@@ -163,7 +163,7 @@ export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: Cust
       items: "Electronics Package",
       amount: 299.99,
       status: "delivered",
-      driver: "Mike Johnson",
+      representative: "Mike Johnson",
     },
     {
       id: "ORD002",
@@ -171,7 +171,7 @@ export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: Cust
       items: "Home Appliances",
       amount: 156.5,
       status: "delivered",
-      driver: "Sarah Wilson",
+      representative: "Sarah Wilson",
     },
     {
       id: "ORD003",
@@ -179,7 +179,7 @@ export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: Cust
       items: "Books & Stationery",
       amount: 89.25,
       status: "delivered",
-      driver: "David Chen",
+      representative: "David Chen",
     },
   ]
 
@@ -479,7 +479,7 @@ export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: Cust
                           </Badge>
                         </div>
                         <p className="text-sm text-gray-600">{order.items}</p>
-                        <p className="text-xs text-gray-500">Driver: {order.driver}</p>
+                        <p className="text-xs text-gray-500">Representative: {order.representative}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium">${order.amount}</p>

@@ -32,7 +32,7 @@ interface TaskDetailsModalProps {
   onUpdate: (task: any) => void
 }
 
-const mockDrivers = [
+const mockRepresentatives = [
   { id: "1", name: "Mike Johnson", status: "available" },
   { id: "2", name: "Sarah Wilson", status: "available" },
   { id: "3", name: "David Chen", status: "busy" },
@@ -91,15 +91,15 @@ export function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: TaskDetail
     },
     {
       timestamp: "2024-01-16T09:15:00Z",
-      action: "Driver assigned",
-      user: task.driver?.name || "Driver",
-      details: `Assigned to ${task.driver?.name || "driver"}`,
+      action: "Representative assigned",
+      user: task.representative?.name || "Representative",
+      details: `Assigned to ${task.representative?.name || "representative"}`,
     },
     {
       timestamp: "2024-01-16T10:30:00Z",
       action: "Task started",
-      user: task.driver?.name || "Driver",
-      details: "Driver started the delivery",
+      user: task.representative?.name || "Representative",
+      details: "Representative started the delivery",
     },
   ]
 
@@ -222,51 +222,51 @@ export function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: TaskDetail
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label>Assigned Driver</Label>
+                    <Label>Assigned Representative</Label>
                     {isEditing ? (
                       <Select
-                        value={editedTask.driver?.id || "unassigned"}
+                        value={editedTask.representative?.id || "unassigned"}
                         onValueChange={(value) => {
-                          const selectedDriver = mockDrivers.find((d) => d.id === value)
+                          const selectedRepresentative = mockRepresentatives.find((r) => r.id === value)
                           setEditedTask({
                             ...editedTask,
-                            driver: selectedDriver
+                            representative: selectedRepresentative
                               ? {
-                                  id: selectedDriver.id,
-                                  name: selectedDriver.name,
+                                  id: selectedRepresentative.id,
+                                  name: selectedRepresentative.name,
                                   avatar: "/placeholder.svg?height=32&width=32",
                                 }
                               : null,
-                            status: selectedDriver ? "assigned" : "pending",
+                            status: selectedRepresentative ? "assigned" : "pending",
                           })
                         }}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select driver" />
+                          <SelectValue placeholder="Select representative" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="unassigned">Unassigned</SelectItem>
-                          {mockDrivers
-                            .filter((d) => d.status === "available")
-                            .map((driver) => (
-                              <SelectItem key={driver.id} value={driver.id}>
-                                {driver.name}
+                          {mockRepresentatives
+                            .filter((r) => r.status === "available")
+                            .map((representative) => (
+                              <SelectItem key={representative.id} value={representative.id}>
+                                {representative.name}
                               </SelectItem>
                             ))}
                         </SelectContent>
                       </Select>
-                    ) : task.driver ? (
+                    ) : task.representative ? (
                       <div className="flex items-center gap-3 mt-1">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={task.driver.avatar || "/placeholder.svg"} alt={task.driver.name} />
+                          <AvatarImage src={task.representative.avatar || "/placeholder.svg"} alt={task.representative.name} />
                           <AvatarFallback>
-                            {task.driver.name
+                            {task.representative.name
                               .split(" ")
                               .map((n: string) => n[0])
                               .join("")}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="font-medium">{task.driver.name}</span>
+                        <span className="font-medium">{task.representative.name}</span>
                       </div>
                     ) : (
                       <p className="text-sm text-gray-500 mt-1">Unassigned</p>
