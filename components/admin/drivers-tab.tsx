@@ -14,6 +14,9 @@ import { LiveTrackingModal } from "./live-tracking-modal"
 import { useLanguage } from "@/contexts/language-context"
 import { getDrivers } from "@/lib/supabase-utils"
 import * as XLSX from 'xlsx';
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription, AlertCircle } from "@/components/ui/alert"
+import { generateDriverId } from "@/lib/supabase-utils";
 
 export function DriversTab() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -22,6 +25,8 @@ export function DriversTab() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false)
+  const [formData, setFormData] = useState({ id: '' });
+  const [errors, setErrors] = useState({ id: '' });
 
   const { t } = useLanguage()
 
@@ -93,6 +98,11 @@ export function DriversTab() {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Drivers');
     XLSX.writeFile(workbook, 'drivers.xlsx');
   };
+
+  const generateDriverIdHandler = async () => {
+    const driverId = await generateDriverId();
+    setFormData(prev => ({ ...prev, id: driverId }));
+  }
 
   return (
     <div className="space-y-6">

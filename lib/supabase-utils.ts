@@ -101,6 +101,12 @@ export const getDrivers = async (): Promise<{ data: any[] | null; error: string 
   })
 }
 
+// Generate unique driver ID
+const generateDriverId = async (): Promise<string> => {
+  const randomNum = Math.floor(10000000 + Math.random() * 90000000).toString();
+  return randomNum;
+}
+
 export const addDriver = async (driverData: {
   name: string,
   email: string,
@@ -118,9 +124,10 @@ export const addDriver = async (driverData: {
   coverage_areas?: string[]
 }): Promise<{ data: any | null; error: string | null }> => {
   return safeSupabaseQuery(async () => {
+    const driverId = await generateDriverId();
     const { data, error } = await supabase
       .from('drivers')
-      .insert([driverData])
+      .insert([{ ...driverData, driver_id: driverId }])
 
     if (error) {
       console.error('Error adding driver:', error)

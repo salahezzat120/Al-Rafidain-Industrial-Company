@@ -34,6 +34,7 @@ export function AddDriverModal({ isOpen, onClose, onAdd }: AddDriverModalProps) 
     status: "active",
     idImage: null as File | null,
     coverageAreas: [] as string[],
+    id: "", // Added id field
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -48,6 +49,7 @@ export function AddDriverModal({ isOpen, onClose, onAdd }: AddDriverModalProps) 
     if (!formData.phone.trim()) newErrors.phone = t("phoneRequired")
     if (!formData.licenseNumber.trim()) newErrors.licenseNumber = t("licenseRequired")
     if (!formData.vehicle.trim()) newErrors.vehicle = t("vehicleRequired")
+    if (!formData.id) newErrors.id = t("driverIdRequired") // Added validation for id
     if (!formData.idImage) newErrors.idImage = t("idImageRequired")
     if (formData.coverageAreas.length === 0) newErrors.coverageAreas = t("coverageRequired")
 
@@ -56,13 +58,15 @@ export function AddDriverModal({ isOpen, onClose, onAdd }: AddDriverModalProps) 
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
-    if (!validateForm()) return
+    if (!validateForm()) return;
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
 
+    const driverId = await generateDriverId();
     const newDriver = {
+      id: driverId,
       name: formData.name,
       email: formData.email,
       phone: formData.phone,
@@ -73,15 +77,15 @@ export function AddDriverModal({ isOpen, onClose, onAdd }: AddDriverModalProps) 
       status: formData.status,
       coverage_areas: formData.coverageAreas,
       // Add other fields as needed
-    }
+    };
 
-    const { data, error } = await addDriver(newDriver)
+    const { data, error } = await addDriver(newDriver);
 
     if (error) {
-      console.error('Error adding driver:', error)
+      console.error('Error adding driver:', error);
       // Handle error (e.g., show a notification)
     } else {
-      onAdd(data)
+      onAdd(data);
       setFormData({
         name: "",
         email: "",
@@ -93,13 +97,12 @@ export function AddDriverModal({ isOpen, onClose, onAdd }: AddDriverModalProps) 
         status: "active",
         idImage: null,
         coverageAreas: [],
-      })
-      setIdImagePreview(null)
-      setErrors({})
-      onClose()
+        id: "", // Reset id
+      });
+      onClose();
     }
 
-    setIsSubmitting(false)
+    setIsSubmitting(false);
   }
 
   const handleInputChange = (field: string, value: string) => {
@@ -149,6 +152,18 @@ export function AddDriverModal({ isOpen, onClose, onAdd }: AddDriverModalProps) 
     { value: "offline", label: t("offline") },
     { value: "on_route", label: t("onRoute") }
   ]
+
+  const generateDriverId = async () => {
+    // This is a placeholder for a real ID generation logic.
+    // In a real application, you would generate a unique ID here.
+    // For demonstration, we'll return a dummy ID.
+    return `DRV-${Math.floor(Math.random() * 1000000)}`;
+  };
+
+  const generateDriverIdHandler = async () => {
+    const driverId = await generateDriverId();
+    setFormData(prev => ({ ...prev, id: driverId }));
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -285,6 +300,39 @@ export function AddDriverModal({ isOpen, onClose, onAdd }: AddDriverModalProps) 
               </CardContent>
             </Card>
           </div>
+
+          {/* Add the driver ID input and generate button to the form layout */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <User className="h-4 w-4" />
+                {t("driverInformation")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="driver_id">Driver ID *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="driver_id"
+                    value={formData.id || ''}
+                    onChange={(e) => handleInputChange("id", e.target.value)}
+                    placeholder="Enter Driver ID"
+                    className={errors.id ? 'border-red-500' : ''}
+                  />
+                  <Button type="button" variant="outline" onClick={generateDriverIdHandler}>
+                    Generate
+                  </Button>
+                </div>
+                {errors.id && (
+                  <Alert variant="destructive" className="py-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{errors.id}</AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* ID Upload and Coverage Areas */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
