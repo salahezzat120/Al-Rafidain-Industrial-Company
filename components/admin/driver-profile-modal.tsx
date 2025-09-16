@@ -15,7 +15,7 @@ import { Progress } from "@/components/ui/progress"
 import { User, Star, Truck, Calendar, Clock, Award, CheckCircle, Save, X, BarChart3, MapPin, Camera, Navigation } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
 
-interface Driver {
+interface Representative {
   id: string
   name: string
   email: string
@@ -35,15 +35,15 @@ interface Driver {
 }
 
 interface DriverProfileModalProps {
-  driver: Driver | null
+  driver: Representative | null
   isOpen: boolean
   onClose: () => void
-  onSave: (driver: Driver) => void
+  onSave: (driver: Representative) => void
 }
 
 export function DriverProfileModal({ driver, isOpen, onClose, onSave }: DriverProfileModalProps) {
   const { t } = useLanguage()
-  const [editedDriver, setEditedDriver] = useState<Driver | null>(driver)
+  const [editedDriver, setEditedDriver] = useState<Representative | null>(driver)
   const [isEditing, setIsEditing] = useState(false)
 
   if (!driver || !editedDriver) return null

@@ -15,13 +15,13 @@ import { User, Truck, AlertCircle, Upload, MapPin, Camera } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
 import { addDriver } from "@/lib/supabase-utils"
 
-interface AddDriverModalProps {
+interface AddRepresentativeModalProps {
   isOpen: boolean
   onClose: () => void
-  onAdd: (driver: any) => void
+  onAdd: (representative: any) => void
 }
 
-export function AddDriverModal({ isOpen, onClose, onAdd }: AddDriverModalProps) {
+export function AddRepresentativeModal({ isOpen, onClose, onAdd }: AddRepresentativeModalProps) {
   const { t } = useLanguage()
   const [formData, setFormData] = useState({
     name: "",
@@ -35,6 +35,7 @@ export function AddDriverModal({ isOpen, onClose, onAdd }: AddDriverModalProps) 
     idImage: null as File | null,
     coverageAreas: [] as string[],
     id: "", // Added id field
+    transportation: "foot" as "foot" | "vehicle", // Added transportation field
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -98,6 +99,7 @@ export function AddDriverModal({ isOpen, onClose, onAdd }: AddDriverModalProps) 
         idImage: null,
         coverageAreas: [],
         id: "", // Reset id
+        transportation: "foot", // Reset transportation
       });
       onClose();
     }
@@ -165,13 +167,27 @@ export function AddDriverModal({ isOpen, onClose, onAdd }: AddDriverModalProps) 
     setFormData(prev => ({ ...prev, id: driverId }));
   }
 
+  const addCoverageArea = () => {
+    const newArea = prompt(t("enterAreaName"));
+    if (newArea) {
+      setFormData(prev => ({ ...prev, coverageAreas: [...prev.coverageAreas, newArea] }));
+    }
+  }
+
+  const removeCoverageArea = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      coverageAreas: prev.coverageAreas.filter((_, i) => i !== index)
+    }));
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
             <User className="h-5 w-5" />
-            {t("addNewDriver")}
+            {t("addNewRepresentative")}
           </DialogTitle>
         </DialogHeader>
 
@@ -243,34 +259,63 @@ export function AddDriverModal({ isOpen, onClose, onAdd }: AddDriverModalProps) 
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="license">{t("driversLicenseNumber")} *</Label>
-                  <Input
-                    id="license"
-                    value={formData.licenseNumber}
-                    onChange={(e) => handleInputChange("licenseNumber", e.target.value)}
-                    placeholder="DL123456789"
-                    className={errors.licenseNumber ? "border-red-500" : ""}
-                  />
-                  {errors.licenseNumber && <p className="text-sm text-red-600 mt-1">{errors.licenseNumber}</p>}
+                <div className="space-y-2">
+                  <Label className="font-medium">{t("transportationOption")}</Label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="transportation"
+                        value="foot"
+                        onChange={() => handleInputChange("transportation", "foot")}
+                        className="form-radio h-4 w-4 text-blue-600"
+                      />
+                      <span className="ml-2 text-sm">{t("onFoot")}</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="transportation"
+                        value="vehicle"
+                        onChange={() => handleInputChange("transportation", "vehicle")}
+                        className="form-radio h-4 w-4 text-blue-600"
+                      />
+                      <span className="ml-2 text-sm">{t("withVehicle")}</span>
+                    </label>
+                  </div>
                 </div>
 
-                <div>
-                  <Label htmlFor="vehicle">{t("assignedVehicle")} *</Label>
-                  <Select value={formData.vehicle} onValueChange={(value) => handleInputChange("vehicle", value)}>
-                    <SelectTrigger className={errors.vehicle ? "border-red-500" : ""}>
-                      <SelectValue placeholder={t("selectVehicle")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="VH-001">VH-001 - Ford Transit</SelectItem>
-                      <SelectItem value="VH-002">VH-002 - Mercedes Sprinter</SelectItem>
-                      <SelectItem value="VH-003">VH-003 - Isuzu NPR</SelectItem>
-                      <SelectItem value="VH-004">VH-004 - Ford Transit</SelectItem>
-                      <SelectItem value="VH-005">VH-005 - Chevrolet Express</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {errors.vehicle && <p className="text-sm text-red-600 mt-1">{errors.vehicle}</p>}
-                </div>
+                {formData.transportation === "vehicle" && (
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="license" className="font-medium">{t("driversLicenseNumber")} *</Label>
+                      <Input
+                        id="license"
+                        value={formData.licenseNumber}
+                        onChange={(e) => handleInputChange("licenseNumber", e.target.value)}
+                        placeholder={t("enterLicenseNumber")}
+                        className={`mt-1 block w-full ${errors.licenseNumber ? "border-red-500" : "border-gray-300"}`}
+                      />
+                      {errors.licenseNumber && <p className="text-sm text-red-600 mt-1">{errors.licenseNumber}</p>}
+                    </div>
+                    <div>
+                      <Label htmlFor="vehicle" className="font-medium">{t("assignedVehicle")} *</Label>
+                      <Select value={formData.vehicle} onValueChange={(value) => handleInputChange("vehicle", value)}>
+                        <SelectTrigger className={`mt-1 block w-full ${errors.vehicle ? "border-red-500" : "border-gray-300"}`}>
+                          <SelectValue placeholder={t("selectVehicle")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="VH-001">{t("vehicle1")}</SelectItem>
+                          <SelectItem value="VH-002">{t("vehicle2")}</SelectItem>
+                          <SelectItem value="VH-003">{t("vehicle3")}</SelectItem>
+                          <SelectItem value="VH-004">{t("vehicle4")}</SelectItem>
+                          <SelectItem value="VH-005">{t("vehicle5")}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {errors.vehicle && <p className="text-sm text-red-600 mt-1">{errors.vehicle}</p>}
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <Label htmlFor="emergency">{t("emergencyContact")}</Label>
@@ -396,34 +441,18 @@ export function AddDriverModal({ isOpen, onClose, onAdd }: AddDriverModalProps) 
                 <div>
                   <Label>{t("selectCoverageAreas")} *</Label>
                   <div className="mt-2 max-h-40 overflow-y-auto border rounded-lg p-3 space-y-2">
-                    {coverageAreaOptions.map((area) => (
-                      <label key={area.key} className="flex items-center space-x-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.coverageAreas.includes(area.value)}
-                          onChange={(e) => handleCoverageAreaChange(area.value, e.target.checked)}
-                          className="rounded border-gray-300"
-                        />
-                        <span className="text-sm">{t(area.key)}</span>
-                      </label>
+                    {formData.coverageAreas.map((area, index) => (
+                      <div key={index} className="flex items-center justify-between">
+                        <span>{area}</span>
+                        <Button variant="ghost" size="sm" onClick={() => removeCoverageArea(index)}>
+                          {t("remove")}
+                        </Button>
+                      </div>
                     ))}
                   </div>
-                  {formData.coverageAreas.length > 0 && (
-                    <div className="mt-2">
-                      <p className="text-xs text-gray-600 mb-1">{t("selectedAreas")}</p>
-                      <div className="flex flex-wrap gap-1">
-                        {formData.coverageAreas.map((area) => (
-                          <span
-                            key={area}
-                            className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800"
-                          >
-                            {area}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {errors.coverageAreas && <p className="text-sm text-red-600 mt-1">{errors.coverageAreas}</p>}
+                  <Button type="button" variant="outline" onClick={addCoverageArea} className="mt-2">
+                    {t("addArea")}
+                  </Button>
                 </div>
               </CardContent>
             </Card>

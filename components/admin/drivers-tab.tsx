@@ -17,11 +17,12 @@ import * as XLSX from 'xlsx';
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertCircle } from "@/components/ui/alert"
 import { generateDriverId } from "@/lib/supabase-utils";
+import { DatePicker } from '@/components/ui/date-picker';
 
-export function DriversTab() {
+export function RepresentativesTab() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [drivers, setDrivers] = useState<any[]>([])
-  const [selectedDriver, setSelectedDriver] = useState<any>(null)
+  const [representatives, setRepresentatives] = useState<any[]>([])
+  const [selectedRepresentative, setSelectedRepresentative] = useState<any>(null)
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false)
@@ -31,16 +32,16 @@ export function DriversTab() {
   const { t } = useLanguage()
 
   useEffect(() => {
-    const fetchDrivers = async () => {
+    const fetchRepresentatives = async () => {
       const { data, error } = await getDrivers()
       if (error) {
-        console.error('Error fetching drivers:', error)
+        console.error('Error fetching representatives:', error)
       } else {
-        setDrivers(data || [])
+        setRepresentatives(data || [])
       }
     }
 
-    fetchDrivers()
+    fetchRepresentatives()
   }, [])
 
   const getStatusColor = (status: string) => {
@@ -56,52 +57,57 @@ export function DriversTab() {
     }
   }
 
-  const filteredDrivers = drivers.filter(
-    (driver) =>
-      driver.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      driver.email.toLowerCase().includes(searchTerm.toLowerCase()),
+  const filteredRepresentatives = representatives.filter(
+    (representative) =>
+      representative.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      representative.email.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
-  const handleViewProfile = (driver: any) => {
-    setSelectedDriver(driver)
+  const handleViewProfile = (representative: any) => {
+    setSelectedRepresentative(representative)
     setIsProfileModalOpen(true)
   }
 
-  const handleLiveTracking = (driver: any) => {
-    setSelectedDriver(driver)
+  const handleLiveTracking = (representative: any) => {
+    setSelectedRepresentative(representative)
     setIsTrackingModalOpen(true)
   }
 
-  const handleSaveDriver = (updatedDriver: any) => {
-    setDrivers((prev) => prev.map((d) => (d.id === updatedDriver.id ? updatedDriver : d)))
+  const handleSaveRepresentative = (updatedRepresentative: any) => {
+    setRepresentatives((prev) => prev.map((d) => (d.id === updatedRepresentative.id ? updatedRepresentative : d)))
     setIsProfileModalOpen(false)
   }
 
-  const handleAddDriver = (newDriver: any) => {
-    setDrivers((prev) => [...prev, newDriver])
+  const handleAddRepresentative = (newRepresentative: any) => {
+    setRepresentatives((prev) => [...prev, newRepresentative])
   }
 
   const getStatusStats = () => {
-    const active = drivers.filter((d) => d.status === "active").length
-    const onRoute = drivers.filter((d) => d.status === "on-route").length
-    const offline = drivers.filter((d) => d.status === "offline").length
-    const avgRating = drivers.reduce((sum, d) => sum + d.rating, 0) / drivers.length
+    const active = representatives.filter((d) => d.status === "active").length
+    const onRoute = representatives.filter((d) => d.status === "on-route").length
+    const offline = representatives.filter((d) => d.status === "offline").length
+    const avgRating = representatives.reduce((sum, d) => sum + d.rating, 0) / representatives.length
 
     return { active, onRoute, offline, avgRating: avgRating.toFixed(1) }
   }
 
   const stats = getStatusStats()
 
-  const exportToExcel = (drivers) => {
-    const worksheet = XLSX.utils.json_to_sheet(drivers);
+  const exportToExcel = (representatives) => {
+    const worksheet = XLSX.utils.json_to_sheet(representatives);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Drivers');
-    XLSX.writeFile(workbook, 'drivers.xlsx');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Representatives');
+    XLSX.writeFile(workbook, 'representatives.xlsx');
   };
 
-  const generateDriverIdHandler = async () => {
-    const driverId = await generateDriverId();
-    setFormData(prev => ({ ...prev, id: driverId }));
+  const generateRepresentativeIdHandler = async () => {
+    const representativeId = await generateDriverId();
+    setFormData(prev => ({ ...prev, id: representativeId }));
+  }
+
+  const handleDateRangeChange = (dateRange) => {
+    // Logic to filter reports based on selected date range
+    console.log('Selected date range:', dateRange);
   }
 
   return (
@@ -109,17 +115,22 @@ export function DriversTab() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">{t("driverManagement")}</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{t("representativeManagement")}</h2>
           <p className="text-gray-600">{t("manageDeliveryTeam")}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => exportToExcel(drivers)}>
+          <DatePicker
+            onChange={(dateRange) => handleDateRangeChange(dateRange)}
+            placeholderText={t("selectDateRange")}
+            className="border rounded-md"
+          />
+          <Button variant="outline" onClick={() => exportToExcel(representatives)}>
             <Download className="h-4 w-4 mr-2" />
             {t("export")}
           </Button>
           <Button onClick={() => setIsAddModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            {t("add")} {t("driver")}
+            {t("add")} {t("representative")}
           </Button>
         </div>
       </div>
@@ -133,7 +144,7 @@ export function DriversTab() {
                 <div className="h-2 w-2 bg-green-500 rounded-full"></div>
               </div>
               <div>
-                <p className="text-sm text-gray-600">{t("activeDrivers")}</p>
+                <p className="text-sm text-gray-600">{t("activeRepresentatives")}</p>
                 <p className="text-xl font-bold">{stats.active}</p>
               </div>
             </div>
@@ -144,25 +155,11 @@ export function DriversTab() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 rounded-lg">
-                <Truck className="h-4 w-4 text-blue-600" />
+                <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
               </div>
               <div>
                 <p className="text-sm text-gray-600">{t("onRoute")}</p>
                 <p className="text-xl font-bold">{stats.onRoute}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <Star className="h-4 w-4 text-yellow-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">{t("avgRating")}</p>
-                <p className="text-xl font-bold">{stats.avgRating}</p>
               </div>
             </div>
           </CardContent>
@@ -177,6 +174,20 @@ export function DriversTab() {
               <div>
                 <p className="text-sm text-gray-600">{t("offline")}</p>
                 <p className="text-xl font-bold">{stats.offline}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-yellow-100 rounded-lg">
+                <div className="h-2 w-2 bg-yellow-500 rounded-full"></div>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">{t("avgRating")}</p>
+                <p className="text-xl font-bold">{stats.avgRating}</p>
               </div>
             </div>
           </CardContent>
@@ -204,12 +215,12 @@ export function DriversTab() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {filteredDrivers.map((driver) => (
-              <div key={driver.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50">
+            {filteredRepresentatives.map((representative) => (
+              <div key={representative.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50">
                 <Avatar className="h-12 w-12">
-                  <AvatarImage src={driver.avatar || "/placeholder.svg"} alt={driver.name} />
+                  <AvatarImage src={representative.avatar || "/placeholder.svg"} alt={representative.name} />
                   <AvatarFallback>
-                    {driver.name
+                    {representative.name
                       .split(" ")
                       .map((n) => n[0])
                       .join("")}
@@ -218,49 +229,49 @@ export function DriversTab() {
 
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-4">
                   <div>
-                    <p className="font-medium text-gray-900">{driver.name}</p>
-                    <p className="text-sm text-gray-500">ID: {driver.id}</p>
+                    <p className="font-medium text-gray-900">{representative.name}</p>
+                    <p className="text-sm text-gray-500">ID: {representative.id}</p>
                   </div>
 
                   <div>
                     <div className="flex items-center gap-1 text-sm text-gray-600 mb-1">
                       <Mail className="h-3 w-3" />
-                      {driver.email}
+                      {representative.email}
                     </div>
                     <div className="flex items-center gap-1 text-sm text-gray-600">
                       <Phone className="h-3 w-3" />
-                      {driver.phone}
+                      {representative.phone}
                     </div>
                   </div>
 
                   <div>
-                    <Badge className={getStatusColor(driver.status)}>
-                      {driver.status.replace("-", " ").toUpperCase()}
+                    <Badge className={getStatusColor(representative.status)}>
+                      {representative.status.replace("-", " ").toUpperCase()}
                     </Badge>
                     <div className="flex items-center gap-1 text-sm text-gray-600 mt-1">
                       <MapPin className="h-3 w-3" />
-                      {driver.location}
+                      {representative.location}
                     </div>
                   </div>
 
                   <div>
                     <div className="flex items-center gap-1 mb-1">
                       <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                      <span className="text-sm font-medium">{driver.rating}</span>
+                      <span className="text-sm font-medium">{representative.rating}</span>
                     </div>
                     <p className="text-sm text-gray-600">
-                      {driver.deliveries} {t("deliveries")}
+                      {representative.deliveries} {t("deliveries")}
                     </p>
                   </div>
 
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium">
-                        {t("vehicle")}: {driver.vehicle}
+                        {t("vehicle")}: {representative.vehicle}
                       </p>
-                      {driver.coverageAreas && driver.coverageAreas.length > 0 && (
+                      {representative.coverageAreas && representative.coverageAreas.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {driver.coverageAreas.slice(0, 2).map((area, index) => (
+                          {representative.coverageAreas.slice(0, 2).map((area, index) => (
                             <span
                               key={index}
                               className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-blue-100 text-blue-800"
@@ -268,9 +279,9 @@ export function DriversTab() {
                               {area}
                             </span>
                           ))}
-                          {driver.coverageAreas.length > 2 && (
+                          {representative.coverageAreas.length > 2 && (
                             <span className="text-xs text-gray-500">
-                              +{driver.coverageAreas.length - 2} more
+                              +{representative.coverageAreas.length - 2} more
                             </span>
                           )}
                         </div>
@@ -280,7 +291,7 @@ export function DriversTab() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleLiveTracking(driver)}
+                        onClick={() => handleLiveTracking(representative)}
                         className="text-blue-600 border-blue-200 hover:bg-blue-50"
                       >
                         <Navigation className="h-3 w-3 mr-1" />
@@ -293,10 +304,10 @@ export function DriversTab() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewProfile(driver)}>
+                          <DropdownMenuItem onClick={() => handleViewProfile(representative)}>
                             {t("viewProfile")}
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleLiveTracking(driver)}>
+                          <DropdownMenuItem onClick={() => handleLiveTracking(representative)}>
                             <Navigation className="h-4 w-4 mr-2" />
                             Live Tracking
                           </DropdownMenuItem>
@@ -317,16 +328,16 @@ export function DriversTab() {
 
       {/* Modals */}
       <DriverProfileModal
-        driver={selectedDriver}
+        driver={selectedRepresentative}
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
-        onSave={handleSaveDriver}
+        onSave={handleSaveRepresentative}
       />
 
-      <AddDriverModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAdd={handleAddDriver} />
+      <AddDriverModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAdd={handleAddRepresentative} />
 
       <LiveTrackingModal
-        driver={selectedDriver}
+        driver={selectedRepresentative}
         isOpen={isTrackingModalOpen}
         onClose={() => setIsTrackingModalOpen(false)}
       />

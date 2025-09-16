@@ -26,6 +26,7 @@ const translations = {
     "auth.supervisor": "Supervisor",
     "auth.driver": "Driver",
     "auth.logout": "Logout",
+    "representative": "Representative",
 
     // Navigation
     "nav.overview": "Overview",
@@ -733,11 +734,11 @@ const translations = {
     "auth.login": "تسجيل الدخول",
     "auth.email": "البريد الإلكتروني",
     "auth.password": "كلمة المرور",
-    "auth.signIn": "دخول",
+    "auth.signIn": "تسجيل الدخول",
     "auth.selectRole": "اختر دورك للمتابعة",
-    "auth.admin": "مدير",
+    "auth.admin": "مسؤول",
     "auth.supervisor": "مشرف",
-    "auth.driver": "سائق",
+    "auth.representative": "ممثل",
     "auth.logout": "تسجيل الخروج",
 
     // Navigation

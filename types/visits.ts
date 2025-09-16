@@ -25,7 +25,7 @@ export interface Delegate {
   name: string
   email: string
   phone: string
-  role: 'driver' | 'supervisor' | 'technician' | 'sales_rep'
+  role: 'representative' | 'supervisor' | 'technician' | 'sales_rep'
   status: 'available' | 'busy' | 'offline' | 'on_visit'
   current_location?: string
   avatar_url?: string

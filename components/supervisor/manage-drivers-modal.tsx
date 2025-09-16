@@ -10,12 +10,12 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Search, Phone, MapPin, Clock, MessageSquare } from "lucide-react"
 import { getDrivers } from "@/lib/supabase-utils"
 
-interface ManageDriversModalProps {
+interface ManageRepresentativesModalProps {
   isOpen: boolean
   onClose: () => void
 }
 
-export function ManageDriversModal({ isOpen, onClose }: ManageDriversModalProps) {
+export function ManageRepresentativesModal({ isOpen, onClose }: ManageRepresentativesModalProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [drivers, setDrivers] = useState<any[]>([])
 
