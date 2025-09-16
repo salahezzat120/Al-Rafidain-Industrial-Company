@@ -20,6 +20,8 @@ import { DeliveriesTab } from "@/components/admin/deliveries-tab"
 import { VehiclesTab } from "@/components/admin/vehicles-tab"
 import { TrackingTab } from "@/components/admin/tracking-tab"
 import { AnalyticsTab } from "@/components/admin/analytics-tab"
+import ReportsTab from "@/components/admin/reports-tab"
+import LoyaltyTab from "@/components/admin/loyalty-tab"
 import { AlertsTab } from "@/components/admin/alerts-tab"
 import { SettingsTab } from "@/components/admin/settings-tab"
 import { VisitsTab } from "@/components/admin/visits-tab"
@@ -120,6 +122,8 @@ function Dashboard() {
             {activeTab === "vehicles" && <VehiclesTab />}
             {activeTab === "tracking" && <TrackingTab />}
             {activeTab === "analytics" && <AnalyticsTab />}
+            {activeTab === "reports" && <ReportsTab />}
+            {activeTab === "loyalty" && <LoyaltyTab />}
             {activeTab === "alerts" && <AlertsTab />}
           {activeTab === "visits" && <VisitsTab />}
           {activeTab === "messaging" && <MessagingTab />}
