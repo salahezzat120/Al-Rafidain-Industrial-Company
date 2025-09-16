@@ -120,7 +120,7 @@ INSERT INTO employees (employee_id, first_name, last_name, email, phone, positio
 ('EMP002', 'Fatima', 'Ali', 'fatima.ali@company.com', '+964-770-234-5678', 'HR Manager', 'Human Resources', '2022-08-10', 3000.00, 'active', 'Erbil, Iraq', '1988-12-15', 'female', 'Iraqi'),
 ('EMP003', 'Omar', 'Mahmoud', 'omar.mahmoud@company.com', '+964-770-345-6789', 'Sales Executive', 'Sales', '2023-03-20', 2000.00, 'active', 'Basra, Iraq', '1992-07-08', 'male', 'Iraqi'),
 ('EMP004', 'Layla', 'Ahmed', 'layla.ahmed@company.com', '+964-770-456-7890', 'Accountant', 'Finance', '2022-11-05', 2200.00, 'active', 'Mosul, Iraq', '1991-09-25', 'female', 'Iraqi'),
-('EMP005', 'Khalid', 'Ibrahim', 'khalid.ibrahim@company.com', '+964-770-567-8901', 'Driver', 'Logistics', '2023-06-12', 1500.00, 'active', 'Najaf, Iraq', '1989-03-18', 'male', 'Iraqi');
+('EMP005', 'Khalid', 'Ibrahim', 'khalid.ibrahim@company.com', '+964-770-567-8901', 'Representative', 'Logistics', '2023-06-12', 1500.00, 'active', 'Najaf, Iraq', '1989-03-18', 'male', 'Iraqi');
 
 -- Insert sample permissions
 INSERT INTO employee_permissions (employee_id, task_type, permission_level, granted_by) VALUES

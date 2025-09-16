@@ -128,13 +128,14 @@ export const addRepresentative = async (representativeData: {
     const { data, error } = await supabase
       .from('representatives')
       .insert([{ ...representativeData, representative_id: representativeId }])
+      .select()
+      .single();
 
     if (error) {
-      console.error('Error adding representative:', error)
-      console.error('Error details:', JSON.stringify(error, null, 2))
-      return { data: null, error: error.message || 'Unknown error occurred' }
+      console.error('Error adding representative:', error);
+      return { data: null, error: error.message || 'Unknown error occurred' };
     }
 
-    return { data, error: null }
-  })
-}
+    return { data, error: null };
+  });
+};

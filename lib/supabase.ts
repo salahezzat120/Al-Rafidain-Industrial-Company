@@ -57,6 +57,6 @@ if (typeof window !== 'undefined') {
 export type SupabaseUser = {
   id: string
   email: string
-  role: 'Admin' | 'Supervisor' | 'Driver'
+  role: 'Admin' | 'Supervisor' | 'Representative'
   created_at: string
 }

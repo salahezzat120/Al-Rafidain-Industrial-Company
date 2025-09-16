@@ -153,7 +153,7 @@ export function TrackingTab() {
             <Card className="lg:col-span-1">
               <CardHeader>
                 <CardTitle>{t("liveMap")}</CardTitle>
-                <CardDescription>{t("realTimeDriverLocations")}</CardDescription>
+                <CardDescription>{t("realTimeRepresentativeLocations")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="h-96 bg-gray-100 rounded-lg flex items-center justify-center">

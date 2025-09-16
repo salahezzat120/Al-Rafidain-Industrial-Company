@@ -54,7 +54,7 @@ export function MessagingTab() {
   // Mock users data - in real app, this would come from API
   const users = [
     { id: "1", name: "Admin User", email: "admin@company.com", role: "Admin", avatar: "/admin-avatar.png" },
-    { id: "2", name: "Mike Johnson", email: "mike.johnson@company.com", role: "Driver", avatar: "/driver-avatar.png" },
+    { id: "2", name: "Mike Johnson", email: "mike.johnson@company.com", role: "Representative", avatar: "/representative-avatar.png" },
     { id: "3", name: "Sarah Wilson", email: "sarah.wilson@company.com", role: "Supervisor", avatar: "/supervisor-avatar.png" },
     { id: "4", name: "David Chen", email: "david.chen@company.com", role: "Technician", avatar: "/driver-avatar.png" },
   ]
@@ -89,7 +89,7 @@ export function MessagingTab() {
           id: "1",
           sender_id: "2",
           sender_name: "Mike Johnson",
-          sender_role: "Driver",
+          sender_role: "Representative",
           recipient_id: "1",
           recipient_name: "Admin User",
           recipient_role: "Admin",
@@ -168,7 +168,7 @@ export function MessagingTab() {
           id: "3",
           sender_id: "2",
           sender_name: "Mike Johnson",
-          sender_role: "Driver",
+          sender_role: "Representative",
           message: "What's my next scheduled visit?",
           message_type: "user",
           timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),

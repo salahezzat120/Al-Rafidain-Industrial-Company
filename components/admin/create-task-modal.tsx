@@ -27,7 +27,7 @@ const mockCustomers = [
   { id: "C004", name: "Alice Brown", address: "321 Elm St, West Zone, City 12345", phone: "+1 (555) 456-7890" },
 ]
 
-const mockDrivers = [
+const mockRepresentatives = [
   { id: "1", name: "Mike Johnson", status: "available" },
   { id: "2", name: "Sarah Wilson", status: "available" },
   { id: "3", name: "David Chen", status: "busy" },
@@ -40,7 +40,7 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
   const [formData, setFormData] = useState({
     title: "",
     customerId: "",
-    driverId: "",
+    representativeId: "",
     priority: "medium",
     scheduledFor: "",
     estimatedTime: "",
@@ -73,19 +73,19 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
     const selectedCustomer = mockCustomers.find((c) => c.id === formData.customerId)
-    const selectedDriver = formData.driverId ? mockDrivers.find((d) => d.id === formData.driverId) : null
+    const selectedRepresentative = formData.representativeId ? mockRepresentatives.find((r) => r.id === formData.representativeId) : null
 
     const newTask = {
       title: formData.title,
       customer: selectedCustomer,
-      driver: selectedDriver
+      representative: selectedRepresentative
         ? {
-            id: selectedDriver.id,
-            name: selectedDriver.name,
+            id: selectedRepresentative.id,
+            name: selectedRepresentative.name,
             avatar: "/placeholder.svg?height=32&width=32",
           }
         : null,
-      status: selectedDriver ? "assigned" : "pending",
+      status: selectedRepresentative ? "assigned" : "pending",
       priority: formData.priority,
       estimatedTime: formData.estimatedTime,
       distance: "8.5 km", // Mock distance
@@ -98,7 +98,7 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
     setFormData({
       title: "",
       customerId: "",
-      driverId: "",
+      representativeId: "",
       priority: "medium",
       scheduledFor: "",
       estimatedTime: "",
@@ -117,7 +117,7 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
     }
   }
 
-  const availableDrivers = mockDrivers.filter((driver) => driver.status === "available")
+  const availableRepresentatives = mockRepresentatives.filter((representative) => representative.status === "available")
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -218,25 +218,25 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
                 </div>
 
                 <div>
-                  <Label htmlFor="driver">{t("task.assignDriver")}</Label>
+                  <Label htmlFor="representative">{t("task.assignRepresentative")}</Label>
                   <Select
-                    value={formData.driverId || "unassigned"}
-                    onValueChange={(value) => handleInputChange("driverId", value)}
+                    value={formData.representativeId || "unassigned"}
+                    onValueChange={(value) => handleInputChange("representativeId", value)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Leave unassigned or select driver" />
+                      <SelectValue placeholder="Leave unassigned or select representative" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="unassigned">{t("task.unassigned")}</SelectItem>
-                      {availableDrivers.map((driver) => (
-                        <SelectItem key={driver.id} value={driver.id}>
-                          {driver.name} ({t("task.available")})
+                      {availableRepresentatives.map((representative) => (
+                        <SelectItem key={representative.id} value={representative.id}>
+                          {representative.name} ({t("task.available")})
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  {availableDrivers.length === 0 && (
-                    <p className="text-sm text-yellow-600 mt-1">{t("task.noDriversAvailable")}</p>
+                  {availableRepresentatives.length === 0 && (
+                    <p className="text-sm text-yellow-600 mt-1">{t("task.noRepresentativesAvailable")}</p>
                   )}
                 </div>
 
@@ -279,7 +279,7 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              {formData.driverId !== "unassigned" ? t("task.taskWillBeAssigned") : t("task.taskWillBePending")}
+              {formData.representativeId !== "unassigned" ? t("task.taskWillBeAssigned") : t("task.taskWillBePending")}
             </AlertDescription>
           </Alert>
 

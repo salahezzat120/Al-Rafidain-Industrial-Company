@@ -27,6 +27,10 @@ const translations = {
     "auth.driver": "Driver",
     "auth.logout": "Logout",
     "representative": "Representative",
+    "representativeName": "Name",
+    "representativeEmail": "Email",
+    "representativePhone": "Phone",
+    "representativeStatus": "Status",
 
     // Navigation
     "nav.overview": "Overview",
@@ -43,6 +47,8 @@ const translations = {
     "nav.driverManagement": "Driver Management",
     "nav.customerManagement": "Customer Management",
     "nav.deliveryTasks": "Delivery Tasks",
+    "nav.representatives": "Representatives",
+    "nav.representativeManagement": "Representative Management",
 
     // Dashboard
     "dashboard.welcome": "Welcome to Al-Rafidain Delivery Management",
@@ -54,12 +60,15 @@ const translations = {
     "dashboard.welcomeBack": "Welcome back",
     "dashboard.deliveryOverview": "Here's your delivery overview for today",
     "dashboard.driverDashboard": "Driver Dashboard",
+    "dashboard.activeRepresentatives": "Active Representatives",
+    "dashboard.representativeDashboard": "Representative Dashboard",
 
     // Supervisor Actions
     "supervisor.assignDelivery": "Assign Delivery",
     "supervisor.manageDrivers": "Manage Drivers",
     "supervisor.viewReports": "View Reports",
     "supervisor.trackVehicles": "Track Vehicles",
+    "supervisor.manageRepresentatives": "Manage Representatives",
 
     // Driver Dashboard
     "driver.todayDeliveries": "Today's Deliveries",
@@ -728,6 +737,30 @@ const translations = {
     notHelpful: "Not helpful",
     optionalComment: "Optional comment",
     submit: "Submit",
+
+    // Representative
+    "representative.representativeRating": "Representative Rating",
+    "representativeEfficiency": "Representative Efficiency",
+    "representativeManagement": "Representative Management",
+    "searchRepresentatives": "Search representatives by name or email...",
+    "representative.addNew": "Add New Representative",
+    "representative.licenseNumber": "Representative's License Number",
+    "representative.addRepresentative": "Add Representative",
+    "representative.addingRepresentative": "Adding Representative...",
+    "realTimeRepresentativeLocations": "Real-time representative locations",
+    "representativePerformance": "Representative Performance",
+    "representativePerformanceLeaderboard": "Representative Performance Leaderboard",
+    "topPerformingRepresentatives": "Top performing representatives this month",
+    "maxDeliveriesPerRepresentative": "Max Deliveries per Representative",
+    "task.assignRepresentative": "Assign Representative (Optional)",
+    "task.noRepresentativesAvailable": "No representatives currently available",
+    "taskDetails.assignedRepresentative": "Assigned Representative",
+    "taskDetails.representativeAssigned": "Representative assigned",
+    "supervisor.selectRepresentative": "Select available representative",
+    "addNewRepresentative": "Add New Representative",
+    "representativesLicenseNumber": "Representative's License Number",
+    "addingRepresentative": "Adding Representative...",
+    "addRepresentative": "Add Representative"
   },
   ar: {
     // Auth
@@ -738,8 +771,13 @@ const translations = {
     "auth.selectRole": "اختر دورك للمتابعة",
     "auth.admin": "مسؤول",
     "auth.supervisor": "مشرف",
-    "auth.representative": "ممثل",
+    "auth.representative": "مندوب",
     "auth.logout": "تسجيل الخروج",
+    "representative": "مندوب",
+    "representativeName": "الاسم",
+    "representativeEmail": "البريد الإلكتروني",
+    "representativePhone": "الهاتف",
+    "representativeStatus": "الحالة",
 
     // Navigation
     "nav.overview": "نظرة عامة",
@@ -756,6 +794,8 @@ const translations = {
     "nav.driverManagement": "إدارة السائقين",
     "nav.customerManagement": "إدارة العملاء",
     "nav.deliveryTasks": "مهام التوصيل",
+    "nav.representatives": "المندوبين",
+    "nav.representativeManagement": "إدارة المندوبين",
 
     // Dashboard
     "dashboard.welcome": "مرحباً بك في نظام إدارة التوصيل - الرفيدان",
@@ -767,12 +807,15 @@ const translations = {
     "dashboard.welcomeBack": "مرحباً بعودتك",
     "dashboard.deliveryOverview": "إليك نظرة عامة على توصيلاتك لليوم",
     "dashboard.driverDashboard": "لوحة تحكم السائق",
+    "dashboard.activeRepresentatives": "المندوبين النشطين",
+    "dashboard.representativeDashboard": "لوحة تحكم المندوب",
 
     // Supervisor Actions
     "supervisor.assignDelivery": "تعيين توصيل",
     "supervisor.manageDrivers": "إدارة السائقين",
     "supervisor.viewReports": "عرض التقارير",
     "supervisor.trackVehicles": "تتبع المركبات",
+    "supervisor.manageRepresentatives": "إدارة المندوبين",
 
     // Driver Dashboard
     "driver.todayDeliveries": "توصيلات اليوم",
@@ -1439,7 +1482,31 @@ const translations = {
     helpful: "مفيد",
     notHelpful: "غير مفيد",
     optionalComment: "تعليق اختياري",
-    submit: "إرسال"
+    submit: "إرسال",
+
+    // Representative
+    "representative.representativeRating": "تقييم المندوب",
+    "representativeEfficiency": "كفاءة المندوب",
+    "representativeManagement": "إدارة المندوب",
+    "searchRepresentatives": "البحث عن المندوبين بالاسم أو البريد الإلكتروني...",
+    "representative.addNew": "إضافة مندوب جديد",
+    "representative.licenseNumber": "رقم رخصة المندوب",
+    "representative.addRepresentative": "إضافة مندوب",
+    "representative.addingRepresentative": "جاري إضافة المندوب...",
+    "realTimeRepresentativeLocations": "مواقع المندوبين في الوقت الفعلي",
+    "representativePerformance": "أداء المندوب",
+    "representativePerformanceLeaderboard": "لوحة صدارة أداء المندوبين",
+    "topPerformingRepresentatives": "أفضل المندوبين أداءً هذا الشهر",
+    "maxDeliveriesPerRepresentative": "الحد الأقصى للتوصيلات لكل مندوب",
+    "task.assignRepresentative": "تعيين مندوب (اختياري)",
+    "task.noRepresentativesAvailable": "لا يوجد مندوبين متاحين حالياً",
+    "taskDetails.assignedRepresentative": "مندوب معين",
+    "taskDetails.representativeAssigned": "مندوب معين",
+    "supervisor.selectRepresentative": "اختر مندوب متاح",
+    "addNewRepresentative": "إضافة مندوب جديد",
+    "representativesLicenseNumber": "رقم رخصة المندوب",
+    "addingRepresentative": "جاري إضافة المندوب...",
+    "addRepresentative": "إضافة مندوب"
   },
 }
 

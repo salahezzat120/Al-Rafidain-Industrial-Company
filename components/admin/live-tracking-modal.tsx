@@ -139,7 +139,7 @@ export function LiveTrackingModal({ representative, isOpen, onClose }: LiveTrack
               </Avatar>
               <div>
                 <h2 className="text-xl font-bold">Live Tracking - {representative.name}</h2>
-                <p className="text-sm text-gray-600">Driver ID: {representative.id}</p>
+                <p className="text-sm text-gray-600">Representative ID: {representative.id}</p>
               </div>
             </DialogTitle>
             <div className="flex items-center gap-2">

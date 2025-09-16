@@ -213,7 +213,7 @@ export function VehiclesTab() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem>{t("viewDetails")}</DropdownMenuItem>
                           <DropdownMenuItem>{t("editVehicle")}</DropdownMenuItem>
-                          <DropdownMenuItem>{t("assignDriver")}</DropdownMenuItem>
+                          <DropdownMenuItem>{t("assignRepresentative")}</DropdownMenuItem>
                           <DropdownMenuItem>{t("scheduleMaintenance")}</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
