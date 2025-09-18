@@ -813,7 +813,11 @@ const translations = {
     "licenseFormat": "License format: 2 letters followed by 6-9 digits",
     "vehicleRequired": "Vehicle selection is required for vehicle transportation",
     "coverageRequired": "At least one coverage area is required",
-    "areaAlreadyExists": "This area is already added!"
+    "areaAlreadyExists": "This area is already added!",
+    "searchRepresentatives": "Search representatives...",
+    "filter": "Filter",
+    "noRepresentatives": "No representatives found",
+    "getStartedByAddingRepresentative": "Get started by adding your first representative to the team"
   },
   ar: {
     // Auth
@@ -1612,7 +1616,11 @@ const translations = {
     "licenseFormat": "تنسيق الرخصة: حرفين متبوعين بـ 6-9 أرقام",
     "vehicleRequired": "اختيار المركبة مطلوب للنقل بالمركبة",
     "coverageRequired": "منطقة تغطية واحدة على الأقل مطلوبة",
-    "areaAlreadyExists": "هذه المنطقة مضافة بالفعل!"
+    "areaAlreadyExists": "هذه المنطقة مضافة بالفعل!",
+    "searchRepresentatives": "البحث عن المندوبين...",
+    "filter": "تصفية",
+    "noRepresentatives": "لم يتم العثور على مندوبين",
+    "getStartedByAddingRepresentative": "ابدأ بإضافة أول مندوب إلى الفريق"
   },
 }
 

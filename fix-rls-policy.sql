@@ -1,11 +1,21 @@
--- Fix RLS policies for customers table
--- Run this in your Supabase SQL Editor
+-- Fix RLS policy for representatives table
+-- Run this script in your Supabase SQL editor
 
--- Drop existing policy if it exists
-DROP POLICY IF EXISTS "Allow all operations for authenticated users" ON customers;
+-- First, let's check the current policies
+SELECT * FROM pg_policies WHERE tablename = 'representatives';
 
--- Create a more permissive policy for development
-CREATE POLICY "Allow all operations" ON customers FOR ALL USING (true);
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Allow all operations for authenticated users" ON representatives;
 
--- Alternative: If you want to keep RLS but allow anonymous access
--- CREATE POLICY "Allow anonymous access" ON customers FOR ALL USING (true);
+-- Create a new policy that allows all operations for authenticated users
+CREATE POLICY "Allow all operations for authenticated users" ON representatives 
+FOR ALL 
+TO authenticated 
+USING (true) 
+WITH CHECK (true);
+
+-- Alternative: If you want to disable RLS temporarily for testing
+-- ALTER TABLE representatives DISABLE ROW LEVEL SECURITY;
+
+-- Verify the policy was created
+SELECT * FROM pg_policies WHERE tablename = 'representatives';

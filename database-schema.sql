@@ -30,9 +30,28 @@ CREATE TABLE IF NOT EXISTS delegates (
     name TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE,
     phone TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('driver', 'supervisor', 'technician', 'sales_rep')),
-    status TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'busy', 'offline', 'on_visit')),
+    role TEXT NOT NULL CHECK (role IN ('driver', 'representative', 'supervisor', 'technician', 'sales_rep')),
+    status TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'busy', 'offline', 'on_visit', 'active', 'inactive', 'on-route')),
     current_location TEXT,
+    avatar_url TEXT,
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Representatives table
+CREATE TABLE IF NOT EXISTS representatives (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    phone TEXT NOT NULL,
+    address TEXT,
+    license_number TEXT,
+    emergency_contact TEXT,
+    vehicle TEXT,
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'on-route', 'offline')),
+    coverage_areas TEXT[] DEFAULT '{}',
+    transportation_type TEXT NOT NULL DEFAULT 'foot' CHECK (transportation_type IN ('foot', 'vehicle')),
     avatar_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -94,6 +113,7 @@ CREATE INDEX IF NOT EXISTS idx_chat_messages_timestamp ON chat_messages(timestam
 -- RLS (Row Level Security) policies
 ALTER TABLE visits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE delegates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE representatives ENABLE ROW LEVEL SECURITY;
 ALTER TABLE visit_alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE internal_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
@@ -101,6 +121,7 @@ ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 -- Allow all operations for authenticated users (adjust as needed for your security requirements)
 CREATE POLICY "Allow all operations for authenticated users" ON visits FOR ALL USING (auth.role() = 'authenticated');
 CREATE POLICY "Allow all operations for authenticated users" ON delegates FOR ALL USING (auth.role() = 'authenticated');
+CREATE POLICY "Allow all operations for authenticated users" ON representatives FOR ALL USING (auth.role() = 'authenticated');
 CREATE POLICY "Allow all operations for authenticated users" ON visit_alerts FOR ALL USING (auth.role() = 'authenticated');
 CREATE POLICY "Allow all operations for authenticated users" ON internal_messages FOR ALL USING (auth.role() = 'authenticated');
 CREATE POLICY "Allow all operations for authenticated users" ON chat_messages FOR ALL USING (auth.role() = 'authenticated');
@@ -117,12 +138,18 @@ $$ language 'plpgsql';
 -- Triggers for automatic timestamp updates
 CREATE TRIGGER update_visits_updated_at BEFORE UPDATE ON visits FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_delegates_updated_at BEFORE UPDATE ON delegates FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_representatives_updated_at BEFORE UPDATE ON representatives FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Sample data (optional - for testing)
-INSERT INTO delegates (name, email, phone, role, status, current_location) VALUES
-('Mike Johnson', 'mike.johnson@company.com', '+1 (555) 123-4567', 'driver', 'available', 'Downtown'),
-('Sarah Wilson', 'sarah.wilson@company.com', '+1 (555) 234-5678', 'supervisor', 'busy', 'North Zone'),
-('David Chen', 'david.chen@company.com', '+1 (555) 345-6789', 'technician', 'available', 'East District');
+INSERT INTO delegates (name, email, phone, role, status, current_location, notes) VALUES
+('Mike Johnson', 'mike.johnson@company.com', '+1 (555) 123-4567', 'driver', 'available', 'Downtown', '{"vehicle": "VH-001", "license_number": "DL123456789", "coverage_areas": ["Downtown", "Business District"]}'),
+('Sarah Wilson', 'sarah.wilson@company.com', '+1 (555) 234-5678', 'supervisor', 'busy', 'North Zone', '{"specializations": ["team_management", "quality_control"]}'),
+('David Chen', 'david.chen@company.com', '+1 (555) 345-6789', 'technician', 'available', 'East District', '{"specializations": ["maintenance", "repairs"]}');
+
+-- Sample representatives data
+INSERT INTO representatives (id, name, email, phone, address, license_number, emergency_contact, vehicle, status, coverage_areas, transportation_type) VALUES
+('REP-12345678', 'Ahmed Hassan', 'ahmed.hassan@company.com', '+1 (555) 456-7890', '123 Main St, Central Zone', 'DL987654321', 'Fatima Hassan +1 (555) 456-7891', 'VH-002', 'active', ARRAY['Central Zone', 'Residential Area'], 'vehicle'),
+('REP-87654321', 'Sara Al-Mahmoud', 'sara.almahmoud@company.com', '+1 (555) 567-8901', '456 Oak Ave, North District', NULL, 'Mohammed Al-Mahmoud +1 (555) 567-8902', NULL, 'active', ARRAY['North District', 'Business Quarter'], 'foot');
 
 -- Sample visits (optional - for testing)
 INSERT INTO visits (delegate_id, delegate_name, customer_id, customer_name, customer_address, scheduled_start_time, scheduled_end_time, visit_type, priority, notes, allowed_duration_minutes) VALUES

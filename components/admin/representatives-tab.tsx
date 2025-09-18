@@ -10,7 +10,7 @@ import { RepresentativeProfileModal } from "./representative-profile-modal";
 import { AddRepresentativeModal } from "./add-representative-modal";
 import { LiveTrackingModal } from "./live-tracking-modal";
 import { useLanguage } from "@/contexts/language-context";
-import { getRepresentatives } from "@/lib/supabase-utils";
+import { getRepresentatives, generateRepresentativeId, testRepresentativesTable, testSimpleInsert } from "@/lib/supabase-utils";
 import * as XLSX from 'xlsx';
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertCircle } from "@/components/ui/alert";
@@ -80,6 +80,35 @@ export function RepresentativesTab() {
     setFormData(prev => ({ ...prev, id: representativeId }));
   };
 
+  const testTableConnection = async () => {
+    console.log('Testing representatives table connection...');
+    const result = await testRepresentativesTable();
+    if (result.success) {
+      console.log('✅ Table connection successful!');
+      alert('✅ Table connection successful!');
+    } else {
+      console.log('❌ Table connection failed:', result.error);
+      alert(`❌ Table connection failed: ${result.error}`);
+    }
+  };
+
+  const testInsert = async () => {
+    console.log('Testing simple insert...');
+    const result = await testSimpleInsert();
+    if (result.success) {
+      console.log('✅ Insert test successful!');
+      alert('✅ Insert test successful!');
+      // Refresh the representatives list
+      const { data, error } = await getRepresentatives();
+      if (!error) {
+        setRepresentatives(data || []);
+      }
+    } else {
+      console.log('❌ Insert test failed:', result.error);
+      alert(`❌ Insert test failed: ${result.error}`);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -89,6 +118,12 @@ export function RepresentativesTab() {
           <p className="text-gray-600">{t("manageDeliveryTeam")}</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={testTableConnection}>
+            🔧 Test Table
+          </Button>
+          <Button variant="outline" onClick={testInsert}>
+            🧪 Test Insert
+          </Button>
           <Button variant="outline" onClick={() => exportToExcel(representatives)}>
             <Download className="h-4 w-4 mr-2" />
             {t("export")}
@@ -158,6 +193,143 @@ export function RepresentativesTab() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Search and Filter */}
+      <div className="flex gap-4 items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder={t("searchRepresentatives")}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Button variant="outline">
+          <Filter className="h-4 w-4 mr-2" />
+          {t("filter")}
+        </Button>
+      </div>
+
+      {/* Representatives List */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {representatives
+          .filter((rep) =>
+            rep.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            rep.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            rep.phone?.includes(searchTerm)
+          )
+          .map((representative) => (
+            <Card key={representative.id} className="hover:shadow-lg transition-shadow duration-200">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={representative.avatar_url || "/representative-avatar.png"} />
+                      <AvatarFallback>
+                        {representative.name?.split(' ').map(n => n[0]).join('').toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h3 className="font-semibold text-lg">{representative.name}</h3>
+                      <p className="text-sm text-gray-600">ID: {representative.id}</p>
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => {
+                        setSelectedRepresentative(representative);
+                        setIsProfileModalOpen(true);
+                      }}>
+                        {t("viewProfile")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
+                        setSelectedRepresentative(representative);
+                        setIsTrackingModalOpen(true);
+                      }}>
+                        {t("liveTracking")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        {t("assignTask")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        {t("sendMessage")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Mail className="h-4 w-4" />
+                  <span>{representative.email}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Phone className="h-4 w-4" />
+                  <span>{representative.phone}</span>
+                </div>
+                {representative.address && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <MapPin className="h-4 w-4" />
+                    <span className="truncate">{representative.address}</span>
+                  </div>
+                )}
+                {representative.vehicle && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Truck className="h-4 w-4" />
+                    <span>{representative.vehicle}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <Badge className={getStatusColor(representative.status)}>
+                    {representative.status}
+                  </Badge>
+                  <div className="flex items-center gap-1">
+                    <Star className="h-4 w-4 text-yellow-500" />
+                    <span className="text-sm font-medium">4.5</span>
+                  </div>
+                </div>
+                {representative.coverage_areas && representative.coverage_areas.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-gray-500">{t("coverageAreas")}:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {representative.coverage_areas.slice(0, 2).map((area: string, index: number) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          {area}
+                        </Badge>
+                      ))}
+                      {representative.coverage_areas.length > 2 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{representative.coverage_areas.length - 2} more
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+      </div>
+
+      {/* Empty State */}
+      {representatives.length === 0 && (
+        <div className="text-center py-12">
+          <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <Plus className="h-12 w-12 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">{t("noRepresentatives")}</h3>
+          <p className="text-gray-600 mb-4">{t("getStartedByAddingRepresentative")}</p>
+          <Button onClick={() => setIsAddModalOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            {t("add")} {t("representative")}
+          </Button>
+        </div>
+      )}
 
       {/* Modals */}
       <AddRepresentativeModal
