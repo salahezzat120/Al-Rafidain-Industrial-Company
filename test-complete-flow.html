@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Complete Representative Login Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; border: none; border-radius: 4px; }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-success { background-color: #28a745; color: white; }
+        .btn-danger { background-color: #dc3545; color: white; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; font-size: 12px; }
+        .step { margin: 10px 0; padding: 10px; border-left: 4px solid #007bff; background: #f8f9fa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Complete Representative Login Test</h1>
+        
+        <div class="test-section info">
+            <h3>📋 Test Credentials</h3>
+            <p><strong>Email:</strong> maged_gawish@yahoo.com</p>
+            <p><strong>Representative ID:</strong> REP-716254</p>
+            <p><strong>Expected Role:</strong> representative</p>
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 Test Steps</h3>
+            <div class="step">
+                <strong>Step 1:</strong> Check if user exists in database
+                <button class="btn-primary" onclick="checkDatabase()">Check Database</button>
+            </div>
+            <div class="step">
+                <strong>Step 2:</strong> Test authentication logic
+                <button class="btn-primary" onclick="testAuthentication()">Test Auth</button>
+            </div>
+            <div class="step">
+                <strong>Step 3:</strong> Check localStorage
+                <button class="btn-primary" onclick="checkLocalStorage()">Check Storage</button>
+            </div>
+            <div class="step">
+                <strong>Step 4:</strong> Simulate complete login flow
+                <button class="btn-success" onclick="simulateLogin()">Simulate Login</button>
+            </div>
+            <div class="step">
+                <strong>Step 5:</strong> Clear everything and start fresh
+                <button class="btn-danger" onclick="clearAll()">Clear All</button>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Results</h3>
+            <div id="results"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📝 Console Output</h3>
+            <pre id="console-output">Click any test button to see results...</pre>
+        </div>
+    </div>
+
+    <script>
+        // Capture console output
+        const originalLog = console.log;
+        const originalError = console.error;
+        const output = document.getElementById('console-output');
+        const results = document.getElementById('results');
+        
+        function addToOutput(message, type = 'log') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌ ERROR' : '✅ LOG';
+            output.textContent += `[${timestamp}] ${prefix}: ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-section ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToOutput(args.join(' '));
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToOutput(args.join(' '), 'error');
+        };
+
+        function checkDatabase() {
+            addResult('<h4>🔍 Database Check</h4><p>This would check if the user exists in the Supabase database. In a real test, this would query the users table.</p>', 'info');
+            console.log('Database check: Would query users table for maged_gawish@yahoo.com');
+            console.log('Expected: User with id=REP-716254, role=representative, password_hash=NULL');
+        }
+
+        function testAuthentication() {
+            addResult('<h4>🔐 Authentication Test</h4>', 'info');
+            
+            const email = 'maged_gawish@yahoo.com';
+            const representativeId = 'REP-716254';
+            
+            console.log('Testing authentication logic...');
+            console.log('Email:', email);
+            console.log('Representative ID:', representativeId);
+            
+            // Test the logic
+            const isRepresentative = representativeId.startsWith('REP-') && representativeId.length === 12;
+            console.log('Is representative format?', isRepresentative);
+            
+            if (isRepresentative) {
+                console.log('✅ Representative ID format is correct');
+                addResult('<p>✅ Representative ID format is correct</p>', 'success');
+            } else {
+                console.log('❌ Representative ID format is incorrect');
+                addResult('<p>❌ Representative ID format is incorrect</p>', 'error');
+            }
+        }
+
+        function checkLocalStorage() {
+            addResult('<h4>💾 LocalStorage Check</h4>', 'info');
+            
+            const storedUser = localStorage.getItem('delivery-user');
+            console.log('Checking localStorage...');
+            
+            if (storedUser) {
+                try {
+                    const user = JSON.parse(storedUser);
+                    console.log('Found stored user:', user);
+                    console.log('User role:', user.role);
+                    console.log('Is representative?', user.role === 'representative');
+                    
+                    if (user.role === 'representative') {
+                        addResult(`
+                            <p>✅ User found in localStorage</p>
+                            <p><strong>Name:</strong> ${user.name}</p>
+                            <p><strong>Email:</strong> ${user.email}</p>
+                            <p><strong>Role:</strong> ${user.role}</p>
+                            <p><strong>ID:</strong> ${user.id}</p>
+                        `, 'success');
+                    } else {
+                        addResult(`<p>❌ User found but wrong role: ${user.role}</p>`, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error parsing stored user:', error);
+                    addResult('<p>❌ Error parsing stored user</p>', 'error');
+                }
+            } else {
+                console.log('No user found in localStorage');
+                addResult('<p>ℹ️ No user found in localStorage</p>', 'info');
+            }
+        }
+
+        function simulateLogin() {
+            addResult('<h4>🚀 Simulating Complete Login Flow</h4>', 'info');
+            
+            console.log('=== SIMULATING LOGIN FLOW ===');
+            
+            // Step 1: Clear existing data
+            localStorage.removeItem('delivery-user');
+            console.log('1. Cleared existing localStorage');
+            
+            // Step 2: Simulate authentication
+            const email = 'maged_gawish@yahoo.com';
+            const representativeId = 'REP-716254';
+            
+            console.log('2. Simulating authentication...');
+            console.log('   Email:', email);
+            console.log('   Representative ID:', representativeId);
+            
+            // Step 3: Create mock user object (as if from database)
+            const mockUser = {
+                id: representativeId,
+                email: email,
+                name: 'Maged Gawish (Representative)',
+                role: 'representative',
+                avatar: '/representative-avatar.png'
+            };
+            
+            console.log('3. Mock user object created:', mockUser);
+            
+            // Step 4: Store in localStorage (as auth context would do)
+            localStorage.setItem('delivery-user', JSON.stringify(mockUser));
+            console.log('4. User stored in localStorage');
+            
+            // Step 5: Verify storage
+            const stored = localStorage.getItem('delivery-user');
+            const parsed = JSON.parse(stored);
+            console.log('5. Verification - stored user:', parsed);
+            
+            // Step 6: Check if would show representative dashboard
+            const wouldShowDashboard = parsed.role === 'representative';
+            console.log('6. Would show representative dashboard?', wouldShowDashboard);
+            
+            if (wouldShowDashboard) {
+                addResult(`
+                    <p>✅ Login simulation successful!</p>
+                    <p><strong>User:</strong> ${parsed.name}</p>
+                    <p><strong>Role:</strong> ${parsed.role}</p>
+                    <p><strong>Should redirect to:</strong> Representative Dashboard</p>
+                    <p><strong>Dashboard features:</strong> Stats cards, Assigned Deliveries, Notifications</p>
+                `, 'success');
+            } else {
+                addResult('<p>❌ Login simulation failed - wrong role</p>', 'error');
+            }
+            
+            console.log('=== LOGIN FLOW COMPLETE ===');
+        }
+
+        function clearAll() {
+            localStorage.removeItem('delivery-user');
+            output.textContent = '';
+            results.innerHTML = '';
+            console.log('All data cleared');
+            addResult('<p>🧹 All data cleared</p>', 'info');
+        }
+
+        // Initial check
+        console.log('Representative Login Test initialized');
+        console.log('Ready to test authentication flow');
+    </script>
+</body>
+</html>

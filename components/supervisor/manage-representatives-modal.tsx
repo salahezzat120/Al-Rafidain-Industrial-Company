@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { getRepresentatives } from "@/lib/supabase-utils";
 
 export function ManageRepresentativesModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; }) {

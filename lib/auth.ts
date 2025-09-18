@@ -13,12 +13,32 @@ export const authenticateUser = async (email: string, password: string): Promise
     
     console.log('All users in database:', { allUsers, allUsersError })
     
-    // Query the users table in Supabase (without .single() to see what we get)
-    const { data, error } = await supabase
+    // For representatives, check if the password is actually a representative ID
+    let query = supabase
       .from('users')
       .select('id, email, role, created_at')
       .eq('email', email)
-      .eq('password_hash', password) // Direct comparison with plain text password
+    
+    // Check if this might be a representative login (password looks like REP-XXXXXXXX)
+    if (password.startsWith('REP-') && password.length >= 10) {
+      console.log('Using representative authentication logic')
+      console.log('Looking for user with email:', email, 'and id:', password)
+      // For representatives, check if the password matches their ID and role is representative
+      query = query.eq('id', password).eq('role', 'representative')
+    } else {
+      console.log('Using regular authentication logic')
+      console.log('Looking for user with email:', email, 'and password_hash:', password)
+      // For regular users, check password hash (not null)
+      query = query.eq('password_hash', password).not('password_hash', 'is', null)
+    }
+    
+    console.log('Final query conditions:', {
+      email: email,
+      password: password,
+      isRepresentative: password.startsWith('REP-') && password.length === 12
+    })
+    
+    const { data, error } = await query
 
     console.log('Supabase authentication response:', { data, error })
     console.log('Data is array:', Array.isArray(data))
@@ -114,7 +134,8 @@ const getAvatarByRole = (role: UserRole): string => {
     case 'supervisor':
       return '/supervisor-avatar.png'
     case 'driver':
-      return '/driver-avatar.png'
+    case 'representative':
+      return '/representative-avatar.png'
     default:
       console.warn('Unknown role provided to getAvatarByRole:', role)
       return '/placeholder-user.jpg'

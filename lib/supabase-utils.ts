@@ -131,6 +131,7 @@ export const testSimpleInsert = async (): Promise<{ success: boolean; error?: st
       name: 'Test Representative',
       email: 'test@example.com',
       phone: '+1 (555) 123-4567',
+      password: 'changeme123',
       status: 'active',
       coverage_areas: ['Test Area'],
       transportation_type: 'foot'
@@ -156,10 +157,69 @@ export const testSimpleInsert = async (): Promise<{ success: boolean; error?: st
   }
 }
 
+// Authenticate representative
+export const authenticateRepresentative = async (email: string, representativeId: string): Promise<any> => {
+  try {
+    console.log('Authenticating representative:', { email, representativeId })
+    
+    const { data, error } = await supabase
+      .from('representatives')
+      .select('*')
+      .eq('email', email)
+      .eq('id', representativeId)
+      .single();
+
+    if (error) {
+      console.error('Representative authentication error:', error);
+      return null;
+    }
+
+    if (!data) {
+      console.log('No representative found with these credentials');
+      return null;
+    }
+
+    console.log('Representative authenticated successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('Representative authentication exception:', error);
+    return null;
+  }
+}
+
 // Generate unique representative ID
 export const generateRepresentativeId = async (): Promise<string> => {
   const randomNum = Math.floor(10000000 + Math.random() * 90000000).toString();
   return `REP-${randomNum}`;
+}
+
+// Add representative to users table for authentication
+export const addRepresentativeToUsers = async (representativeData: any): Promise<{ success: boolean; error?: string }> => {
+  try {
+    console.log('Adding representative to users table:', representativeData)
+    
+    const { data, error } = await supabase
+      .from('users')
+      .insert({
+        id: representativeData.id,
+        email: representativeData.email,
+        password_hash: null, // No password for representatives (they use ID for authentication)
+        role: 'representative',
+        name: representativeData.name
+      })
+      .select()
+
+    if (error) {
+      console.error('Error adding representative to users table:', error)
+      return { success: false, error: error.message }
+    }
+
+    console.log('Successfully added representative to users table:', data)
+    return { success: true }
+  } catch (error) {
+    console.error('Exception adding representative to users table:', error)
+    return { success: false, error: 'Failed to add representative to users table' }
+  }
 }
 
 export const addRepresentative = async (representativeData: {
@@ -167,6 +227,7 @@ export const addRepresentative = async (representativeData: {
   name: string,
   email: string,
   phone: string,
+  password?: string,
   status?: string,
   location?: string,
   rating?: number,
@@ -225,6 +286,14 @@ export const addRepresentative = async (representativeData: {
     }
 
     console.log('Successfully added representative:', data);
+    
+    // Also add to users table for authentication
+    const userResult = await addRepresentativeToUsers(repData);
+    if (!userResult.success) {
+      console.error('Failed to add representative to users table:', userResult.error);
+      // Don't fail the whole operation, just log the error
+    }
+    
     // Return the first item since we're inserting a single record
     return { data: data?.[0] || data, error: null };
   });

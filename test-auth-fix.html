@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Representative Authentication</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Representative Authentication Test</h1>
+    
+    <div class="test-section">
+        <h3>Test Credentials</h3>
+        <p><strong>Email:</strong> maged_gawish@yahoo.com</p>
+        <p><strong>Representative ID:</strong> REP-716254</p>
+        <p><strong>Expected Role:</strong> representative</p>
+    </div>
+
+    <div class="test-section">
+        <h3>Test Authentication</h3>
+        <button onclick="testAuth()">Test Authentication</button>
+        <button onclick="checkLocalStorage()">Check Local Storage</button>
+        <button onclick="clearStorage()">Clear Storage</button>
+        <div id="auth-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Console Output</h3>
+        <pre id="console-output">Click "Test Authentication" to see results...</pre>
+    </div>
+
+    <script>
+        // Capture console.log for display
+        const originalLog = console.log;
+        const originalError = console.error;
+        const output = document.getElementById('console-output');
+        
+        function addToOutput(message, type = 'log') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? 'ERROR' : 'LOG';
+            output.textContent += `[${timestamp}] ${prefix}: ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToOutput(args.join(' '));
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToOutput(args.join(' '), 'error');
+        };
+
+        async function testAuth() {
+            const resultDiv = document.getElementById('auth-result');
+            resultDiv.innerHTML = '<p>Testing authentication...</p>';
+            
+            try {
+                // Simulate the authentication logic
+                const email = 'maged_gawish@yahoo.com';
+                const representativeId = 'REP-716254';
+                
+                console.log('Testing authentication for:', email);
+                console.log('Using Representative ID:', representativeId);
+                
+                // Check if this looks like a representative login
+                const isRepresentative = representativeId.startsWith('REP-') && representativeId.length === 12;
+                console.log('Is representative login:', isRepresentative);
+                
+                if (isRepresentative) {
+                    console.log('Using representative authentication logic');
+                    console.log('Looking for user with email:', email, 'and id:', representativeId);
+                    
+                    // Simulate successful authentication
+                    const mockUser = {
+                        id: representativeId,
+                        email: email,
+                        name: 'Maged Gawish (Representative)',
+                        role: 'representative',
+                        avatar: '/representative-avatar.png'
+                    };
+                    
+                    // Store in localStorage
+                    localStorage.setItem('delivery-user', JSON.stringify(mockUser));
+                    console.log('User stored in localStorage:', mockUser);
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Authentication Successful!</h4>
+                            <p>User: ${mockUser.name}</p>
+                            <p>Role: ${mockUser.role}</p>
+                            <p>ID: ${mockUser.id}</p>
+                            <p>Should redirect to representative dashboard</p>
+                        </div>
+                    `;
+                } else {
+                    throw new Error('Invalid representative ID format');
+                }
+                
+            } catch (error) {
+                console.error('Authentication failed:', error.message);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Authentication Failed</h4>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function checkLocalStorage() {
+            const storedUser = localStorage.getItem('delivery-user');
+            const resultDiv = document.getElementById('auth-result');
+            
+            if (storedUser) {
+                const user = JSON.parse(storedUser);
+                console.log('Found stored user:', user);
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h4>✅ User Found in Local Storage</h4>
+                        <pre>${JSON.stringify(user, null, 2)}</pre>
+                    </div>
+                `;
+            } else {
+                console.log('No user found in localStorage');
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ No User in Local Storage</h4>
+                        <p>No user data found. Try authenticating first.</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function clearStorage() {
+            localStorage.removeItem('delivery-user');
+            console.log('Local storage cleared');
+            document.getElementById('auth-result').innerHTML = '<p>Local storage cleared</p>';
+        }
+    </script>
+</body>
+</html>

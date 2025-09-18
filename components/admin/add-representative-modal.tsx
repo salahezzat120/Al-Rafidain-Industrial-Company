@@ -90,7 +90,7 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
       console.error('Error adding representative:', error);
       setErrors({ submit: 'Failed to add representative. Please try again.' });
     } else {
-      setSuccessMessage('Representative added successfully!');
+      setSuccessMessage(`Representative added successfully! Login credentials: ID: ${representativeId}, Password: changeme123`);
       onAdd(data);
       // Reset form after a short delay
       setTimeout(() => {
@@ -111,7 +111,7 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
         setErrors({});
         setSuccessMessage("");
         onClose();
-      }, 1500);
+      }, 3000);
     }
     setIsSubmitting(false);
   };

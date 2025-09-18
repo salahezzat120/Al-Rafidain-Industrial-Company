@@ -44,8 +44,6 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
     { id: "deliveries", label: t("nav.deliveryTasks"), icon: Package },
     { id: "tracking", label: t("nav.tracking"), icon: MapPin },
     { id: "analytics", label: t("nav.analytics"), icon: BarChart3 },
-    { id: "reports", label: "Reports & Analytics", icon: BarChart3 },
-    { id: "loyalty", label: "Loyalty System", icon: UserCheck },
     { id: "alerts", label: t("nav.alerts"), icon: Bell },
     { id: "visits", label: t("visitManagement"), icon: Calendar },
     { id: "messaging", label: t("internalMessaging"), icon: MessageSquare },

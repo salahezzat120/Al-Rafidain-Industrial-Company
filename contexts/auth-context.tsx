@@ -29,14 +29,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true)
     try {
+      console.log('Auth context: Starting login for', email)
       const authenticatedUser = await authenticateUser(email, password)
+      console.log('Auth context: Authentication result', authenticatedUser)
+      
       if (authenticatedUser) {
+        console.log('Auth context: Setting user', authenticatedUser)
         setUser(authenticatedUser)
         if (isClient) {
           localStorage.setItem("delivery-user", JSON.stringify(authenticatedUser))
+          console.log('Auth context: User stored in localStorage')
         }
         return true
       }
+      console.log('Auth context: Authentication failed')
       return false
     } finally {
       setIsLoading(false)

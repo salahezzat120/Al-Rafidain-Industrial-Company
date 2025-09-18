@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
-import { AlertCircle, Eye, EyeOff, Lock, Mail, Shield, User, Truck } from "lucide-react"
+import { AlertCircle, Eye, EyeOff, Lock, Mail, Shield, User, Truck, Crown, Users, UserCheck } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { useLanguage } from "@/contexts/language-context"
 import { LanguageSwitcher } from "@/components/language-switcher"
@@ -18,6 +18,8 @@ import Image from "next/image"
 function LoginFormContent() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [representativeId, setRepresentativeId] = useState("")
+  const [selectedRole, setSelectedRole] = useState<"admin" | "representative" | "supervisor" | null>(null)
   const [error, setError] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const { login, isLoading } = useAuth()
@@ -29,14 +31,46 @@ function LoginFormContent() {
     e.preventDefault()
     setError("")
 
-    if (!email || !password) {
-      setError("Please enter both email and password.")
+    if (!selectedRole) {
+      setError(t("pleaseSelectYourRole"))
       return
     }
 
+    if (selectedRole === "representative") {
+      if (!email || !representativeId) {
+        setError("Please enter both email and Representative ID.")
+        return
+      }
+    } else {
+      if (!email || !password) {
+        setError("Please enter both email and password.")
+        return
+      }
+    }
+
     try {
+      if (selectedRole === "representative") {
+        // For representatives, use email + ID as password
+        const success = await login(email, representativeId)
+        if (success) {
+          // Force a hard refresh to ensure the user context is updated
+          console.log('Representative login successful, redirecting...')
+          window.location.href = "/"
+          // Force reload after redirect
+          setTimeout(() => {
+            window.location.reload()
+          }, 100)
+        } else {
+          setError("Invalid email or Representative ID. Please check your credentials and try again.")
+        }
+        return
+      }
+      
       const success = await login(email, password)
-      if (!success) {
+      if (success) {
+        // Redirect to main page (admin/supervisor dashboard)
+        window.location.href = "/"
+      } else {
         setError("Invalid email or password. Please check your credentials and try again.")
       }
     } catch (error) {
@@ -145,7 +179,90 @@ function LoginFormContent() {
             </CardHeader>
             
             <CardContent className="space-y-6 pb-8">
-              <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Role Selection */}
+              {!selectedRole ? (
+                <div className="space-y-6">
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold text-white mb-2">{t("selectYourRole")}</h3>
+                    <p className="text-sm text-slate-300">{t("chooseYourRoleToContinue")}</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-4">
+                    {/* Admin Role */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRole("admin")}
+                      className="group relative p-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg hover:bg-white/15 transition-all duration-300 hover:scale-105"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="p-3 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg group-hover:scale-110 transition-transform duration-300">
+                          <Crown className="h-6 w-6 text-white" />
+                        </div>
+                        <div className="text-left">
+                          <h4 className="font-semibold text-white">{t("administrator")}</h4>
+                          <p className="text-sm text-slate-300">{t("fullSystemAccess")}</p>
+                        </div>
+                      </div>
+                      <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-purple-600/20 to-purple-700/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    </button>
+
+                    {/* Supervisor Role */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRole("supervisor")}
+                      className="group relative p-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg hover:bg-white/15 transition-all duration-300 hover:scale-105"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="p-3 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg group-hover:scale-110 transition-transform duration-300">
+                          <Users className="h-6 w-6 text-white" />
+                        </div>
+                        <div className="text-left">
+                          <h4 className="font-semibold text-white">{t("supervisor")}</h4>
+                          <p className="text-sm text-slate-300">{t("teamManagement")}</p>
+                        </div>
+                      </div>
+                      <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-blue-600/20 to-blue-700/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    </button>
+
+                    {/* Representative Role */}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRole("representative")}
+                      className="group relative p-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg hover:bg-white/15 transition-all duration-300 hover:scale-105"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="p-3 bg-gradient-to-r from-green-600 to-green-700 rounded-lg group-hover:scale-110 transition-transform duration-300">
+                          <UserCheck className="h-6 w-6 text-white" />
+                        </div>
+                        <div className="text-left">
+                          <h4 className="font-semibold text-white">{t("representative")}</h4>
+                          <p className="text-sm text-slate-300">{t("deliveryAndFieldOperations")}</p>
+                        </div>
+                      </div>
+                      <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-green-600/20 to-green-700/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Role Header */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      {selectedRole === "admin" && <Crown className="h-5 w-5 text-purple-400" />}
+                      {selectedRole === "supervisor" && <Users className="h-5 w-5 text-blue-400" />}
+                      {selectedRole === "representative" && <UserCheck className="h-5 w-5 text-green-400" />}
+                      <h3 className="text-lg font-semibold text-white capitalize">{selectedRole} Login</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRole(null)}
+                      className="text-slate-400 hover:text-white transition-colors"
+                    >
+                      ← {t("back")}
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-slate-200 font-medium flex items-center space-x-2">
                     <Mail className="h-4 w-4" />
@@ -166,50 +283,79 @@ function LoginFormContent() {
                   </div>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-slate-200 font-medium flex items-center space-x-2">
-                    <Lock className="h-4 w-4" />
-                    <span>{t("auth.password")}</span>
-                  </Label>
-                  <div className="relative group">
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="bg-white/10 backdrop-blur-sm pr-12 border-white/20 focus:border-purple-400 focus:ring-purple-400/20 transition-all duration-300 text-white placeholder:text-slate-400 h-12 text-base group-hover:bg-white/15"
-                      dir={isRTL ? "rtl" : "ltr"}
-                    />
+                {/* Password field - only show for admin and supervisor */}
+                {selectedRole !== "representative" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="password" className="text-slate-200 font-medium flex items-center space-x-2">
+                      <Lock className="h-4 w-4" />
+                      <span>{t("auth.password")}</span>
+                    </Label>
+                    <div className="relative group">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        className="bg-white/10 backdrop-blur-sm pr-12 border-white/20 focus:border-purple-400 focus:ring-purple-400/20 transition-all duration-300 text-white placeholder:text-slate-400 h-12 text-base group-hover:bg-white/15"
+                        dir={isRTL ? "rtl" : "ltr"}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors p-1"
+                      >
+                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                      <div className="absolute inset-0 rounded-md bg-gradient-to-r from-purple-600/20 to-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Representative ID field - only show for representatives */}
+                {selectedRole === "representative" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="representativeId" className="text-slate-200 font-medium flex items-center space-x-2">
+                      <User className="h-4 w-4" />
+                      <span>{t("representativeID")}</span>
+                    </Label>
+                    <div className="relative group">
+                      <Input
+                        id="representativeId"
+                        type="text"
+                        placeholder="REP-12345678"
+                        value={representativeId}
+                        onChange={(e) => setRepresentativeId(e.target.value.toUpperCase())}
+                        required
+                        className="bg-white/10 backdrop-blur-sm border-white/20 focus:border-green-400 focus:ring-green-400/20 transition-all duration-300 text-white placeholder:text-slate-400 h-12 text-base group-hover:bg-white/15 font-mono"
+                        dir={isRTL ? "rtl" : "ltr"}
+                        maxLength={12}
+                      />
+                      <div className="absolute inset-0 rounded-md bg-gradient-to-r from-green-600/20 to-green-700/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Remember Me & Forgot Password - only show for admin and supervisor */}
+                {selectedRole !== "representative" && (
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="remember"
+                        className="w-4 h-4 rounded border-white/20 bg-white/10 text-purple-600 focus:ring-purple-500 focus:ring-offset-0"
+                      />
+                      <label htmlFor="remember" className="text-slate-300">Remember me</label>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors p-1"
+                      className="text-purple-300 hover:text-purple-200 transition-colors"
                     >
-                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      Forgot password?
                     </button>
-                    <div className="absolute inset-0 rounded-md bg-gradient-to-r from-purple-600/20 to-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                   </div>
-                </div>
-
-                {/* Remember Me & Forgot Password */}
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="remember"
-                      className="w-4 h-4 rounded border-white/20 bg-white/10 text-purple-600 focus:ring-purple-500 focus:ring-offset-0"
-                    />
-                    <label htmlFor="remember" className="text-slate-300">Remember me</label>
-                  </div>
-                  <button
-                    type="button"
-                    className="text-purple-300 hover:text-purple-200 transition-colors"
-                  >
-                    Forgot password?
-                  </button>
-                </div>
+                )}
 
                 {error && (
                   <Alert variant="destructive" className="bg-red-500/20 backdrop-blur-sm border-red-400/50 animate-in slide-in-from-top-2">
@@ -237,7 +383,9 @@ function LoginFormContent() {
                     </div>
                   )}
                 </Button>
-              </form>
+                  </form>
+                </div>
+              )}
 
               {/* Footer */}
               <div className="text-center space-y-4 pt-4 border-t border-white/10">

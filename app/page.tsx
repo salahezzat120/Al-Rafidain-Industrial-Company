@@ -20,8 +20,6 @@ import { DeliveriesTab } from "@/components/admin/deliveries-tab"
 import { VehiclesTab } from "@/components/admin/vehicles-tab"
 import { TrackingTab } from "@/components/admin/tracking-tab"
 import { AnalyticsTab } from "@/components/admin/analytics-tab"
-import ReportsTab from "@/components/admin/reports-tab"
-import LoyaltyTab from "@/components/admin/loyalty-tab"
 import { AlertsTab } from "@/components/admin/alerts-tab"
 import { SettingsTab } from "@/components/admin/settings-tab"
 import { VisitsTab } from "@/components/admin/visits-tab"
@@ -32,9 +30,9 @@ import { AssignDeliveryModal } from "@/components/supervisor/assign-delivery-mod
 import { ManageRepresentativesModal } from "@/components/supervisor/manage-representatives-modal";
 import { ReportsModal } from "@/components/supervisor/reports-modal"
 import { TrackVehiclesModal } from "@/components/supervisor/track-vehicles-modal"
-import { DriverStats } from "@/components/driver/driver-stats"
+import { RepresentativeStats } from "@/components/representative/representative-stats";
 import { AssignedDeliveries } from "@/components/driver/assigned-deliveries"
-import { DriverNotifications } from "@/components/driver/driver-notifications"
+import { RepresentativeNotifications } from "@/components/representative/representative-notifications";
 import { RepresentativeQuickActions } from "@/components/representative/representative-quick-actions";
 import { useState, useEffect } from "react"
 import Image from "next/image"
@@ -45,6 +43,11 @@ function Dashboard() {
   const { user, logout } = useAuth()
   const { t, isRTL } = useLanguage()
   const [activeTab, setActiveTab] = useState("overview")
+  
+  // Debug logging
+  console.log('Dashboard: Current user object', user)
+  console.log('Dashboard: User role', user?.role)
+  console.log('Dashboard: Is representative?', user?.role === 'representative')
   const [assignDeliveryOpen, setAssignDeliveryOpen] = useState(false)
   const [manageDriversOpen, setManageDriversOpen] = useState(false)
   const [reportsOpen, setReportsOpen] = useState(false)
@@ -123,8 +126,6 @@ function Dashboard() {
             {activeTab === "vehicles" && <VehiclesTab />}
             {activeTab === "tracking" && <TrackingTab />}
             {activeTab === "analytics" && <AnalyticsTab />}
-            {activeTab === "reports" && <ReportsTab />}
-            {activeTab === "loyalty" && <LoyaltyTab />}
             {activeTab === "alerts" && <AlertsTab />}
           {activeTab === "visits" && <VisitsTab />}
           {activeTab === "messaging" && <MessagingTab />}
@@ -136,7 +137,7 @@ function Dashboard() {
     )
   }
 
-  if (user?.role === "driver") {
+  if (user?.role === "representative") {
     return (
       <div className="min-h-screen bg-gray-50" dir={isRTL ? "rtl" : "ltr"}>
         <header className="bg-white shadow-sm border-b">
@@ -151,8 +152,8 @@ function Dashboard() {
                   className="h-8 w-8 object-contain"
                 />
                 <div>
-                  <h1 className="text-xl font-bold text-gray-900">{t("dashboard.driverDashboard")}</h1>
-                  <p className="text-sm text-gray-600">{t("driver.assignedDeliveries")}</p>
+                  <h1 className="text-xl font-bold text-gray-900">{t("dashboard.representativeDashboard")}</h1>
+                  <p className="text-sm text-gray-600">{t("representative.assignedDeliveries")}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">

@@ -27,7 +27,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 const testConnection = async () => {
   try {
     // Try a simple query that should work regardless of table existence
-    const { data, error } = await supabase.rpc('version')
+    const { data, error } = await supabase
+      .from('users')
+      .select('count')
+      .limit(1)
     if (error) {
       // If RPC fails, try a basic auth check
       const { data: authData, error: authError } = await supabase.auth.getSession()

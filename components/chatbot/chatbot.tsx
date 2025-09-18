@@ -26,6 +26,22 @@ import { useLanguage } from "@/contexts/language-context"
 import type { ChatMessage } from "@/types/visits"
 import { sendChatMessage, getChatMessages } from "@/lib/visits"
 
+// Build welcome message based on user role
+const buildWelcomeMessage = (userRole?: string): string => {
+  const role = userRole?.toLowerCase() || 'user'
+  
+  switch (role) {
+    case 'admin':
+      return "Welcome, Administrator! I'm here to help you manage the delivery system. You can ask me about system status, user management, analytics, or any administrative tasks."
+    case 'supervisor':
+      return "Hello, Supervisor! I can assist you with team management, delivery tracking, performance reports, and operational oversight. How can I help you today?"
+    case 'representative':
+      return "Hi there! I'm your delivery assistant. I can help you with route information, delivery updates, customer details, and any questions about your assigned tasks."
+    default:
+      return "Welcome to Al-Rafidain Industrial Delivery Management System! I'm here to help you with any questions about deliveries, tracking, or system features."
+  }
+}
+
 interface ChatBotProps {
   className?: string
   isMinimized?: boolean
@@ -71,7 +87,7 @@ export function ChatBot({ className = "", isMinimized = false, onMinimize, onMax
           sender_id: "bot",
           sender_name: "Al-Rafidain Assistant",
           sender_role: "Bot",
-          message: buildWelcomeMessage(),
+          message: buildWelcomeMessage(user?.role),
           message_type: "bot",
           timestamp: new Date().toISOString(),
           is_read: true
