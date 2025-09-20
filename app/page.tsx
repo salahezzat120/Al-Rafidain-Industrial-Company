@@ -27,6 +27,7 @@ import { SettingsTab } from "@/components/admin/settings-tab"
 import { VisitsTab } from "@/components/admin/visits-tab"
 import { MessagingTab } from "@/components/admin/messaging-tab"
 import { AfterSalesTab } from "@/components/admin/after-sales-tab"
+import { WarehouseTab } from "@/components/admin/warehouse-tab"
 import { ChatBot } from "@/components/chatbot/chatbot"
 import { AssignDeliveryModal } from "@/components/supervisor/assign-delivery-modal"
 import { ManageRepresentativesModal } from "@/components/supervisor/manage-representatives-modal";
@@ -125,6 +126,7 @@ function Dashboard() {
             {activeTab === "employees" && <EmployeesTab />}
             {activeTab === "representatives" && <RepresentativesTab />}
             {activeTab === "customers" && <CustomersTab />}
+            {activeTab === "warehouse" && <WarehouseTab />}
             {activeTab === "payments" && <PaymentsTab />}
             {activeTab === "deliveries" && <DeliveriesTab />}
             {activeTab === "vehicles" && <VehiclesTab />}
