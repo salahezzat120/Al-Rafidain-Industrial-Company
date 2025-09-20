@@ -37,7 +37,6 @@ export interface RepresentativeWithLocation extends RepresentativeLiveLocation {
   is_online?: boolean
   last_seen?: string
 }
-<<<<<<< Updated upstream
 
 export interface Attendance {
   id: string;
@@ -80,5 +79,3 @@ export interface CreateChatMessageData {
   is_read?: boolean | null;
   metadata?: any;
 }
-=======
->>>>>>> Stashed changes

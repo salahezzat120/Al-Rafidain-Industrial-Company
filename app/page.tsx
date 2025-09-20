@@ -129,10 +129,6 @@ function Dashboard() {
             {activeTab === "deliveries" && <DeliveriesTab />}
             {activeTab === "vehicles" && <VehiclesTab />}
             {activeTab === "live-map" && <LiveMapTab />}
-<<<<<<< Updated upstream
-=======
-            {activeTab === "tracking" && <TrackingTab />}
->>>>>>> Stashed changes
             {activeTab === "analytics" && <AnalyticsTab />}
             {activeTab === "reports" && <ReportsTab />}
             {activeTab === "loyalty" && <LoyaltyTab />}
