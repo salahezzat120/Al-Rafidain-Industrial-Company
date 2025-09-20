@@ -18,8 +18,10 @@ import { CustomersTab } from "@/components/admin/customers-tab"
 import PaymentsTab from "@/components/admin/payments-tab"
 import { DeliveriesTab } from "@/components/admin/deliveries-tab"
 import { VehiclesTab } from "@/components/admin/vehicles-tab"
-import { TrackingTab } from "@/components/admin/tracking-tab"
 import { AnalyticsTab } from "@/components/admin/analytics-tab"
+import ReportsTab from "@/components/admin/reports-tab"
+import LiveMapTab from "@/components/admin/live-map-tab"
+import LoyaltyTab from "@/components/admin/loyalty-tab"
 import { AlertsTab } from "@/components/admin/alerts-tab"
 import { SettingsTab } from "@/components/admin/settings-tab"
 import { VisitsTab } from "@/components/admin/visits-tab"
@@ -38,6 +40,8 @@ import { useState, useEffect } from "react"
 import Image from "next/image"
 import dynamic from "next/dynamic"
 import { NoSSR } from "@/components/no-ssr"
+import AttendanceTab from "@/components/admin/attendance-tab"
+import ChatSupportTab from "@/components/admin/chat-support-tab"
 
 function Dashboard() {
   const { user, logout } = useAuth()
@@ -124,13 +128,17 @@ function Dashboard() {
             {activeTab === "payments" && <PaymentsTab />}
             {activeTab === "deliveries" && <DeliveriesTab />}
             {activeTab === "vehicles" && <VehiclesTab />}
-            {activeTab === "tracking" && <TrackingTab />}
+            {activeTab === "live-map" && <LiveMapTab />}
             {activeTab === "analytics" && <AnalyticsTab />}
+            {activeTab === "reports" && <ReportsTab />}
+            {activeTab === "loyalty" && <LoyaltyTab />}
             {activeTab === "alerts" && <AlertsTab />}
-          {activeTab === "visits" && <VisitsTab />}
-          {activeTab === "messaging" && <MessagingTab />}
-          {activeTab === "after-sales" && <AfterSalesTab />}
-          {activeTab === "settings" && <SettingsTab />}
+            {activeTab === "visits" && <VisitsTab />}
+            {activeTab === "messaging" && <MessagingTab />}
+            {activeTab === "after-sales" && <AfterSalesTab />}
+            {activeTab === "settings" && <SettingsTab />}
+            {activeTab === "attendance" && <AttendanceTab />}
+            {activeTab === "chat-support" && <ChatSupportTab />}
           </main>
         </div>
       </div>

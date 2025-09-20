@@ -153,21 +153,21 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
         })
 
         // Reset form
-        setFormData({
-          name: "",
-          email: "",
-          phone: "",
-          address: "",
-          preferredDeliveryTime: "Flexible",
-          status: "active",
-          notes: "",
+    setFormData({
+      name: "",
+      email: "",
+      phone: "",
+      address: "",
+      preferredDeliveryTime: "Flexible",
+      status: "active",
+      notes: "",
           latitude: "",
           longitude: "",
           visitStatus: "not_visited",
           lastVisitDate: "",
           visitNotes: "",
-        })
-        setErrors({})
+    })
+    setErrors({})
         onClose()
       }
     } catch (err) {
@@ -178,7 +178,7 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
         variant: "destructive",
       })
     } finally {
-      setIsSubmitting(false)
+    setIsSubmitting(false)
     }
   }
 
@@ -263,12 +263,12 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
                   </Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => handleInputChange("email", e.target.value)}
-                      placeholder="customer@email.com"
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
+                    placeholder="customer@email.com"
                       className={`h-11 pl-10 ${errors.email ? "border-red-500 focus:border-red-500" : "border-gray-300 focus:border-blue-500"}`}
                     />
                   </div>
@@ -286,11 +286,11 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
                   </Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="phone"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange("phone", e.target.value)}
-                      placeholder="+1 (555) 123-4567"
+                  <Input
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange("phone", e.target.value)}
+                    placeholder="+1 (555) 123-4567"
                       className={`h-11 pl-10 ${errors.phone ? "border-red-500 focus:border-red-500" : "border-gray-300 focus:border-blue-500"}`}
                     />
                   </div>
@@ -509,8 +509,8 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
                 <AlertCircle className="h-4 w-4 text-blue-600" />
                 <AlertDescription className="text-blue-800">
                   Customer information will be used for delivery coordination and communication. Ensure all contact details are accurate.
-                </AlertDescription>
-              </Alert>
+            </AlertDescription>
+          </Alert>
             </div>
             <div className="flex gap-3 sm:flex-shrink-0">
               <Button 
@@ -519,8 +519,8 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
                 onClick={onClose}
                 className="px-6 h-11"
               >
-                Cancel
-              </Button>
+              Cancel
+            </Button>
               <Button 
                 type="submit" 
                 disabled={isSubmitting}
@@ -537,7 +537,7 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
                     Add Customer
                   </>
                 )}
-              </Button>
+            </Button>
             </div>
           </div>
         </form>
