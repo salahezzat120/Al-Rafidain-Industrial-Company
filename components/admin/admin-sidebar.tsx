@@ -40,8 +40,11 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
     { id: "representatives", label: t("nav.representativeManagement"), icon: Users },
     { id: "customers", label: t("nav.customerManagement"), icon: UserCheck },
     { id: "payments", label: "Payment Tracking", icon: DollarSign },
+<<<<<<< Updated upstream
     { id: "attendance", label: "Attendance", icon: Calendar },
     { id: "chat-support", label: "Chat Support", icon: MessageSquare },
+=======
+>>>>>>> Stashed changes
     { id: "live-map", label: "Live Map", icon: MapPin },
     { id: "vehicles", label: t("nav.vehicles"), icon: Truck },
     { id: "deliveries", label: t("nav.deliveryTasks"), icon: Package },

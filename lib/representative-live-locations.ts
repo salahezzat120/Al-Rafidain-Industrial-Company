@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+<<<<<<< Updated upstream
 import {
   RepresentativeLiveLocation,
   RepresentativeWithLocation,
@@ -8,11 +9,21 @@ import {
 } from '@/types/representative-live-locations'
 
 // Get all representatives, with their latest location (if any)
+=======
+import { 
+  RepresentativeLiveLocation, 
+  CreateRepresentativeLiveLocationData, 
+  UpdateRepresentativeLiveLocationData,
+  RepresentativeWithLocation 
+} from '@/types/representative-live-locations'
+
+>>>>>>> Stashed changes
 export async function getRepresentativeLiveLocations(): Promise<{
   data: RepresentativeWithLocation[] | null
   error: string | null
 }> {
   try {
+<<<<<<< Updated upstream
     // 1. Get all representatives
     const { data: reps, error: repsError } = await supabase
       .from('representatives')
@@ -45,12 +56,60 @@ export async function getRepresentativeLiveLocations(): Promise<{
     }
     return { data: results, error: null }
   } catch (err) {
+=======
+    // Get the latest location for each representative
+    const { data, error } = await supabase
+      .from('representative_live_locations')
+      .select(`
+        *,
+        representatives!representative_live_locations_representative_id_fkey (
+          id,
+          name,
+          phone
+        )
+      `)
+      .order('timestamp', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching representative live locations:', error)
+      return { data: null, error: error.message }
+    }
+
+    // Group by representative_id and get the latest location for each
+    const latestLocations = new Map<string, RepresentativeWithLocation>()
+    
+    data?.forEach((location: any) => {
+      const repId = location.representative_id
+      if (!latestLocations.has(repId) || new Date(location.timestamp) > new Date(latestLocations.get(repId)!.timestamp)) {
+        const representative = location.representatives
+        const now = new Date()
+        const locationTime = new Date(location.timestamp)
+        const minutesSinceUpdate = (now.getTime() - locationTime.getTime()) / (1000 * 60)
+        
+        latestLocations.set(repId, {
+          ...location,
+          representative_name: representative?.name || 'Unknown',
+          representative_phone: representative?.phone || '',
+          is_online: minutesSinceUpdate <= 5, // Consider online if updated within last 5 minutes
+          last_seen: location.timestamp
+        })
+      }
+    })
+
+    return { data: Array.from(latestLocations.values()), error: null }
+  } catch (err) {
+    console.error('Unexpected error fetching representative live locations:', err)
+>>>>>>> Stashed changes
     return { data: null, error: 'An unexpected error occurred' }
   }
 }
 
 export async function createRepresentativeLiveLocation(
+<<<<<<< Updated upstream
   locationData: RepresentativeLiveLocation
+=======
+  locationData: CreateRepresentativeLiveLocationData
+>>>>>>> Stashed changes
 ): Promise<{ data: RepresentativeLiveLocation | null; error: string | null }> {
   try {
     const { data, error } = await supabase
@@ -73,7 +132,11 @@ export async function createRepresentativeLiveLocation(
 
 export async function updateRepresentativeLiveLocation(
   id: string,
+<<<<<<< Updated upstream
   updates: RepresentativeLiveLocation
+=======
+  updates: UpdateRepresentativeLiveLocationData
+>>>>>>> Stashed changes
 ): Promise<{ data: RepresentativeLiveLocation | null; error: string | null }> {
   try {
     const { data, error } = await supabase
@@ -127,15 +190,24 @@ export async function getRepresentativeLiveLocationStats(): Promise<{
 }> {
   try {
     const { data: locations, error: locationsError } = await getRepresentativeLiveLocations()
+<<<<<<< Updated upstream
 
+=======
+    
+>>>>>>> Stashed changes
     if (locationsError) {
       return { data: null, error: locationsError }
     }
 
     const onlineCount = locations?.filter(loc => loc.is_online).length || 0
     const totalCount = locations?.length || 0
+<<<<<<< Updated upstream
     const lastUpdated = locations?.length ?
       new Date(Math.max(...locations.map(loc => new Date(loc.timestamp).getTime()))).toISOString() :
+=======
+    const lastUpdated = locations?.length ? 
+      new Date(Math.max(...locations.map(loc => new Date(loc.timestamp).getTime()))).toISOString() : 
+>>>>>>> Stashed changes
       null
 
     return {
@@ -152,6 +224,7 @@ export async function getRepresentativeLiveLocationStats(): Promise<{
     return { data: null, error: 'An unexpected error occurred' }
   }
 }
+<<<<<<< Updated upstream
 
 // Fetch attendance records with representative info
 export async function getAttendanceRecords(): Promise<{
@@ -227,3 +300,5 @@ export async function getChatRepresentatives(): Promise<{ data: { id: string; na
     return { data: null, error: 'An unexpected error occurred' };
   }
 }
+=======
+>>>>>>> Stashed changes
