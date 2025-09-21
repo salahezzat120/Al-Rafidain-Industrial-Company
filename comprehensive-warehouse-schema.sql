@@ -154,12 +154,16 @@ CREATE TABLE stock_movements (
     product_id INTEGER NOT NULL REFERENCES products(id),
     warehouse_id INTEGER NOT NULL REFERENCES warehouses(id),
     movement_type VARCHAR(20) NOT NULL CHECK (movement_type IN ('IN', 'OUT', 'TRANSFER', 'ADJUSTMENT')),
+    movement_type_ar VARCHAR(50) NOT NULL,
     quantity DECIMAL(10,2) NOT NULL,
     unit_price DECIMAL(10,2),
     reference_number VARCHAR(100),
     reference_type VARCHAR(50),
+    reference_type_ar VARCHAR(50),
     notes TEXT,
+    notes_ar TEXT,
     created_by VARCHAR(255),
+    created_by_ar VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -174,11 +178,14 @@ CREATE TABLE stocktaking (
     stocktaking_date DATE NOT NULL,
     reference_number VARCHAR(100) UNIQUE NOT NULL,
     status VARCHAR(20) DEFAULT 'PLANNED' CHECK (status IN ('PLANNED', 'IN_PROGRESS', 'COMPLETED', 'APPROVED')),
+    status_ar VARCHAR(50) DEFAULT 'مخطط',
     total_items INTEGER DEFAULT 0,
     counted_items INTEGER DEFAULT 0,
     discrepancies INTEGER DEFAULT 0,
     notes TEXT,
+    notes_ar TEXT,
     created_by VARCHAR(255),
+    created_by_ar VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -191,6 +198,7 @@ CREATE TABLE stocktaking_items (
     counted_quantity DECIMAL(10,2) NOT NULL,
     difference DECIMAL(10,2) NOT NULL,
     notes TEXT,
+    notes_ar TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -204,7 +212,10 @@ CREATE TABLE barcodes (
     product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     barcode_value VARCHAR(255) UNIQUE NOT NULL,
     barcode_type VARCHAR(20) NOT NULL CHECK (barcode_type IN ('CODE128', 'QR_CODE', 'EAN13')),
+    barcode_type_ar VARCHAR(50) NOT NULL,
     quantity INTEGER DEFAULT 1,
+    notes TEXT,
+    notes_ar TEXT,
     generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -223,7 +234,9 @@ CREATE TABLE consignment_stock (
     consignment_date DATE NOT NULL,
     expected_return_date DATE,
     status VARCHAR(20) DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'RETURNED', 'EXPIRED')),
+    status_ar VARCHAR(50) DEFAULT 'نشط',
     notes TEXT,
+    notes_ar TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -238,8 +251,10 @@ CREATE TABLE damaged_goods (
     reason TEXT NOT NULL,
     reason_ar TEXT NOT NULL,
     reported_by VARCHAR(255),
+    reported_by_ar VARCHAR(255),
     reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(20) DEFAULT 'REPORTED' CHECK (status IN ('REPORTED', 'INVESTIGATED', 'DISPOSED', 'RETURNED'))
+    status VARCHAR(20) DEFAULT 'REPORTED' CHECK (status IN ('REPORTED', 'INVESTIGATED', 'DISPOSED', 'RETURNED')),
+    status_ar VARCHAR(50) DEFAULT 'تم الإبلاغ'
 );
 
 -- Expiry Items Table
@@ -251,6 +266,9 @@ CREATE TABLE expiry_items (
     expiry_date DATE NOT NULL,
     batch_number VARCHAR(100),
     status VARCHAR(20) DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'EXPIRED', 'DISPOSED')),
+    status_ar VARCHAR(50) DEFAULT 'نشط',
+    notes TEXT,
+    notes_ar TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -260,9 +278,12 @@ CREATE TABLE serial_numbers (
     product_id INTEGER NOT NULL REFERENCES products(id),
     serial_number VARCHAR(255) UNIQUE NOT NULL,
     status VARCHAR(20) DEFAULT 'AVAILABLE' CHECK (status IN ('AVAILABLE', 'ASSIGNED', 'SOLD', 'RETURNED')),
+    status_ar VARCHAR(50) DEFAULT 'متاح',
     assigned_to VARCHAR(255),
+    assigned_to_ar VARCHAR(255),
     assigned_date DATE,
     notes TEXT,
+    notes_ar TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -276,9 +297,11 @@ CREATE TABLE product_movements (
     product_id INTEGER NOT NULL REFERENCES products(id),
     warehouse_id INTEGER NOT NULL REFERENCES warehouses(id),
     movement_type VARCHAR(20) NOT NULL,
+    movement_type_ar VARCHAR(50) NOT NULL,
     quantity DECIMAL(10,2) NOT NULL,
     reference_number VARCHAR(100),
     notes TEXT,
+    notes_ar TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -294,7 +317,10 @@ CREATE TABLE aging_items (
     quantity DECIMAL(10,2) NOT NULL,
     days_in_stock INTEGER NOT NULL,
     age_category VARCHAR(20) NOT NULL CHECK (age_category IN ('NEW', 'RECENT', 'AGING', 'OLD')),
+    age_category_ar VARCHAR(50) NOT NULL,
     last_movement_date DATE,
+    notes TEXT,
+    notes_ar TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -308,6 +334,8 @@ CREATE TABLE stock_analysis (
     net_movement DECIMAL(10,2) NOT NULL DEFAULT 0,
     current_stock DECIMAL(10,2) NOT NULL DEFAULT 0,
     turnover_rate DECIMAL(5,2),
+    analysis_notes TEXT,
+    analysis_notes_ar TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -320,6 +348,10 @@ CREATE TABLE valuation_items (
     unit_cost DECIMAL(10,2) NOT NULL,
     total_value DECIMAL(15,2) NOT NULL,
     valuation_date DATE NOT NULL,
+    valuation_method VARCHAR(50),
+    valuation_method_ar VARCHAR(50),
+    notes TEXT,
+    notes_ar TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -334,6 +366,10 @@ CREATE TABLE issued_items (
     issue_reason VARCHAR(255),
     issue_reason_ar VARCHAR(255),
     reference_number VARCHAR(100),
+    issued_by VARCHAR(255),
+    issued_by_ar VARCHAR(255),
+    notes TEXT,
+    notes_ar TEXT,
     issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -349,9 +385,13 @@ CREATE TABLE custom_reports (
     description TEXT,
     description_ar TEXT,
     report_type VARCHAR(50) NOT NULL,
+    report_type_ar VARCHAR(50) NOT NULL,
     filters JSONB,
     columns JSONB,
     created_by VARCHAR(255),
+    created_by_ar VARCHAR(255),
+    notes TEXT,
+    notes_ar TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -545,18 +585,83 @@ INSERT INTO inventory (product_id, warehouse_id, available_quantity, minimum_sto
 (4, 3, 10000, 1000, 20000, 2000);
 
 -- Insert sample product costs
-INSERT INTO product_costs (product_id, cost_price, cost_date, supplier) VALUES
-(1, 0.50, CURRENT_DATE, 'Plastic Supplier Co.'),
-(2, 1.00, CURRENT_DATE, 'Plastic Supplier Co.'),
-(3, 5.00, CURRENT_DATE, 'Storage Solutions Ltd.'),
-(4, 0.05, CURRENT_DATE, 'Bag Manufacturing Inc.');
+INSERT INTO product_costs (product_id, cost_price, cost_date, supplier, notes) VALUES
+(1, 0.50, CURRENT_DATE, 'Plastic Supplier Co.', 'Bulk purchase discount applied'),
+(2, 1.00, CURRENT_DATE, 'Plastic Supplier Co.', 'Standard pricing'),
+(3, 5.00, CURRENT_DATE, 'Storage Solutions Ltd.', 'Premium quality material'),
+(4, 0.05, CURRENT_DATE, 'Bag Manufacturing Inc.', 'Economy grade bags');
 
 -- Insert sample product prices
-INSERT INTO product_prices (product_id, selling_price, price_date, currency) VALUES
-(1, 1.00, CURRENT_DATE, 'IQD'),
-(2, 2.00, CURRENT_DATE, 'IQD'),
-(3, 10.00, CURRENT_DATE, 'IQD'),
-(4, 0.10, CURRENT_DATE, 'IQD');
+INSERT INTO product_prices (product_id, selling_price, price_date, currency, notes) VALUES
+(1, 1.00, CURRENT_DATE, 'IQD', 'Retail price for 200ml cups'),
+(2, 2.00, CURRENT_DATE, 'IQD', 'Premium plate pricing'),
+(3, 10.00, CURRENT_DATE, 'IQD', 'High-quality storage box'),
+(4, 0.10, CURRENT_DATE, 'IQD', 'Standard bag pricing');
+
+-- Insert sample stock movements with Arabic support
+INSERT INTO stock_movements (product_id, warehouse_id, movement_type, movement_type_ar, quantity, unit_price, reference_number, reference_type, reference_type_ar, notes, notes_ar, created_by, created_by_ar) VALUES
+(1, 1, 'IN', 'وارد', 1000, 0.50, 'PO-2024-001', 'PURCHASE_ORDER', 'أمر شراء', 'Initial stock receipt', 'استلام المخزون الأولي', 'Ahmed Ali', 'أحمد علي'),
+(2, 1, 'IN', 'وارد', 500, 1.00, 'PO-2024-002', 'PURCHASE_ORDER', 'أمر شراء', 'Bulk plate order', 'طلب أطباق بالجملة', 'Ahmed Ali', 'أحمد علي'),
+(3, 2, 'IN', 'وارد', 200, 5.00, 'PO-2024-003', 'PURCHASE_ORDER', 'أمر شراء', 'Storage boxes delivery', 'توصيل صناديق التخزين', 'Mohamed Hassan', 'محمد حسن'),
+(4, 3, 'IN', 'وارد', 10000, 0.05, 'PO-2024-004', 'PURCHASE_ORDER', 'أمر شراء', 'Plastic bags shipment', 'شحنة الأكياس البلاستيكية', 'Omar Ibrahim', 'عمر إبراهيم');
+
+-- Insert sample barcodes with Arabic support
+INSERT INTO barcodes (product_id, barcode_value, barcode_type, barcode_type_ar, quantity, notes, notes_ar) VALUES
+(1, 'CUP-WH-200-001', 'CODE128', 'كود 128', 1, 'White cup barcode', 'باركود الكوب الأبيض'),
+(2, 'PLATE-RED-25-001', 'QR_CODE', 'كود QR', 1, 'Red plate QR code', 'كود QR للطبق الأحمر'),
+(3, 'BOX-BLUE-50L-001', 'EAN13', 'EAN13', 1, 'Blue box barcode', 'باركود الصندوق الأزرق'),
+(4, 'BAG-TRANS-001', 'CODE128', 'كود 128', 100, 'Transparent bag batch', 'دفعة الأكياس الشفافة');
+
+-- Insert sample consignment stock
+INSERT INTO consignment_stock (product_id, warehouse_id, consignee_name, consignee_name_ar, quantity, consignment_date, expected_return_date, status, status_ar, notes, notes_ar) VALUES
+(1, 1, 'Cairo Restaurant Chain', 'سلسلة مطاعم القاهرة', 100, CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', 'ACTIVE', 'نشط', 'Consignment for restaurant chain', 'وكالة لسلسلة المطاعم'),
+(2, 2, 'Alexandria Catering', 'خدمات الطعام بالإسكندرية', 50, CURRENT_DATE, CURRENT_DATE + INTERVAL '15 days', 'ACTIVE', 'نشط', 'Catering service consignment', 'وكالة خدمات الطعام');
+
+-- Insert sample damaged goods
+INSERT INTO damaged_goods (product_id, warehouse_id, quantity, damage_type, damage_type_ar, reason, reason_ar, reported_by, reported_by_ar, status, status_ar) VALUES
+(1, 1, 10, 'CRACKED', 'مكسور', 'Transportation damage during delivery', 'تلف أثناء النقل خلال التوصيل', 'Warehouse Staff', 'موظف المستودع', 'REPORTED', 'تم الإبلاغ'),
+(2, 2, 5, 'DENTED', 'مبعوج', 'Improper storage handling', 'التعامل غير السليم مع التخزين', 'Quality Control', 'مراقبة الجودة', 'INVESTIGATED', 'قيد التحقيق');
+
+-- Insert sample expiry items
+INSERT INTO expiry_items (product_id, warehouse_id, quantity, expiry_date, batch_number, status, status_ar, notes, notes_ar) VALUES
+(1, 1, 100, CURRENT_DATE + INTERVAL '90 days', 'BATCH-2024-001', 'ACTIVE', 'نشط', 'First batch of cups', 'الدفعة الأولى من الأكواب'),
+(2, 2, 50, CURRENT_DATE + INTERVAL '120 days', 'BATCH-2024-002', 'ACTIVE', 'نشط', 'Premium plate batch', 'دفعة الأطباق المميزة');
+
+-- Insert sample serial numbers
+INSERT INTO serial_numbers (product_id, serial_number, status, status_ar, assigned_to, assigned_to_ar, notes, notes_ar) VALUES
+(3, 'SN-BOX-001', 'AVAILABLE', 'متاح', NULL, NULL, 'Available for assignment', 'متاح للتعيين'),
+(3, 'SN-BOX-002', 'ASSIGNED', 'معين', 'Customer ABC', 'العميل ABC', 'Assigned to customer', 'معين للعميل'),
+(3, 'SN-BOX-003', 'SOLD', 'مباع', 'Customer XYZ', 'العميل XYZ', 'Sold to customer', 'مباع للعميل');
+
+-- Insert sample aging items
+INSERT INTO aging_items (product_id, warehouse_id, quantity, days_in_stock, age_category, age_category_ar, last_movement_date, notes, notes_ar) VALUES
+(1, 1, 200, 30, 'NEW', 'جديد', CURRENT_DATE - INTERVAL '30 days', 'Recently received stock', 'مخزون مستلم حديثاً'),
+(2, 2, 100, 90, 'RECENT', 'حديث', CURRENT_DATE - INTERVAL '90 days', 'Recent stock movement', 'حركة مخزون حديثة'),
+(3, 3, 50, 180, 'AGING', 'متقادم', CURRENT_DATE - INTERVAL '180 days', 'Aging inventory', 'مخزون متقادم');
+
+-- Insert sample stock analysis
+INSERT INTO stock_analysis (product_id, analysis_date, total_in, total_out, net_movement, current_stock, turnover_rate, analysis_notes, analysis_notes_ar) VALUES
+(1, CURRENT_DATE, 1000, 200, 800, 800, 0.25, 'Good turnover rate for cups', 'معدل دوران جيد للأكواب'),
+(2, CURRENT_DATE, 500, 100, 400, 400, 0.20, 'Moderate turnover for plates', 'معدل دوران متوسط للأطباق'),
+(3, CURRENT_DATE, 200, 50, 150, 150, 0.33, 'High turnover for storage boxes', 'معدل دوران عالي لصناديق التخزين');
+
+-- Insert sample valuation items
+INSERT INTO valuation_items (product_id, warehouse_id, available_quantity, unit_cost, total_value, valuation_date, valuation_method, valuation_method_ar, notes, notes_ar) VALUES
+(1, 1, 800, 0.50, 400.00, CURRENT_DATE, 'FIFO', 'أول وارد أول صادر', 'FIFO valuation method', 'طريقة تقييم أول وارد أول صادر'),
+(2, 2, 400, 1.00, 400.00, CURRENT_DATE, 'AVERAGE', 'متوسط التكلفة', 'Average cost method', 'طريقة متوسط التكلفة'),
+(3, 3, 150, 5.00, 750.00, CURRENT_DATE, 'STANDARD', 'التكلفة المعيارية', 'Standard cost valuation', 'تقييم التكلفة المعيارية');
+
+-- Insert sample issued items
+INSERT INTO issued_items (product_id, warehouse_id, quantity, issued_to, issued_to_ar, issue_reason, issue_reason_ar, reference_number, issued_by, issued_by_ar, notes, notes_ar) VALUES
+(1, 1, 50, 'Production Department', 'قسم الإنتاج', 'PRODUCTION_USE', 'استخدام إنتاجي', 'ISSUE-2024-001', 'Warehouse Manager', 'مدير المستودع', 'Issued for production line', 'صرف لخط الإنتاج'),
+(2, 2, 25, 'Quality Control', 'مراقبة الجودة', 'QUALITY_TESTING', 'اختبار الجودة', 'ISSUE-2024-002', 'QC Manager', 'مدير مراقبة الجودة', 'For quality testing', 'لاختبار الجودة'),
+(3, 3, 10, 'Maintenance Department', 'قسم الصيانة', 'MAINTENANCE', 'صيانة', 'ISSUE-2024-003', 'Maintenance Supervisor', 'مشرف الصيانة', 'For maintenance work', 'لأعمال الصيانة');
+
+-- Insert sample custom reports
+INSERT INTO custom_reports (report_name, report_name_ar, description, description_ar, report_type, report_type_ar, created_by, created_by_ar, notes, notes_ar) VALUES
+('Monthly Stock Report', 'تقرير المخزون الشهري', 'Monthly inventory summary report', 'تقرير ملخص المخزون الشهري', 'INVENTORY', 'مخزون', 'Admin', 'مدير النظام', 'Custom monthly report', 'تقرير شهري مخصص'),
+('Product Performance Analysis', 'تحليل أداء المنتجات', 'Analysis of product performance metrics', 'تحليل مؤشرات أداء المنتجات', 'ANALYTICS', 'تحليلات', 'Analyst', 'محلل', 'Performance tracking report', 'تقرير تتبع الأداء'),
+('Warehouse Utilization Report', 'تقرير استغلال المستودعات', 'Warehouse capacity and utilization report', 'تقرير سعة واستغلال المستودعات', 'WAREHOUSE', 'مستودع', 'Operations Manager', 'مدير العمليات', 'Capacity planning report', 'تقرير تخطيط السعة');
 
 -- =====================================================
 -- COMMENTS AND DOCUMENTATION

@@ -36,6 +36,7 @@ import { ReportsEngine } from '@/components/warehouse/reports-engine';
 import { StocktakingModule } from '@/components/warehouse/stocktaking-module';
 import { BulkUpload } from '@/components/warehouse/bulk-upload';
 import { WorkflowIntegration } from '@/components/warehouse/workflow-integration';
+import { useLanguage } from '@/contexts/language-context';
 import type { 
   Warehouse, 
   Product, 
@@ -52,7 +53,8 @@ import type {
 } from '@/types/warehouse';
 
 export function WarehouseTab() {
-  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'warehouses' | 'products' | 'inventory'>('dashboard');
+  const { t, isRTL } = useLanguage();
+  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'warehouses' | 'products' | 'inventory' | 'movements' | 'barcodes' | 'reports' | 'stocktaking' | 'bulk-upload' | 'workflow'>('dashboard');
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [inventory, setInventory] = useState<InventorySummary[]>([]);
@@ -317,28 +319,50 @@ export function WarehouseTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${isRTL ? 'text-right' : 'text-left'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">🏭 Warehouse Management</h2>
+          <h2 className="text-2xl font-bold tracking-tight">
+            🏭 {t('warehouse.warehouseManagement')}
+          </h2>
           <p className="text-muted-foreground">
-            Manage plastic products inventory, warehouses, and stock levels
+            {t('warehouse.warehouseManagementDescription')}
           </p>
         </div>
       </div>
 
       <Tabs value={activeSubTab} onValueChange={(value) => setActiveSubTab(value as any)}>
         <TabsList className="grid w-full grid-cols-10">
-          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-          <TabsTrigger value="warehouses">Warehouses</TabsTrigger>
-          <TabsTrigger value="products">Products</TabsTrigger>
-          <TabsTrigger value="inventory">Inventory</TabsTrigger>
-          <TabsTrigger value="movements">Stock Movements</TabsTrigger>
-          <TabsTrigger value="barcodes">Barcodes</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
-          <TabsTrigger value="stocktaking">Stocktaking</TabsTrigger>
-          <TabsTrigger value="bulk-upload">Bulk Upload</TabsTrigger>
-          <TabsTrigger value="workflow">Workflow</TabsTrigger>
+          <TabsTrigger value="dashboard">
+            {t('warehouse.dashboard')}
+          </TabsTrigger>
+          <TabsTrigger value="warehouses">
+            {t('warehouse.warehouses')}
+          </TabsTrigger>
+          <TabsTrigger value="products">
+            {t('warehouse.products')}
+          </TabsTrigger>
+          <TabsTrigger value="inventory">
+            {t('warehouse.inventory')}
+          </TabsTrigger>
+          <TabsTrigger value="movements">
+            {t('warehouse.stockMovements')}
+          </TabsTrigger>
+          <TabsTrigger value="barcodes">
+            {t('warehouse.barcodes')}
+          </TabsTrigger>
+          <TabsTrigger value="reports">
+            {t('warehouse.reports')}
+          </TabsTrigger>
+          <TabsTrigger value="stocktaking">
+            {t('warehouse.stocktaking')}
+          </TabsTrigger>
+          <TabsTrigger value="bulk-upload">
+            {t('warehouse.bulkUpload')}
+          </TabsTrigger>
+          <TabsTrigger value="workflow">
+            {t('warehouse.workflow')}
+          </TabsTrigger>
         </TabsList>
 
         {/* Dashboard Tab */}
@@ -347,52 +371,52 @@ export function WarehouseTab() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Warehouses</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('warehouse.totalWarehouses')}</CardTitle>
                 <Warehouse className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats?.total_warehouses || 0}</div>
                 <p className="text-xs text-muted-foreground">
-                  Active warehouse locations
+                  {t('warehouse.activeWarehouseLocations')}
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('warehouse.totalProducts')}</CardTitle>
                 <Package className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats?.total_products || 0}</div>
                 <p className="text-xs text-muted-foreground">
-                  Active products in inventory
+                  {t('warehouse.activeProductsInInventory')}
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Inventory</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('warehouse.totalInventory')}</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats?.total_inventory_value || 0}</div>
                 <p className="text-xs text-muted-foreground">
-                  Total units in stock
+                  {t('warehouse.totalUnitsInStock')}
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Low Stock Items</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('warehouse.lowStockItems')}</CardTitle>
                 <AlertTriangle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-orange-600">{stats?.low_stock_items || 0}</div>
                 <p className="text-xs text-muted-foreground">
-                  Items below minimum stock
+                  {t('warehouse.itemsBelowMinimumStock')}
                 </p>
               </CardContent>
             </Card>
@@ -403,18 +427,18 @@ export function WarehouseTab() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertCircle className="h-5 w-5 text-orange-500" />
-                Stock Alerts
+                {t('warehouse.stockAlerts')}
               </CardTitle>
               <CardDescription>
-                Products that need attention due to low stock levels
+                {t('warehouse.productsNeedAttention')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {alerts.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No stock alerts at this time</p>
-                  <p className="text-sm">All products are well stocked</p>
+                  <p>{t('warehouse.noStockAlerts')}</p>
+                  <p className="text-sm">{t('warehouse.allProductsWellStocked')}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -435,7 +459,7 @@ export function WarehouseTab() {
                           variant={alert.alert_type === 'LOW_STOCK' ? 'secondary' : 'destructive'}
                           className="text-xs"
                         >
-                          {alert.alert_type === 'LOW_STOCK' ? 'Low Stock' : 'Out of Stock'}
+                          {alert.alert_type === 'LOW_STOCK' ? t('warehouse.lowStock') : t('warehouse.outOfStock')}
                         </Badge>
                       </div>
                     </div>
@@ -443,7 +467,7 @@ export function WarehouseTab() {
                   {alerts.length > 5 && (
                     <div className="text-center pt-4">
                       <Button variant="outline" size="sm">
-                        View All Alerts ({alerts.length})
+                        {t('warehouse.viewAllAlerts')} ({alerts.length})
                       </Button>
                     </div>
                   )}

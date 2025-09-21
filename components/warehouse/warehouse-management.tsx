@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Edit, Trash2, Search, Filter, Warehouse, Package } from 'lucide-react';
+import { useLanguage } from '@/contexts/language-context';
 import { 
   getWarehouses, 
   createWarehouse, 
@@ -39,6 +40,7 @@ import type {
 } from '@/types/warehouse';
 
 export function WarehouseManagement() {
+  const { t, isRTL } = useLanguage();
   const [activeTab, setActiveTab] = useState<'warehouses' | 'products'>('warehouses');
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -290,23 +292,23 @@ export function WarehouseManagement() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${isRTL ? 'text-right' : 'text-left'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Warehouse Management</h1>
+        <h1 className="text-3xl font-bold">{t('warehouse.warehouseManagement')}</h1>
         <div className="flex gap-2">
           <Button
             variant={activeTab === 'warehouses' ? 'default' : 'outline'}
             onClick={() => setActiveTab('warehouses')}
           >
-            <Warehouse className="h-4 w-4 mr-2" />
-            Warehouses
+            <Warehouse className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+            {t('warehouse.warehouses')}
           </Button>
           <Button
             variant={activeTab === 'products' ? 'default' : 'outline'}
             onClick={() => setActiveTab('products')}
           >
-            <Package className="h-4 w-4 mr-2" />
-            Products
+            <Package className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+            {t('warehouse.products')}
           </Button>
         </div>
       </div>
@@ -314,17 +316,17 @@ export function WarehouseManagement() {
       {/* Search and Filter */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground`} />
           <Input
-            placeholder={`Search ${activeTab}...`}
+            placeholder={isRTL ? `البحث في ${activeTab === 'warehouses' ? 'المستودعات' : 'المنتجات'}...` : `Search ${activeTab}...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className={isRTL ? 'pr-10' : 'pl-10'}
           />
         </div>
         <Button variant="outline">
-          <Filter className="h-4 w-4 mr-2" />
-          Filter
+          <Filter className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+          {t('common.filter')}
         </Button>
       </div>
 
@@ -334,65 +336,65 @@ export function WarehouseManagement() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Warehouses</CardTitle>
+                <CardTitle>{t('warehouse.warehouses')}</CardTitle>
                 <CardDescription>
-                  Manage warehouse locations and responsible persons
+                  {isRTL ? 'إدارة مواقع المستودعات والأشخاص المسؤولين' : 'Manage warehouse locations and responsible persons'}
                 </CardDescription>
               </div>
               <Dialog open={warehouseDialogOpen} onOpenChange={setWarehouseDialogOpen}>
                 <DialogTrigger asChild>
                   <Button onClick={() => openWarehouseDialog()}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Warehouse
+                    <Plus className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                    {isRTL ? 'إضافة مستودع' : 'Add Warehouse'}
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>
-                      {editingWarehouse ? 'Edit Warehouse' : 'Add New Warehouse'}
+                      {editingWarehouse ? (isRTL ? 'تعديل المستودع' : 'Edit Warehouse') : (isRTL ? 'إضافة مستودع جديد' : 'Add New Warehouse')}
                     </DialogTitle>
                     <DialogDescription>
                       {editingWarehouse 
-                        ? 'Update warehouse information' 
-                        : 'Add a new warehouse to the system'
+                        ? (isRTL ? 'تحديث معلومات المستودع' : 'Update warehouse information')
+                        : (isRTL ? 'إضافة مستودع جديد إلى النظام' : 'Add a new warehouse to the system')
                       }
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="warehouse_name">Warehouse Name</Label>
+                      <Label htmlFor="warehouse_name">{isRTL ? 'اسم المستودع' : 'Warehouse Name'}</Label>
                       <Input
                         id="warehouse_name"
                         value={warehouseForm.warehouse_name}
                         onChange={(e) => setWarehouseForm(prev => ({ ...prev, warehouse_name: e.target.value }))}
-                        placeholder="Enter warehouse name"
+                        placeholder={isRTL ? 'أدخل اسم المستودع' : 'Enter warehouse name'}
                       />
                     </div>
                     <div>
-                      <Label htmlFor="location">Location</Label>
+                      <Label htmlFor="location">{isRTL ? 'الموقع' : 'Location'}</Label>
                       <Input
                         id="location"
                         value={warehouseForm.location}
                         onChange={(e) => setWarehouseForm(prev => ({ ...prev, location: e.target.value }))}
-                        placeholder="Enter warehouse location"
+                        placeholder={isRTL ? 'أدخل موقع المستودع' : 'Enter warehouse location'}
                       />
                     </div>
                     <div>
-                      <Label htmlFor="responsible_person">Responsible Person</Label>
+                      <Label htmlFor="responsible_person">{isRTL ? 'الشخص المسؤول' : 'Responsible Person'}</Label>
                       <Input
                         id="responsible_person"
                         value={warehouseForm.responsible_person}
                         onChange={(e) => setWarehouseForm(prev => ({ ...prev, responsible_person: e.target.value }))}
-                        placeholder="Enter responsible person name"
+                        placeholder={isRTL ? 'أدخل اسم الشخص المسؤول' : 'Enter responsible person name'}
                       />
                     </div>
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setWarehouseDialogOpen(false)}>
-                      Cancel
+                      {t('common.cancel')}
                     </Button>
                     <Button onClick={editingWarehouse ? handleUpdateWarehouse : handleCreateWarehouse}>
-                      {editingWarehouse ? 'Update' : 'Create'}
+                      {editingWarehouse ? (isRTL ? 'تحديث' : 'Update') : (isRTL ? 'إنشاء' : 'Create')}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
