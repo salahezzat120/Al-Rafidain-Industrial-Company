@@ -30,6 +30,12 @@ import {
   getStockAlerts,
   getInventorySummary
 } from '@/lib/warehouse';
+import { StockMovements } from '@/components/warehouse/stock-movements';
+import { BarcodeManager } from '@/components/warehouse/barcode-manager';
+import { ReportsEngine } from '@/components/warehouse/reports-engine';
+import { StocktakingModule } from '@/components/warehouse/stocktaking-module';
+import { BulkUpload } from '@/components/warehouse/bulk-upload';
+import { WorkflowIntegration } from '@/components/warehouse/workflow-integration';
 import type { 
   Warehouse, 
   Product, 
@@ -322,11 +328,17 @@ export function WarehouseTab() {
       </div>
 
       <Tabs value={activeSubTab} onValueChange={(value) => setActiveSubTab(value as any)}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-10">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="warehouses">Warehouses</TabsTrigger>
           <TabsTrigger value="products">Products</TabsTrigger>
           <TabsTrigger value="inventory">Inventory</TabsTrigger>
+          <TabsTrigger value="movements">Stock Movements</TabsTrigger>
+          <TabsTrigger value="barcodes">Barcodes</TabsTrigger>
+          <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsTrigger value="stocktaking">Stocktaking</TabsTrigger>
+          <TabsTrigger value="bulk-upload">Bulk Upload</TabsTrigger>
+          <TabsTrigger value="workflow">Workflow</TabsTrigger>
         </TabsList>
 
         {/* Dashboard Tab */}
@@ -890,6 +902,36 @@ export function WarehouseTab() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Stock Movements Tab */}
+        <TabsContent value="movements" className="space-y-6">
+          <StockMovements />
+        </TabsContent>
+
+        {/* Barcodes Tab */}
+        <TabsContent value="barcodes" className="space-y-6">
+          <BarcodeManager />
+        </TabsContent>
+
+        {/* Reports Tab */}
+        <TabsContent value="reports" className="space-y-6">
+          <ReportsEngine />
+        </TabsContent>
+
+        {/* Stocktaking Tab */}
+        <TabsContent value="stocktaking" className="space-y-6">
+          <StocktakingModule />
+        </TabsContent>
+
+        {/* Bulk Upload Tab */}
+        <TabsContent value="bulk-upload" className="space-y-6">
+          <BulkUpload />
+        </TabsContent>
+
+        {/* Workflow Integration Tab */}
+        <TabsContent value="workflow" className="space-y-6">
+          <WorkflowIntegration />
         </TabsContent>
       </Tabs>
     </div>

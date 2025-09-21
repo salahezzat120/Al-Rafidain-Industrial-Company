@@ -31,7 +31,13 @@ import type {
   ProductResponse,
   InventoryResponse,
   WarehouseStats,
-  StockAlert
+  StockAlert,
+  Stocktaking,
+  StocktakingItem,
+  Barcode,
+  UnitConversion,
+  WarehouseReport,
+  ReportData
 } from '@/types/warehouse';
 
 // ==================== WAREHOUSES ====================
@@ -586,6 +592,174 @@ export async function createStockMovement(movementData: CreateStockMovementData)
   await updateInventoryAfterMovement(movementData);
 
   return data;
+}
+
+// ==================== STOCKTAKING ====================
+
+export async function createStocktaking(stocktakingData: any): Promise<Stocktaking> {
+  const { data, error } = await supabase
+    .from('stocktakings')
+    .insert([stocktakingData])
+    .select(`
+      *,
+      warehouse:warehouses(*)
+    `)
+    .single();
+
+  if (error) {
+    console.error('Error creating stocktaking:', error);
+    throw new Error('Failed to create stocktaking');
+  }
+
+  return data;
+}
+
+export async function getStocktakings(): Promise<Stocktaking[]> {
+  const { data, error } = await supabase
+    .from('stocktakings')
+    .select(`
+      *,
+      warehouse:warehouses(*)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching stocktakings:', error);
+    throw new Error('Failed to fetch stocktakings');
+  }
+
+  return data || [];
+}
+
+// ==================== BARCODE MANAGEMENT ====================
+
+export async function generateBarcode(productId: number, barcodeType: string = 'CODE128'): Promise<Barcode> {
+  const product = await getProductById(productId);
+  if (!product) {
+    throw new Error('Product not found');
+  }
+
+  const barcodeValue = `${product.product_code}-${Date.now()}`;
+  
+  const { data, error } = await supabase
+    .from('barcodes')
+    .insert([{
+      product_id: productId,
+      barcode_value: barcodeValue,
+      barcode_type: barcodeType,
+      is_active: true
+    }])
+    .select(`
+      *,
+      product:products(*)
+    `)
+    .single();
+
+  if (error) {
+    console.error('Error generating barcode:', error);
+    throw new Error('Failed to generate barcode');
+  }
+
+  return data;
+}
+
+// ==================== REPORTS ====================
+
+export async function generateReport(reportType: string, filters: any = {}): Promise<ReportData> {
+  let query = '';
+  let params: any = {};
+
+  switch (reportType) {
+    case 'COST_SALES':
+      query = `
+        SELECT 
+          p.product_name,
+          p.product_name_ar,
+          p.cost_price,
+          p.selling_price,
+          w.warehouse_name,
+          i.available_quantity,
+          (p.selling_price - p.cost_price) as profit_margin
+        FROM products p
+        JOIN inventory i ON p.id = i.product_id
+        JOIN warehouses w ON i.warehouse_id = w.id
+        WHERE p.is_active = true
+      `;
+      break;
+    
+    case 'STOCK_ANALYSIS':
+      query = `
+        SELECT 
+          p.product_name,
+          p.product_name_ar,
+          mg.group_name,
+          w.warehouse_name,
+          i.available_quantity,
+          i.minimum_stock_level,
+          CASE 
+            WHEN i.available_quantity <= i.minimum_stock_level THEN 'LOW_STOCK'
+            WHEN i.available_quantity > i.maximum_stock_level THEN 'OVERSTOCK'
+            ELSE 'NORMAL'
+          END as stock_status
+        FROM products p
+        JOIN main_groups mg ON p.main_group_id = mg.id
+        JOIN inventory i ON p.id = i.product_id
+        JOIN warehouses w ON i.warehouse_id = w.id
+        WHERE p.is_active = true
+      `;
+      break;
+    
+    default:
+      throw new Error('Unsupported report type');
+  }
+
+  const { data, error } = await supabase.rpc('execute_report_query', {
+    query_text: query,
+    params: params
+  });
+
+  if (error) {
+    console.error('Error generating report:', error);
+    throw new Error('Failed to generate report');
+  }
+
+  return {
+    headers: Object.keys(data[0] || {}),
+    rows: data.map(row => Object.values(row)),
+    generated_at: new Date().toISOString()
+  };
+}
+
+// ==================== BULK OPERATIONS ====================
+
+export async function bulkUploadProducts(products: any[]): Promise<{ success: number; errors: any[] }> {
+  const results = { success: 0, errors: [] as any[] };
+
+  for (const product of products) {
+    try {
+      await createProduct(product);
+      results.success++;
+    } catch (error) {
+      results.errors.push({ product, error: error.message });
+    }
+  }
+
+  return results;
+}
+
+export async function bulkStockMovement(movements: any[]): Promise<{ success: number; errors: any[] }> {
+  const results = { success: 0, errors: [] as any[] };
+
+  for (const movement of movements) {
+    try {
+      await createStockMovement(movement);
+      results.success++;
+    } catch (error) {
+      results.errors.push({ movement, error: error.message });
+    }
+  }
+
+  return results;
 }
 
 async function updateInventoryAfterMovement(movementData: CreateStockMovementData): Promise<void> {
