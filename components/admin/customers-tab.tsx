@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,7 @@ import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Package, Filter, Dow
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from "@/components/ui/dropdown-menu"
 import { CustomerProfileModal } from "./customer-profile-modal"
 import { AddCustomerModal } from "./add-customer-modal"
+import { LocationDisplay, LocationCard } from "@/components/ui/location-display"
 import { useLanguage } from "@/contexts/language-context"
 import { getCustomers, Customer } from "@/lib/customers"
 import { useToast } from "@/hooks/use-toast"
@@ -27,39 +28,41 @@ export function CustomersTab() {
   const { toast } = useToast()
 
   // Fetch customers from Supabase
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-        
-        const { data, error } = await getCustomers()
-        
-        if (error) {
-          setError(error)
-          toast({
-            title: "Error",
-            description: `Failed to load customers: ${error}`,
-            variant: "destructive",
-          })
-        } else if (data) {
-          setCustomers(data)
-        }
-      } catch (err) {
-        console.error('Error fetching customers:', err)
-        setError('An unexpected error occurred')
-        toast({
-          title: "Error",
-          description: "Failed to load customers. Please try again.",
-          variant: "destructive",
-        })
-      } finally {
-        setIsLoading(false)
+  const fetchCustomers = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      
+      const { data, error } = await getCustomers()
+      
+      if (error) {
+        setError(error)
+        console.error('Error fetching customers:', error)
+      } else if (data) {
+        setCustomers(data)
       }
+    } catch (err) {
+      console.error('Error fetching customers:', err)
+      setError('An unexpected error occurred')
+    } finally {
+      setIsLoading(false)
     }
+  }, [])
 
+  useEffect(() => {
     fetchCustomers()
-  }, [toast])
+  }, [fetchCustomers])
+
+  // Show toast notifications for errors
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: "Error",
+        description: `Failed to load customers: ${error}`,
+        variant: "destructive",
+      })
+    }
+  }, [error, toast])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -96,19 +99,21 @@ export function CustomersTab() {
     }
   }
 
-  const filteredCustomers = customers.filter(
-    (customer) =>
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.customer_id.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  const filteredCustomers = useMemo(() => {
+    return customers.filter(
+      (customer) =>
+        customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.customer_id.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
+  }, [customers, searchTerm])
 
-  const handleViewProfile = (customer: any) => {
+  const handleViewProfile = useCallback((customer: any) => {
     setSelectedCustomer(customer)
     setIsProfileModalOpen(true)
-  }
+  }, [])
 
-  const handleSaveCustomer = async (updatedCustomer: Customer) => {
+  const handleSaveCustomer = useCallback(async (updatedCustomer: Customer) => {
     try {
       // Update the customer in the local state
       setCustomers((prev) => prev.map((c) => (c.id === updatedCustomer.id ? updatedCustomer : c)))
@@ -126,9 +131,9 @@ export function CustomersTab() {
         variant: "destructive",
       })
     }
-  }
+  }, [toast])
 
-  const handleAddCustomer = async (newCustomer: any) => {
+  const handleAddCustomer = useCallback(async (newCustomer: any) => {
     try {
       // Refresh customers from Supabase after adding a new one
       const { data, error } = await getCustomers()
@@ -146,26 +151,27 @@ export function CustomersTab() {
           description: "Customer added successfully!",
         })
       }
+      
+      setIsAddModalOpen(false)
     } catch (err) {
       console.error('Error refreshing customers:', err)
       // Still add the customer to local state as fallback
       setCustomers(prev => [...prev, newCustomer])
+      setIsAddModalOpen(false)
     }
-  }
+  }, [toast])
 
-  const getCustomerStats = () => {
+  const stats = useMemo(() => {
     const active = customers.filter((c) => c.status === "active").length
     const vip = customers.filter((c) => c.status === "vip").length
     const inactive = customers.filter((c) => c.status === "inactive").length
     const totalRevenue = customers.reduce((sum, c) => sum + c.total_spent, 0)
 
     return { active, vip, inactive, totalRevenue }
-  }
-
-  const stats = getCustomerStats()
+  }, [customers])
 
   // Export functions
-  const exportToCSV = () => {
+  const exportToCSV = useCallback(() => {
     const headers = [
       'Customer ID', 'Name', 'Email', 'Phone', 'Address', 'Status', 
       'Total Orders', 'Total Spent', 'Rating', 'Last Order Date',
@@ -207,9 +213,9 @@ export function CustomersTab() {
       title: "Export Successful",
       description: "Customer data exported to CSV file",
     })
-  }
+  }, [filteredCustomers, toast])
 
-  const exportToExcel = () => {
+  const exportToExcel = useCallback(() => {
     // For Excel export, we'll create a simple HTML table that can be opened in Excel
     const tableHeaders = [
       'Customer ID', 'Name', 'Email', 'Phone', 'Address', 'Status', 
@@ -272,9 +278,9 @@ export function CustomersTab() {
       title: "Export Successful",
       description: "Customer data exported to Excel file",
     })
-  }
+  }, [filteredCustomers, toast])
 
-  const exportToPDF = () => {
+  const exportToPDF = useCallback(() => {
     // Simple PDF export using browser's print functionality
     const printWindow = window.open('', '_blank')
     if (printWindow) {
@@ -338,26 +344,26 @@ export function CustomersTab() {
         description: "Customer data exported to PDF",
       })
     }
-  }
+  }, [filteredCustomers, toast])
 
   // Customer action handlers
-  const handleMarkAsVisited = (customer: Customer) => {
+  const handleMarkAsVisited = useCallback((customer: Customer) => {
     // TODO: Implement mark as visited functionality
     toast({
       title: "Feature Coming Soon",
       description: "Mark as visited functionality will be implemented soon",
     })
-  }
+  }, [toast])
 
-  const handleScheduleVisit = (customer: Customer) => {
+  const handleScheduleVisit = useCallback((customer: Customer) => {
     // TODO: Implement schedule visit functionality
     toast({
       title: "Feature Coming Soon",
       description: "Schedule visit functionality will be implemented soon",
     })
-  }
+  }, [toast])
 
-  const handleViewOnMap = (customer: Customer) => {
+  const handleViewOnMap = useCallback((customer: Customer) => {
     if (customer.latitude && customer.longitude) {
       const mapUrl = `https://www.google.com/maps?q=${customer.latitude},${customer.longitude}`
       window.open(mapUrl, '_blank')
@@ -368,39 +374,39 @@ export function CustomersTab() {
         variant: "destructive",
       })
     }
-  }
+  }, [toast])
 
-  const handleSendMessage = (customer: Customer) => {
+  const handleSendMessage = useCallback((customer: Customer) => {
     // TODO: Implement send message functionality
     toast({
       title: "Feature Coming Soon",
       description: "Send message functionality will be implemented soon",
     })
-  }
+  }, [toast])
 
-  const handleCreateOrder = (customer: Customer) => {
+  const handleCreateOrder = useCallback((customer: Customer) => {
     // TODO: Implement create order functionality
     toast({
       title: "Feature Coming Soon",
       description: "Create order functionality will be implemented soon",
     })
-  }
+  }, [toast])
 
-  const handleViewHistory = (customer: Customer) => {
+  const handleViewHistory = useCallback((customer: Customer) => {
     // TODO: Implement view history functionality
     toast({
       title: "Feature Coming Soon",
       description: "View history functionality will be implemented soon",
     })
-  }
+  }, [toast])
 
-  const handleDeactivateCustomer = (customer: Customer) => {
+  const handleDeactivateCustomer = useCallback((customer: Customer) => {
     // TODO: Implement deactivate customer functionality
     toast({
       title: "Feature Coming Soon",
       description: "Deactivate customer functionality will be implemented soon",
     })
-  }
+  }, [toast])
 
   return (
     <div className="space-y-6">
@@ -588,15 +594,12 @@ export function CustomersTab() {
                   </div>
 
                   <div>
-                    <div className="flex items-center gap-1 text-sm text-gray-600 mb-1">
-                      <Navigation className="h-3 w-3" />
-                      <span className="text-xs">
-                        {customer.latitude && customer.longitude 
-                          ? `${customer.latitude.toFixed(4)}, ${customer.longitude.toFixed(4)}`
-                          : "No GPS"
-                        }
-                      </span>
-                    </div>
+                    <LocationDisplay
+                      latitude={customer.latitude}
+                      longitude={customer.longitude}
+                      address={customer.address}
+                      className="mb-2"
+                    />
                     <div className="flex items-center gap-1">
                       {getVisitStatusIcon(customer.visit_status)}
                       <Badge className={`text-xs ${getVisitStatusColor(customer.visit_status)}`}>
