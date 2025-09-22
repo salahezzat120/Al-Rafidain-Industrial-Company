@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Search, Filter, QrCode, Download, Print, Eye, Trash2, Copy, CheckCircle, AlertCircle } from 'lucide-react';
+import { Plus, Search, Filter, QrCode, Download, Printerer, Eye, Trash2, Copy, CheckCircle, AlertCircle } from 'lucide-react';
 import { useLanguage } from '@/contexts/language-context';
 import { 
   getProducts,
@@ -96,7 +96,7 @@ export function BarcodeManager() {
     setTimeout(() => setCopiedBarcode(null), 2000);
   };
 
-  const handlePrintBarcode = (barcode: Barcode) => {
+  const handlePrinterBarcode = (barcode: Barcode) => {
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       const productName = isRTL ? barcode.product?.product_name_ar : barcode.product?.product_name;
@@ -399,7 +399,7 @@ export function BarcodeManager() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handlePrintBarcode({ 
+                                onClick={() => handlePrinterBarcode({ 
                                   id: 0, 
                                   product_id: product.id, 
                                   barcode_value: product.barcode!, 
@@ -408,9 +408,9 @@ export function BarcodeManager() {
                                   created_at: new Date().toISOString(),
                                   product: product
                                 })}
-                                title={isRTL ? 'طباعة الباركود' : 'Print Barcode'}
+                                title={isRTL ? 'طباعة الباركود' : 'Printer Barcode'}
                               >
-                                <Print className="h-4 w-4" />
+                                <Printer className="h-4 w-4" />
                               </Button>
                             )}
                           </div>
@@ -480,10 +480,10 @@ export function BarcodeManager() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handlePrintBarcode(barcode)}
-                              title={isRTL ? 'طباعة الباركود' : 'Print Barcode'}
+                              onClick={() => handlePrinterBarcode(barcode)}
+                              title={isRTL ? 'طباعة الباركود' : 'Printer Barcode'}
                             >
-                              <Print className="h-4 w-4" />
+                              <Printer className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="outline"

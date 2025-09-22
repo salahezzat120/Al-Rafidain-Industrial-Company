@@ -464,3 +464,24 @@ export const searchEmployees = async (query: string): Promise<{ data: Employee[]
     return { data: null, error: 'An unexpected error occurred' }
   }
 }
+
+// Representatives functionality (alias for employees with representative role)
+export const getRepresentatives = async (): Promise<{ data: Employee[] | null; error: string | null }> => {
+  try {
+    const { data, error } = await supabase
+      .from('employees')
+      .select('*')
+      .eq('role', 'representative')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching representatives:', error)
+      return { data: null, error: error.message || 'Failed to fetch representatives' }
+    }
+
+    return { data, error: null }
+  } catch (err) {
+    console.error('Unexpected error fetching representatives:', err)
+    return { data: null, error: 'An unexpected error occurred' }
+  }
+}

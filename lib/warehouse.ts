@@ -633,6 +633,53 @@ export async function getStocktakings(): Promise<Stocktaking[]> {
 
 // ==================== BARCODE MANAGEMENT ====================
 
+export async function getBarcodes(): Promise<Barcode[]> {
+  const { data, error } = await supabase
+    .from('barcodes')
+    .select(`
+      *,
+      product:products(*)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching barcodes:', error);
+    throw new Error('Failed to fetch barcodes');
+  }
+
+  return data || [];
+}
+
+export async function createBarcode(barcodeData: any): Promise<Barcode> {
+  const { data, error } = await supabase
+    .from('barcodes')
+    .insert([barcodeData])
+    .select(`
+      *,
+      product:products(*)
+    `)
+    .single();
+
+  if (error) {
+    console.error('Error creating barcode:', error);
+    throw new Error('Failed to create barcode');
+  }
+
+  return data;
+}
+
+export async function deleteBarcode(id: number): Promise<void> {
+  const { error } = await supabase
+    .from('barcodes')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting barcode:', error);
+    throw new Error('Failed to delete barcode');
+  }
+}
+
 export async function generateBarcode(productId: number, barcodeType: string = 'CODE128'): Promise<Barcode> {
   const product = await getProductById(productId);
   if (!product) {
