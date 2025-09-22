@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,6 +11,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { CreateTaskModal } from "./create-task-modal"
 import { TaskDetailsModal } from "./task-details-modal"
 import { useLanguage } from "@/contexts/language-context"
+import { getDeliveryTasks, getDeliveryTaskStats } from "@/lib/delivery-tasks"
+import { useToast } from "@/hooks/use-toast"
+import type { DeliveryTask } from "@/types/delivery-tasks"
 
 const mockTasks = [
   {
@@ -105,11 +108,57 @@ const mockTasks = [
 
 export function DeliveriesTab() {
   const { t } = useLanguage()
+  const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
-  const [tasks, setTasks] = useState(mockTasks)
-  const [selectedTask, setSelectedTask] = useState<any>(null)
+  const [tasks, setTasks] = useState<DeliveryTask[]>([])
+  const [selectedTask, setSelectedTask] = useState<DeliveryTask | null>(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [stats, setStats] = useState({
+    pending: 0,
+    assigned: 0,
+    in_progress: 0,
+    completed: 0
+  })
+
+  // Fetch tasks from Supabase
+  const fetchTasks = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const tasksData = await getDeliveryTasks()
+      setTasks(tasksData)
+    } catch (error) {
+      console.error('Error fetching tasks:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load delivery tasks",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }, [toast])
+
+  // Fetch stats
+  const fetchStats = useCallback(async () => {
+    try {
+      const statsData = await getDeliveryTaskStats()
+      setStats({
+        pending: statsData.pending,
+        assigned: statsData.assigned,
+        in_progress: statsData.in_progress,
+        completed: statsData.completed
+      })
+    } catch (error) {
+      console.error('Error fetching stats:', error)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchTasks()
+    fetchStats()
+  }, [fetchTasks, fetchStats])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -146,39 +195,33 @@ export function DeliveriesTab() {
   const filteredTasks = tasks.filter(
     (task) =>
       task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.id.toLowerCase().includes(searchTerm.toLowerCase()),
+      task.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.task_id.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
-  const handleViewDetails = (task: any) => {
+  const handleViewDetails = (task: DeliveryTask) => {
     setSelectedTask(task)
     setIsDetailsModalOpen(true)
   }
 
-  const handleCreateTask = (newTask: any) => {
-    const task = {
-      id: `T${String(Date.now()).slice(-3)}`,
-      ...newTask,
-      createdAt: new Date().toISOString(),
+  const handleCreateTask = async (newTask: DeliveryTask) => {
+    try {
+      await fetchTasks() // Refresh the tasks list
+      await fetchStats() // Refresh the stats
+      toast({
+        title: "Success",
+        description: "Task created successfully",
+      })
+    } catch (error) {
+      console.error('Error refreshing tasks:', error)
     }
-    setTasks((prev) => [task, ...prev])
   }
 
-  const handleUpdateTask = (updatedTask: any) => {
+  const handleUpdateTask = (updatedTask: DeliveryTask) => {
     setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)))
     setIsDetailsModalOpen(false)
+    fetchStats() // Refresh stats after update
   }
-
-  const getTaskStats = () => {
-    const pending = tasks.filter((t) => t.status === "pending").length
-    const assigned = tasks.filter((t) => t.status === "assigned").length
-    const inProgress = tasks.filter((t) => t.status === "in-progress").length
-    const completed = tasks.filter((t) => t.status === "completed").length
-
-    return { pending, assigned, inProgress, completed }
-  }
-
-  const stats = getTaskStats()
 
   return (
     <div className="space-y-6">
@@ -279,8 +322,18 @@ export function DeliveriesTab() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {filteredTasks.map((task) => (
+          {isLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="text-gray-500 mt-2">Loading tasks...</p>
+            </div>
+          ) : filteredTasks.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No tasks found</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredTasks.map((task) => (
               <div key={task.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50">
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-4">
                   <div>
@@ -290,30 +343,30 @@ export function DeliveriesTab() {
                         {t(task.priority)}
                       </Badge>
                     </div>
-                    <p className="text-sm text-gray-500">ID: {task.id}</p>
+                    <p className="text-sm text-gray-500">ID: {task.task_id}</p>
                   </div>
 
                   <div>
-                    <p className="font-medium text-gray-900">{task.customer.name}</p>
+                    <p className="font-medium text-gray-900">{task.customer_name}</p>
                     <div className="flex items-center gap-1 text-sm text-gray-600">
                       <MapPin className="h-3 w-3" />
-                      <span className="truncate">{task.customer.address.split(",")[0]}</span>
+                      <span className="truncate">{task.customer_address.split(",")[0]}</span>
                     </div>
                   </div>
 
                   <div>
-                    {task.driver ? (
+                    {task.representative_name ? (
                       <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
-                          <AvatarImage src={task.driver.avatar || "/placeholder.svg"} alt={task.driver.name} />
+                          <AvatarImage src="/placeholder.svg" alt={task.representative_name} />
                           <AvatarFallback className="text-xs">
-                            {task.driver.name
+                            {task.representative_name
                               .split(" ")
                               .map((n) => n[0])
                               .join("")}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-sm font-medium">{task.driver.name}</span>
+                        <span className="text-sm font-medium">{task.representative_name}</span>
                       </div>
                     ) : (
                       <span className="text-sm text-gray-500">{t("unassigned")}</span>
@@ -323,18 +376,18 @@ export function DeliveriesTab() {
                   <div>
                     <Badge className={getStatusColor(task.status)}>{t(task.status.replace("-", ""))}</Badge>
                     <p className="text-sm text-gray-600 mt-1">
-                      {new Date(task.scheduledFor).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {task.scheduled_for ? new Date(task.scheduled_for).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : 'Not scheduled'}
                     </p>
                   </div>
 
                   <div>
                     <div className="flex items-center gap-1 text-sm text-gray-600 mb-1">
                       <Clock className="h-3 w-3" />
-                      {task.estimatedTime}
+                      {task.estimated_duration || 'Not set'}
                     </div>
                     <div className="flex items-center gap-1 text-sm text-gray-600">
-                      <MapPin className="h-3 w-3" />
-                      {task.distance}
+                      <Package className="h-3 w-3" />
+                      {task.total_value ? `${task.total_value.toLocaleString()} ${task.currency}` : 'No items'}
                     </div>
                   </div>
 
@@ -357,7 +410,8 @@ export function DeliveriesTab() {
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

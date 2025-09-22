@@ -822,6 +822,81 @@ async function updateInventoryAfterMovement(movementData: CreateStockMovementDat
   }
 }
 
+// ==================== PRODUCTS WITH INVENTORY & PRICING ====================
+
+export async function getProductsWithInventoryAndPricing(warehouseId?: number): Promise<any[]> {
+  let query = supabase
+    .from('products')
+    .select(`
+      *,
+      main_group:main_groups(*),
+      sub_group:sub_groups(*),
+      color:colors(*),
+      material:materials(*),
+      unit_of_measurement:units_of_measurement(*),
+      inventory:inventory(
+        *,
+        warehouse:warehouses(*)
+      ),
+      product_prices:product_prices(*)
+    `)
+    .eq('is_active', true)
+    .order('product_name');
+
+  const { data: products, error } = await supabase
+    .from('products')
+    .select(`
+      *,
+      main_group:main_groups(*),
+      sub_group:sub_groups(*),
+      color:colors(*),
+      material:materials(*),
+      unit_of_measurement:units_of_measurement(*),
+      inventory:inventory(
+        *,
+        warehouse:warehouses(*)
+      ),
+      product_prices:product_prices(*)
+    `)
+    .eq('is_active', true)
+    .order('product_name');
+
+  if (error) {
+    console.error('Error fetching products with inventory:', error);
+    throw new Error('Failed to fetch products with inventory');
+  }
+
+  // Transform the data to include current stock and pricing
+  const productsWithData = products?.map(product => {
+    // Get current stock for the specified warehouse or all warehouses
+    const inventory = product.inventory?.filter(inv => 
+      warehouseId ? inv.warehouse_id === warehouseId : true
+    ) || [];
+    
+    const totalStock = inventory.reduce((sum, inv) => sum + (inv.available_quantity || 0), 0);
+    
+    // Get the latest price
+    const latestPrice = product.product_prices?.sort((a, b) => 
+      new Date(b.price_date).getTime() - new Date(a.price_date).getTime()
+    )[0];
+
+    return {
+      ...product,
+      currentStock: totalStock,
+      currentPrice: latestPrice?.selling_price || 0,
+      currency: latestPrice?.currency || 'IQD',
+      warehouses: inventory.map(inv => ({
+        id: inv.warehouse_id,
+        name: inv.warehouse?.warehouse_name,
+        stock: inv.available_quantity,
+        location: inv.warehouse?.location
+      }))
+    };
+  }) || [];
+
+  return productsWithData;
+}
+
 // ==================== DASHBOARD & STATS ====================
 
 export async function getWarehouseStats(): Promise<WarehouseStats> {

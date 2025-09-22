@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Package, Filter, Download, Star, Navigation, CheckCircle, XCircle, Calendar, Loader2, FileText, FileSpreadsheet, Eye, MessageSquare, History, Trash2, Edit, UserCheck } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from "@/components/ui/dropdown-menu"
 import { CustomerProfileModal } from "./customer-profile-modal"
-import { AddCustomerModal } from "./add-customer-modal"
+import { AddCustomerModal } from "./add-customer-modal-new"
 import { LocationDisplay, LocationCard } from "@/components/ui/location-display"
 import { useLanguage } from "@/contexts/language-context"
 import { getCustomers, Customer } from "@/lib/customers"
@@ -139,11 +139,14 @@ export function CustomersTab() {
       const { data, error } = await getCustomers()
       
       if (error) {
+        console.error('Error refreshing customers:', error)
         toast({
           title: "Warning",
           description: "Customer added but failed to refresh the list. Please refresh the page.",
           variant: "destructive",
         })
+        // Add the customer to local state as fallback
+        setCustomers(prev => [...prev, newCustomer])
       } else if (data) {
         setCustomers(data)
         toast({
@@ -407,6 +410,11 @@ export function CustomersTab() {
       description: "Deactivate customer functionality will be implemented soon",
     })
   }, [toast])
+
+  // Stable callback function to close the AddCustomerModal
+  const handleCloseAddModal = useCallback(() => {
+    setIsAddModalOpen(false)
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -681,7 +689,11 @@ export function CustomersTab() {
         onSave={handleSaveCustomer}
       />
 
-      <AddCustomerModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAdd={handleAddCustomer} />
+      <AddCustomerModal 
+        isOpen={isAddModalOpen} 
+        onClose={handleCloseAddModal} 
+        onAdd={handleAddCustomer} 
+      />
     </div>
   )
 }

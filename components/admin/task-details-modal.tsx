@@ -1,53 +1,154 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Package,
-  User,
-  MapPin,
-  Clock,
-  Phone,
-  Mail,
-  Truck,
-  Save,
-  X,
-  Navigation,
-  CheckCircle,
-  AlertTriangle,
-} from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Package, User, AlertCircle, Edit, Trash2, Save, X } from "lucide-react"
+import { useLanguage } from "@/contexts/language-context"
+import { useToast } from "@/hooks/use-toast"
+import { updateDeliveryTask, deleteDeliveryTask } from "@/lib/delivery-tasks"
+import { getRepresentatives } from "@/lib/employees"
+import type { DeliveryTask, UpdateDeliveryTaskData } from "@/types/delivery-tasks"
 
 interface TaskDetailsModalProps {
-  task: any
+  task: DeliveryTask | null
   isOpen: boolean
   onClose: () => void
-  onUpdate: (task: any) => void
+  onUpdate: (task: DeliveryTask) => void
 }
 
-const mockRepresentatives = [
-  { id: "1", name: "Mike Johnson", status: "available" },
-  { id: "2", name: "Sarah Wilson", status: "available" },
-  { id: "3", name: "David Chen", status: "busy" },
-  { id: "4", name: "Emma Rodriguez", status: "available" },
-]
+// Representative interface
+interface Representative {
+  id: string;
+  name: string;
+  status: string;
+}
 
 export function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: TaskDetailsModalProps) {
+  const { t } = useLanguage()
+  const { toast } = useToast()
   const [isEditing, setIsEditing] = useState(false)
-  const [editedTask, setEditedTask] = useState(task)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [representatives, setRepresentatives] = useState<Representative[]>([])
+  const [isLoadingRepresentatives, setIsLoadingRepresentatives] = useState(false)
 
-  if (!task) return null
+  // Load representatives from Supabase
+  const loadRepresentatives = useCallback(async () => {
+    try {
+      setIsLoadingRepresentatives(true)
+      const representativesData = await getRepresentatives()
+      setRepresentatives(representativesData.map(rep => ({
+        id: rep.id.toString(),
+        name: rep.name,
+        status: rep.status || 'available'
+      })))
+    } catch (error) {
+      console.error('Error loading representatives:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load representatives",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingRepresentatives(false)
+    }
+  }, [toast])
 
-  const handleSave = () => {
-    onUpdate(editedTask)
-    setIsEditing(false)
+  // Load representatives when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadRepresentatives()
+    }
+  }, [isOpen, loadRepresentatives])
+
+  const [editData, setEditData] = useState<UpdateDeliveryTaskData>({
+    title: "",
+    description: "",
+    customer_name: "",
+    customer_address: "",
+    customer_phone: "",
+    representative_id: "",
+    representative_name: "",
+    status: "pending",
+    priority: "medium",
+    estimated_duration: "",
+    scheduled_for: "",
+    notes: "",
+  })
+
+  // Initialize edit data when task changes
+  useState(() => {
+    if (task) {
+      setEditData({
+        title: task.title,
+        description: task.description || "",
+        customer_name: task.customer_name,
+        customer_address: task.customer_address,
+        customer_phone: task.customer_phone || "",
+        representative_id: task.representative_id || "",
+        representative_name: task.representative_name || "",
+        status: task.status,
+        priority: task.priority,
+        estimated_duration: task.estimated_duration || "",
+        scheduled_for: task.scheduled_for ? new Date(task.scheduled_for).toISOString().slice(0, 16) : "",
+        notes: task.notes || "",
+      })
+    }
+  })
+
+  const handleSave = async () => {
+    if (!task) return
+
+    setIsSaving(true)
+    try {
+      const updatedTask = await updateDeliveryTask(task.id, editData)
+      onUpdate(updatedTask)
+      setIsEditing(false)
+      toast({
+        title: "Success",
+        description: "Task updated successfully",
+      })
+    } catch (error) {
+      console.error('Error updating task:', error)
+      toast({
+        title: "Error",
+        description: "Failed to update task",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!task) return
+
+    setIsDeleting(true)
+    try {
+      await deleteDeliveryTask(task.id)
+      onClose()
+      toast({
+        title: "Success",
+        description: "Task deleted successfully",
+      })
+    } catch (error) {
+      console.error('Error deleting task:', error)
+      toast({
+        title: "Error",
+        description: "Failed to delete task",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -82,365 +183,318 @@ export function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: TaskDetail
     }
   }
 
-  const taskHistory = [
-    {
-      timestamp: "2024-01-16T09:00:00Z",
-      action: "Task created",
-      user: "Admin",
-      details: "Task created and assigned priority",
-    },
-    {
-      timestamp: "2024-01-16T09:15:00Z",
-      action: "Representative assigned",
-      user: task.representative?.name || "Representative",
-      details: `Assigned to ${task.representative?.name || "representative"}`,
-    },
-    {
-      timestamp: "2024-01-16T10:30:00Z",
-      action: "Task started",
-      user: task.representative?.name || "Representative",
-      details: "Representative started the delivery",
-    },
-  ]
+  if (!task) return null
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-3">
-              <Package className="h-6 w-6" />
-              <div>
-                <h2 className="text-xl font-bold">{task.title}</h2>
-                <p className="text-sm text-gray-600">Task ID: {task.id}</p>
-              </div>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Task Details - {task.task_id}
             </DialogTitle>
-            <div className="flex items-center gap-2">
-              {isEditing ? (
+            <div className="flex gap-2">
+              {!isEditing ? (
                 <>
-                  <Button onClick={handleSave} size="sm">
-                    <Save className="h-4 w-4 mr-2" />
-                    Save
+                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
                   </Button>
-                  <Button variant="outline" onClick={() => setIsEditing(false)} size="sm">
-                    <X className="h-4 w-4 mr-2" />
-                    Cancel
+                  <Button variant="outline" size="sm" onClick={handleDelete} disabled={isDeleting}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {isDeleting ? "Deleting..." : "Delete"}
                   </Button>
                 </>
               ) : (
-                <Button onClick={() => setIsEditing(true)} size="sm">
-                  Edit Task
-                </Button>
+                <>
+                  <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>
+                    <X className="h-4 w-4 mr-2" />
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={handleSave} disabled={isSaving}>
+                    <Save className="h-4 w-4 mr-2" />
+                    {isSaving ? "Saving..." : "Save"}
+                  </Button>
+                </>
               )}
             </div>
           </div>
         </DialogHeader>
 
-        <Tabs defaultValue="details" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="customer">Customer</TabsTrigger>
-            <TabsTrigger value="tracking">Tracking</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
-          </TabsList>
+        <div className="space-y-6">
+          {/* Task Overview */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                Task Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="title">Title</Label>
+                  {isEditing ? (
+                    <Input
+                      id="title"
+                      value={editData.title}
+                      onChange={(e) => setEditData(prev => ({ ...prev, title: e.target.value }))}
+                    />
+                  ) : (
+                    <p className="text-sm font-medium">{task.title}</p>
+                  )}
+                </div>
 
-          <TabsContent value="details" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Package className="h-5 w-5" />
-                    Task Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Badge className={getStatusColor(task.status)}>{task.status.replace("-", " ").toUpperCase()}</Badge>
-                    <Badge className={getPriorityColor(task.priority)} variant="secondary">
-                      {task.priority.toUpperCase()}
-                    </Badge>
-                  </div>
+                <div>
+                  <Label htmlFor="status">Status</Label>
+                  {isEditing ? (
+                    <Select value={editData.status} onValueChange={(value) => setEditData(prev => ({ ...prev, status: value as any }))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="assigned">Assigned</SelectItem>
+                        <SelectItem value="in-progress">In Progress</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge className={getStatusColor(task.status)}>{task.status}</Badge>
+                  )}
+                </div>
 
+                <div>
+                  <Label htmlFor="priority">Priority</Label>
+                  {isEditing ? (
+                    <Select value={editData.priority} onValueChange={(value) => setEditData(prev => ({ ...prev, priority: value as any }))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="urgent">Urgent</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="estimated_duration">Estimated Duration</Label>
+                  {isEditing ? (
+                    <Input
+                      id="estimated_duration"
+                      value={editData.estimated_duration}
+                      onChange={(e) => setEditData(prev => ({ ...prev, estimated_duration: e.target.value }))}
+                      placeholder="e.g., 30 mins"
+                    />
+                  ) : (
+                    <p className="text-sm">{task.estimated_duration || 'Not set'}</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="description">Description</Label>
+                {isEditing ? (
+                  <Textarea
+                    id="description"
+                    value={editData.description}
+                    onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
+                    rows={3}
+                  />
+                ) : (
+                  <p className="text-sm">{task.description || 'No description'}</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Customer Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Customer Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="customer_name">Customer Name</Label>
+                  {isEditing ? (
+                    <Input
+                      id="customer_name"
+                      value={editData.customer_name}
+                      onChange={(e) => setEditData(prev => ({ ...prev, customer_name: e.target.value }))}
+                    />
+                  ) : (
+                    <p className="text-sm font-medium">{task.customer_name}</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="customer_phone">Phone</Label>
+                  {isEditing ? (
+                    <Input
+                      id="customer_phone"
+                      value={editData.customer_phone}
+                      onChange={(e) => setEditData(prev => ({ ...prev, customer_phone: e.target.value }))}
+                    />
+                  ) : (
+                    <p className="text-sm">{task.customer_phone || 'Not provided'}</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="customer_address">Address</Label>
+                {isEditing ? (
+                  <Textarea
+                    id="customer_address"
+                    value={editData.customer_address}
+                    onChange={(e) => setEditData(prev => ({ ...prev, customer_address: e.target.value }))}
+                    rows={2}
+                  />
+                ) : (
+                  <p className="text-sm">{task.customer_address}</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Assignment & Scheduling */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Assignment & Scheduling</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label>Items to Deliver</Label>
-                    <div className="mt-1">
-                      {task.items.map((item: string, index: number) => (
-                        <span
-                          key={index}
-                          className="inline-block bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm mr-2 mb-1"
-                        >
-                          {item}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Scheduled Time</Label>
-                    <p className="text-sm font-medium mt-1">{new Date(task.scheduledFor).toLocaleString()}</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Estimated Time</Label>
-                      <div className="flex items-center gap-1 mt-1">
-                        <Clock className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm font-medium">{task.estimatedTime}</span>
-                      </div>
-                    </div>
-                    <div>
-                      <Label>Distance</Label>
-                      <div className="flex items-center gap-1 mt-1">
-                        <MapPin className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm font-medium">{task.distance}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="notes">Special Instructions</Label>
+                    <Label htmlFor="representative">Assigned Representative</Label>
                     {isEditing ? (
-                      <Textarea
-                        id="notes"
-                        value={editedTask.notes}
-                        onChange={(e) => setEditedTask({ ...editedTask, notes: e.target.value })}
-                        rows={3}
-                      />
-                    ) : (
-                      <p className="text-sm font-medium mt-1">{task.notes || "No special instructions"}</p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    Assignment
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label>Assigned Representative</Label>
-                    {isEditing ? (
-                      <Select
-                        value={editedTask.representative?.id || "unassigned"}
-                        onValueChange={(value) => {
-                          const selectedRepresentative = mockRepresentatives.find((r) => r.id === value)
-                          setEditedTask({
-                            ...editedTask,
-                            representative: selectedRepresentative
-                              ? {
-                                  id: selectedRepresentative.id,
-                                  name: selectedRepresentative.name,
-                                  avatar: "/placeholder.svg?height=32&width=32",
-                                }
-                              : null,
-                            status: selectedRepresentative ? "assigned" : "pending",
-                          })
-                        }}
-                      >
+                      <Select value={editData.representative_id} onValueChange={(value) => {
+                        const rep = representatives.find(r => r.id === value)
+                        setEditData(prev => ({ 
+                          ...prev, 
+                          representative_id: value,
+                          representative_name: rep?.name || ""
+                        }))
+                      }} disabled={isLoadingRepresentatives}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select representative" />
+                          <SelectValue placeholder={isLoadingRepresentatives ? "Loading..." : "Select representative"} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="unassigned">Unassigned</SelectItem>
-                          {mockRepresentatives
-                            .filter((r) => r.status === "available")
-                            .map((representative) => (
-                              <SelectItem key={representative.id} value={representative.id}>
-                                {representative.name}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    ) : task.representative ? (
-                      <div className="flex items-center gap-3 mt-1">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={task.representative.avatar || "/placeholder.svg"} alt={task.representative.name} />
-                          <AvatarFallback>
-                            {task.representative.name
-                              .split(" ")
-                              .map((n: string) => n[0])
-                              .join("")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium">{task.representative.name}</span>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-500 mt-1">Unassigned</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label>Task Status</Label>
-                    {isEditing ? (
-                      <Select
-                        value={editedTask.status}
-                        onValueChange={(value) => setEditedTask({ ...editedTask, status: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="assigned">Assigned</SelectItem>
-                          <SelectItem value="in-progress">In Progress</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                          <SelectItem value="">Unassigned</SelectItem>
+                          {representatives.map((rep) => (
+                            <SelectItem key={rep.id} value={rep.id}>
+                              {rep.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     ) : (
-                      <Badge className={getStatusColor(task.status)} variant="secondary">
-                        {task.status.replace("-", " ").toUpperCase()}
-                      </Badge>
+                      <p className="text-sm">{task.representative_name || 'Unassigned'}</p>
                     )}
                   </div>
 
-                  <div>
-                    <Label>Priority</Label>
-                    {isEditing ? (
-                      <Select
-                        value={editedTask.priority}
-                        onValueChange={(value) => setEditedTask({ ...editedTask, priority: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="urgent">Urgent</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Badge className={getPriorityColor(task.priority)} variant="secondary">
-                        {task.priority.toUpperCase()}
-                      </Badge>
-                    )}
-                  </div>
+                <div>
+                  <Label htmlFor="scheduled_for">Scheduled For</Label>
+                  {isEditing ? (
+                    <Input
+                      id="scheduled_for"
+                      type="datetime-local"
+                      value={editData.scheduled_for}
+                      onChange={(e) => setEditData(prev => ({ ...prev, scheduled_for: e.target.value }))}
+                    />
+                  ) : (
+                    <p className="text-sm">
+                      {task.scheduled_for ? new Date(task.scheduled_for).toLocaleString() : 'Not scheduled'}
+                    </p>
+                  )}
+                </div>
+              </div>
 
-                  <div className="pt-4">
-                    <Button className="w-full bg-transparent" variant="outline">
-                      <Navigation className="h-4 w-4 mr-2" />
-                      View Route
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+              <div>
+                <Label htmlFor="notes">Notes</Label>
+                {isEditing ? (
+                  <Textarea
+                    id="notes"
+                    value={editData.notes}
+                    onChange={(e) => setEditData(prev => ({ ...prev, notes: e.target.value }))}
+                    rows={3}
+                    placeholder="Special instructions or notes..."
+                  />
+                ) : (
+                  <p className="text-sm">{task.notes || 'No notes'}</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-          <TabsContent value="customer" className="space-y-6">
+          {/* Task Items */}
+          {task.items && task.items.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Customer Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Customer Name</Label>
-                  <p className="text-lg font-medium mt-1">{task.customer.name}</p>
-                </div>
-
-                <div>
-                  <Label>Delivery Address</Label>
-                  <div className="flex items-start gap-2 mt-1">
-                    <MapPin className="h-4 w-4 text-gray-500 mt-0.5" />
-                    <p className="text-sm font-medium">{task.customer.address}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <Label>Contact Information</Label>
-                  <div className="space-y-2 mt-1">
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm font-medium">{task.customer.phone}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm font-medium">{task.customer.id}@email.com</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-2 pt-4">
-                  <Button variant="outline" className="flex-1 bg-transparent">
-                    <Phone className="h-4 w-4 mr-2" />
-                    Call Customer
-                  </Button>
-                  <Button variant="outline" className="flex-1 bg-transparent">
-                    <Mail className="h-4 w-4 mr-2" />
-                    Send Message
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="tracking" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Truck className="h-5 w-5" />
-                  Live Tracking
-                </CardTitle>
+                <CardTitle className="text-lg">Task Items</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8">
-                  <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Real-time Tracking</h3>
-                  <p className="text-gray-600 mb-4">Track driver location and delivery progress in real-time</p>
-                  <Button>
-                    <Navigation className="h-4 w-4 mr-2" />
-                    Open Map View
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="history" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
-                  Task History
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {taskHistory.map((entry, index) => (
-                    <div key={index} className="flex items-start gap-3 p-3 border rounded-lg">
-                      <div className="p-1 bg-blue-100 rounded-full">
-                        {entry.action.includes("completed") ? (
-                          <CheckCircle className="h-3 w-3 text-green-600" />
-                        ) : entry.action.includes("problem") ? (
-                          <AlertTriangle className="h-3 w-3 text-yellow-600" />
-                        ) : (
-                          <Clock className="h-3 w-3 text-blue-600" />
-                        )}
-                      </div>
+                <div className="space-y-3">
+                  {task.items.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-sm">{entry.action}</span>
-                          <span className="text-xs text-gray-500">by {entry.user}</span>
+                        <div className="font-medium">{item.product_name}</div>
+                        <div className="text-sm text-gray-500">
+                          Code: {item.product_code} | Qty: {item.quantity} {item.unit_of_measurement}
                         </div>
-                        <p className="text-sm text-gray-600">{entry.details}</p>
-                        <p className="text-xs text-gray-500 mt-1">{new Date(entry.timestamp).toLocaleString()}</p>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium">{item.total_price.toLocaleString()} {task.currency}</div>
+                        <div className="text-sm text-gray-500">{item.unit_price.toLocaleString()} {task.currency} each</div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="border-t pt-3">
+                    <div className="flex justify-between items-center text-lg font-bold">
+                      <span>Total Value:</span>
+                      <span>{task.total_value.toLocaleString()} {task.currency}</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Task History */}
+          {task.status_history && task.status_history.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Status History</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {task.status_history.map((history, index) => (
+                    <div key={index} className="flex items-center gap-3 p-3 border rounded-lg">
+                      <Badge className={getStatusColor(history.status)}>{history.status}</Badge>
+                      <div className="flex-1">
+                        <div className="text-sm">{history.notes || `Status changed to ${history.status}`}</div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(history.changed_at).toLocaleString()} by {history.changed_by || 'System'}
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   )

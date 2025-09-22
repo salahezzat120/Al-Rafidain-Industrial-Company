@@ -33,13 +33,19 @@ export interface CreateCustomerData {
   phone: string
   address: string
   status?: 'active' | 'vip' | 'inactive'
+  total_orders?: number
+  total_spent?: number
+  last_order_date?: string | null
+  rating?: number
   preferred_delivery_time?: string
-  notes?: string
-  latitude?: number
-  longitude?: number
+  avatar_url?: string | null
+  join_date?: string
+  notes?: string | null
+  latitude?: number | null
+  longitude?: number | null
   visit_status?: 'visited' | 'not_visited'
-  last_visit_date?: string
-  visit_notes?: string
+  last_visit_date?: string | null
+  visit_notes?: string | null
 }
 
 export interface UpdateCustomerData extends Partial<CreateCustomerData> {
@@ -89,17 +95,19 @@ export const createCustomer = async (customerData: CreateCustomerData): Promise<
       phone: customerData.phone,
       address: customerData.address,
       status: customerData.status || 'active',
-      total_orders: 0,
-      total_spent: 0.00,
-      rating: 0.00,
+      total_orders: customerData.total_orders || 0,
+      total_spent: customerData.total_spent || 0.00,
+      last_order_date: customerData.last_order_date || null,
+      rating: customerData.rating || 0.00,
       preferred_delivery_time: customerData.preferred_delivery_time || 'Flexible',
-      join_date: new Date().toISOString().split('T')[0],
-      notes: customerData.notes || '',
+      avatar_url: customerData.avatar_url || null,
+      join_date: customerData.join_date || new Date().toISOString().split('T')[0],
+      notes: customerData.notes || null,
       latitude: customerData.latitude || null,
       longitude: customerData.longitude || null,
       visit_status: customerData.visit_status || 'not_visited',
       last_visit_date: customerData.last_visit_date || null,
-      visit_notes: customerData.visit_notes || '',
+      visit_notes: customerData.visit_notes || null,
     }
 
     console.log('Attempting to insert customer:', newCustomer)
@@ -120,6 +128,27 @@ export const createCustomer = async (customerData: CreateCustomerData): Promise<
   } catch (err) {
     console.error('Unexpected error creating customer:', err)
     return { data: null, error: 'An unexpected error occurred' }
+  }
+}
+
+// Check if email already exists
+export const checkEmailExists = async (email: string): Promise<{ exists: boolean; error: string | null }> => {
+  try {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('email')
+      .eq('email', email)
+      .single()
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
+      console.error('Error checking email:', error)
+      return { exists: false, error: error.message }
+    }
+
+    return { exists: !!data, error: null }
+  } catch (err: any) {
+    console.error('Unexpected error checking email:', err)
+    return { exists: false, error: err.message || 'An unexpected error occurred' }
   }
 }
 

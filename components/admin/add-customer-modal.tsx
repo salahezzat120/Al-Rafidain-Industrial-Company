@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -52,7 +50,7 @@ interface AddCustomerModalProps {
   onAdd: (customer: any) => void
 }
 
-export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalProps) {
+export const AddCustomerModal = React.memo(function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalProps) {
   const { t, isRTL } = useLanguage()
   const [formData, setFormData] = useState({
     name: "",
@@ -181,19 +179,19 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
     setFormProgress(Math.round((filledFields / totalFields) * 100))
   }, [formData])
 
-  // Auto-save functionality
-  useEffect(() => {
-    if (isDirty && autoSave) {
-      const timer = setTimeout(() => {
-        localStorage.setItem('customer-draft', JSON.stringify(formData))
-        toast({
-          title: "Auto-saved",
-          description: isRTL ? "تم حفظ المسودة تلقائياً" : "Draft auto-saved",
-        })
-      }, 2000)
-      return () => clearTimeout(timer)
-    }
-  }, [formData, isDirty, autoSave, toast, isRTL])
+  // Auto-save functionality - temporarily disabled to fix re-render issue
+  // useEffect(() => {
+  //   if (isDirty && autoSave) {
+  //     const timer = setTimeout(() => {
+  //       localStorage.setItem('customer-draft', JSON.stringify(formData))
+  //       toast({
+  //         title: "Auto-saved",
+  //         description: isRTL ? "تم حفظ المسودة تلقائياً" : "Draft auto-saved",
+  //       })
+  //     }, 2000)
+  //     return () => clearTimeout(timer)
+  //   }
+  // }, [formData, isDirty, autoSave, toast, isRTL])
 
   // Load draft on mount
   useEffect(() => {
@@ -1036,4 +1034,4 @@ Notes: ${formData.notes}
       />
     </Dialog>
   )
-}
+})
