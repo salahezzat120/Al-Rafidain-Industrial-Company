@@ -554,7 +554,7 @@ export function CustomersTab() {
               {filteredCustomers.map((customer) => (
               <div key={customer.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50">
                 <Avatar className="h-12 w-12">
-                  <AvatarImage src={customer.avatar || "/placeholder.svg"} alt={customer.name} />
+                  <AvatarImage src={customer.avatar_url || customer.avatar || "/placeholder.svg"} alt={customer.name} />
                   <AvatarFallback>
                     {customer.name
                       .split(" ")

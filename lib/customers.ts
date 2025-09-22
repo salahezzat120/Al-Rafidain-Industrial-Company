@@ -1,5 +1,13 @@
 import { supabase } from './supabase'
 
+// Generate random avatar URL using the Avatar Placeholder API
+export const generateRandomAvatar = (): string => {
+  // Generate a random seed to ensure different avatars
+  const randomSeed = Math.random().toString(36).substring(2, 15)
+  const timestamp = Date.now()
+  return `https://avatar.iran.liara.run/public?seed=${randomSeed}&t=${timestamp}`
+}
+
 export interface Customer {
   id?: string
   customer_id: string
@@ -100,7 +108,7 @@ export const createCustomer = async (customerData: CreateCustomerData): Promise<
       last_order_date: customerData.last_order_date || null,
       rating: customerData.rating || 0.00,
       preferred_delivery_time: customerData.preferred_delivery_time || 'Flexible',
-      avatar_url: customerData.avatar_url || null,
+      avatar_url: customerData.avatar_url || generateRandomAvatar(),
       join_date: customerData.join_date || new Date().toISOString().split('T')[0],
       notes: customerData.notes || null,
       latitude: customerData.latitude || null,

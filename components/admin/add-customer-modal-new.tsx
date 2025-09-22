@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { 
   User, 
   MapPin, 
@@ -22,9 +23,10 @@ import {
   Save,
   X,
   Map,
-  Navigation
+  Navigation,
+  RotateCcw
 } from "lucide-react"
-import { createCustomer, CreateCustomerData, checkEmailExists } from "@/lib/customers"
+import { createCustomer, CreateCustomerData, checkEmailExists, generateRandomAvatar } from "@/lib/customers"
 import { useToast } from "@/hooks/use-toast"
 import { useLanguage } from "@/contexts/language-context"
 import { MapPicker } from "./map-picker"
@@ -69,6 +71,7 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
     latitude: number
     longitude: number
   } | null>(null)
+  const [avatarKey, setAvatarKey] = useState(0)
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -84,7 +87,7 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
         last_order_date: "",
         rating: 0,
         preferred_delivery_time: "Flexible",
-        avatar_url: "",
+        avatar_url: generateRandomAvatar(), // Automatically generate random avatar
         join_date: new Date().toISOString().split('T')[0],
         notes: "",
         latitude: null,
@@ -95,6 +98,7 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
       })
       setErrors({})
       setSelectedLocation(null)
+      setAvatarKey(0)
     }
   }, [isOpen])
 
@@ -147,6 +151,16 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
       setErrors(prev => ({ ...prev, [field]: "" }))
     }
   }, [errors])
+
+  const regenerateAvatar = useCallback(() => {
+    const newAvatar = generateRandomAvatar()
+    setFormData(prev => ({ ...prev, avatar_url: newAvatar }))
+    setAvatarKey(prev => prev + 1) // Force avatar re-render
+    toast({
+      title: "Avatar Updated",
+      description: isRTL ? "تم تحديث الصورة الشخصية" : "Avatar regenerated successfully!",
+    })
+  }, [isRTL, toast])
 
   // Debounced email validation
   useEffect(() => {
@@ -650,16 +664,42 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="avatar_url">
-                    {isRTL ? "رابط الصورة الشخصية" : "Avatar URL"}
+                  <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-4">
+                    <User className="h-4 w-4" />
+                    {isRTL ? "الصورة الشخصية" : "Customer Avatar"}
                   </Label>
-                  <Input
-                    id="avatar_url"
-                    type="url"
-                    value={formData.avatar_url}
-                    onChange={(e) => handleInputChange("avatar_url", e.target.value)}
-                    placeholder={isRTL ? "أدخل رابط الصورة الشخصية" : "Enter avatar URL"}
-                  />
+                  
+                  {/* Avatar Preview Section */}
+                  <div className="flex items-center justify-center p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-dashed border-blue-200">
+                    <div className="text-center space-y-4">
+                      <div className="flex justify-center">
+                        <Avatar className="h-24 w-24 border-4 border-white shadow-lg" key={avatarKey}>
+                          <AvatarImage src={formData.avatar_url} alt="Customer Avatar" />
+                          <AvatarFallback className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                            {formData.name ? formData.name.charAt(0).toUpperCase() : "?"}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600 mb-4">
+                          {isRTL ? "سيتم إنشاء صورة شخصية عشوائية تلقائياً" : "A random avatar is automatically generated"}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            regenerateAvatar()
+                          }}
+                          className="bg-white hover:bg-blue-50 border-blue-200 text-blue-700 hover:text-blue-800"
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          {isRTL ? "توليد صورة جديدة" : "Generate New Avatar"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div>

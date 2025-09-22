@@ -14,14 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { UserPlus, Shield, Users, Eye, EyeOff, AlertCircle, CheckCircle, Edit, Trash2, MoreVertical } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useLanguage } from "@/contexts/language-context"
-import { supabase } from "@/lib/supabase"
-
-interface User {
-  id: string
-  email: string
-  role: string
-  created_at: string
-}
+import { getUsers, createUser, updateUser, deleteUser, checkEmailExists, type User, type CreateUserData, type UpdateUserData } from "@/lib/users"
 
 export function UsersTab() {
   const { t, isRTL } = useLanguage()
@@ -38,6 +31,7 @@ export function UsersTab() {
   const [editingUser, setEditingUser] = useState<User | null>(null)
 
   const [newUser, setNewUser] = useState({
+    name: '',
     email: '',
     password: '',
     role: '',
@@ -45,6 +39,7 @@ export function UsersTab() {
   })
 
   const [editUser, setEditUser] = useState({
+    name: '',
     email: '',
     password: '',
     role: '',
@@ -59,18 +54,8 @@ export function UsersTab() {
   const loadUsers = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, email, role, created_at')
-        .in('role', ['Admin', 'Supervisor'])
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        console.error('Error loading users:', error)
-        setMessage({ type: 'error', text: 'Failed to load users' })
-      } else {
-        setUsers(data || [])
-      }
+      const usersData = await getUsers()
+      setUsers(usersData)
     } catch (error) {
       console.error('Error loading users:', error)
       setMessage({ type: 'error', text: 'Failed to load users' })
@@ -80,7 +65,7 @@ export function UsersTab() {
   }
 
   const handleCreateUser = async () => {
-    if (!newUser.email || !newUser.password || !newUser.role) {
+    if (!newUser.name || !newUser.email || !newUser.password || !newUser.role) {
       setMessage({ type: 'error', text: 'Please fill in all required fields' })
       return
     }
@@ -99,29 +84,21 @@ export function UsersTab() {
     setMessage(null)
 
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .insert([
-          {
-            email: newUser.email,
-            password_hash: newUser.password, // In production, this should be hashed
-            role: newUser.role
-          }
-        ])
-        .select()
-
-      if (error) {
-        console.error('Error creating user:', error)
-        setMessage({ type: 'error', text: 'Failed to create user. Email might already exist.' })
-      } else {
-        setMessage({ type: 'success', text: `${newUser.role} user created successfully!` })
-        setNewUser({ email: '', password: '', role: '', confirmPassword: '' })
-        setIsCreateModalOpen(false)
-        loadUsers() // Reload users list
+      const userData: CreateUserData = {
+        name: newUser.name,
+        email: newUser.email,
+        password_hash: newUser.password, // In production, this should be hashed
+        role: newUser.role as 'admin' | 'supervisor' | 'representative'
       }
-    } catch (error) {
+
+      await createUser(userData)
+      setMessage({ type: 'success', text: `${newUser.role} user created successfully!` })
+      setNewUser({ name: '', email: '', password: '', role: '', confirmPassword: '' })
+      setIsCreateModalOpen(false)
+      loadUsers() // Reload users list
+    } catch (error: any) {
       console.error('Error creating user:', error)
-      setMessage({ type: 'error', text: 'Failed to create user' })
+      setMessage({ type: 'error', text: error.message || 'Failed to create user' })
     } finally {
       setCreateLoading(false)
     }
@@ -130,6 +107,7 @@ export function UsersTab() {
   const handleEditUser = (user: User) => {
     setEditingUser(user)
     setEditUser({
+      name: user.name,
       email: user.email,
       password: '',
       role: user.role,
@@ -140,7 +118,7 @@ export function UsersTab() {
   }
 
   const handleUpdateUser = async () => {
-    if (!editingUser || !editUser.email || !editUser.role) {
+    if (!editingUser || !editUser.name || !editUser.email || !editUser.role) {
       setMessage({ type: 'error', text: 'Please fill in all required fields' })
       return
     }
@@ -162,9 +140,10 @@ export function UsersTab() {
     setMessage(null)
 
     try {
-      const updateData: any = {
+      const updateData: UpdateUserData = {
+        name: editUser.name,
         email: editUser.email,
-        role: editUser.role
+        role: editUser.role as 'admin' | 'supervisor' | 'representative'
       }
 
       // Only update password if provided
@@ -172,24 +151,15 @@ export function UsersTab() {
         updateData.password_hash = editUser.password
       }
 
-      const { error } = await supabase
-        .from('users')
-        .update(updateData)
-        .eq('id', editingUser.id)
-
-      if (error) {
-        console.error('Error updating user:', error)
-        setMessage({ type: 'error', text: 'Failed to update user. Email might already exist.' })
-      } else {
-        setMessage({ type: 'success', text: 'User updated successfully!' })
-        setEditUser({ email: '', password: '', role: '', confirmPassword: '' })
-        setIsEditModalOpen(false)
-        setEditingUser(null)
-        loadUsers() // Reload users list
-      }
-    } catch (error) {
+      await updateUser(editingUser.id, updateData)
+      setMessage({ type: 'success', text: 'User updated successfully!' })
+      setEditUser({ name: '', email: '', password: '', role: '', confirmPassword: '' })
+      setIsEditModalOpen(false)
+      setEditingUser(null)
+      loadUsers() // Reload users list
+    } catch (error: any) {
       console.error('Error updating user:', error)
-      setMessage({ type: 'error', text: 'Failed to update user' })
+      setMessage({ type: 'error', text: error.message || 'Failed to update user' })
     } finally {
       setEditLoading(false)
     }
@@ -200,21 +170,12 @@ export function UsersTab() {
     setMessage(null)
 
     try {
-      const { error } = await supabase
-        .from('users')
-        .delete()
-        .eq('id', userId)
-
-      if (error) {
-        console.error('Error deleting user:', error)
-        setMessage({ type: 'error', text: 'Failed to delete user' })
-      } else {
-        setMessage({ type: 'success', text: 'User deleted successfully!' })
-        loadUsers() // Reload users list
-      }
-    } catch (error) {
+      await deleteUser(userId)
+      setMessage({ type: 'success', text: 'User deleted successfully!' })
+      loadUsers() // Reload users list
+    } catch (error: any) {
       console.error('Error deleting user:', error)
-      setMessage({ type: 'error', text: 'Failed to delete user' })
+      setMessage({ type: 'error', text: error.message || 'Failed to delete user' })
     } finally {
       setDeleteLoading(null)
     }
@@ -222,10 +183,12 @@ export function UsersTab() {
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'Admin':
+      case 'admin':
         return 'bg-red-100 text-red-800 border-red-200'
-      case 'Supervisor':
+      case 'supervisor':
         return 'bg-blue-100 text-blue-800 border-blue-200'
+      case 'representative':
+        return 'bg-green-100 text-green-800 border-green-200'
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200'
     }
@@ -233,9 +196,11 @@ export function UsersTab() {
 
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case 'Admin':
+      case 'admin':
         return <Shield className="h-4 w-4" />
-      case 'Supervisor':
+      case 'supervisor':
+        return <Users className="h-4 w-4" />
+      case 'representative':
         return <Users className="h-4 w-4" />
       default:
         return <Users className="h-4 w-4" />
@@ -268,6 +233,18 @@ export function UsersTab() {
             
             <div className="space-y-4">
               <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="Enter full name"
+                  value={newUser.name}
+                  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
                 <Input
                   id="email"
@@ -286,16 +263,22 @@ export function UsersTab() {
                     <SelectValue placeholder="Select user role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Admin">
+                    <SelectItem value="admin">
                       <div className="flex items-center space-x-2">
                         <Shield className="h-4 w-4" />
                         <span>Admin</span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="Supervisor">
+                    <SelectItem value="supervisor">
                       <div className="flex items-center space-x-2">
                         <Users className="h-4 w-4" />
                         <span>Supervisor</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="representative">
+                      <div className="flex items-center space-x-2">
+                        <Users className="h-4 w-4" />
+                        <span>Representative</span>
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -352,7 +335,7 @@ export function UsersTab() {
                   className="flex-1"
                   onClick={() => {
                     setIsCreateModalOpen(false)
-                    setNewUser({ email: '', password: '', role: '', confirmPassword: '' })
+                    setNewUser({ name: '', email: '', password: '', role: '', confirmPassword: '' })
                     setMessage(null)
                   }}
                 >
@@ -389,6 +372,18 @@ export function UsersTab() {
             
             <div className="space-y-4">
               <div className="space-y-2">
+                <Label htmlFor="edit-name">Full Name</Label>
+                <Input
+                  id="edit-name"
+                  type="text"
+                  placeholder="Enter full name"
+                  value={editUser.name}
+                  onChange={(e) => setEditUser({ ...editUser, name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="edit-email">Email Address</Label>
                 <Input
                   id="edit-email"
@@ -407,16 +402,22 @@ export function UsersTab() {
                     <SelectValue placeholder="Select user role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Admin">
+                    <SelectItem value="admin">
                       <div className="flex items-center space-x-2">
                         <Shield className="h-4 w-4" />
                         <span>Admin</span>
                       </div>
                     </SelectItem>
-                    <SelectItem value="Supervisor">
+                    <SelectItem value="supervisor">
                       <div className="flex items-center space-x-2">
                         <Users className="h-4 w-4" />
                         <span>Supervisor</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="representative">
+                      <div className="flex items-center space-x-2">
+                        <Users className="h-4 w-4" />
+                        <span>Representative</span>
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -473,7 +474,7 @@ export function UsersTab() {
                   className="flex-1"
                   onClick={() => {
                     setIsEditModalOpen(false)
-                    setEditUser({ email: '', password: '', role: '', confirmPassword: '' })
+                    setEditUser({ name: '', email: '', password: '', role: '', confirmPassword: '' })
                     setEditingUser(null)
                     setMessage(null)
                   }}
@@ -533,23 +534,24 @@ export function UsersTab() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <Avatar className="h-12 w-12">
-                      <AvatarImage src={`/placeholder-user.jpg`} alt={user.email} />
+                      <AvatarImage src={`/placeholder-user.jpg`} alt={user.name} />
                       <AvatarFallback className="bg-gradient-to-br from-purple-600 to-blue-600 text-white">
-                        {user.email.charAt(0).toUpperCase()}
+                        {user.name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     
                     <div>
                       <div className="flex items-center space-x-2 mb-1">
-                        <h3 className="text-lg font-semibold text-gray-900">{user.email}</h3>
+                        <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
                         <Badge variant="outline" className={getRoleColor(user.role)}>
                           <div className="flex items-center space-x-1">
                             {getRoleIcon(user.role)}
-                            <span>{user.role}</span>
+                            <span>{user.role.charAt(0).toUpperCase() + user.role.slice(1)}</span>
                           </div>
                         </Badge>
                       </div>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-gray-600 mb-1">{user.email}</p>
+                      <p className="text-sm text-gray-500">
                         Created: {new Date(user.created_at).toLocaleDateString()}
                       </p>
                     </div>

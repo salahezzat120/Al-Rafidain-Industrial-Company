@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { 
   User, 
   MapPin, 
@@ -37,9 +38,11 @@ import {
   RefreshCw,
   Zap,
   Shield,
-  Target
+  Target,
+  Image,
+  RotateCcw
 } from "lucide-react"
-import { createCustomer, CreateCustomerData } from "@/lib/customers"
+import { createCustomer, CreateCustomerData, generateRandomAvatar } from "@/lib/customers"
 import { useToast } from "@/hooks/use-toast"
 import { LocationPicker } from "@/components/ui/location-picker"
 import { useLanguage } from "@/contexts/language-context"
@@ -68,6 +71,7 @@ export const AddCustomerModal = React.memo(function AddCustomerModal({ isOpen, o
     lastVisitDate: "",
     visitNotes: "",
   })
+  const [avatarUrl, setAvatarUrl] = useState<string>("")
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGettingLocation, setIsGettingLocation] = useState(false)
@@ -193,6 +197,13 @@ export const AddCustomerModal = React.memo(function AddCustomerModal({ isOpen, o
   //   }
   // }, [formData, isDirty, autoSave, toast, isRTL])
 
+  // Generate initial avatar when modal opens
+  useEffect(() => {
+    if (isOpen && !avatarUrl) {
+      setAvatarUrl(generateRandomAvatar())
+    }
+  }, [isOpen, avatarUrl])
+
   // Load draft on mount
   useEffect(() => {
     if (isOpen) {
@@ -271,6 +282,7 @@ export const AddCustomerModal = React.memo(function AddCustomerModal({ isOpen, o
         status: formData.status as 'active' | 'vip' | 'inactive',
         preferred_delivery_time: formData.preferredDeliveryTime,
         notes: formData.notes,
+        avatar_url: avatarUrl,
         latitude: formData.latitude ? parseFloat(formData.latitude) : undefined,
         longitude: formData.longitude ? parseFloat(formData.longitude) : undefined,
         visit_status: formData.visitStatus as 'visited' | 'not_visited',
@@ -336,6 +348,7 @@ export const AddCustomerModal = React.memo(function AddCustomerModal({ isOpen, o
           lastVisitDate: "",
           visitNotes: "",
     })
+    setAvatarUrl("")
     setErrors({})
         onClose()
       }
@@ -391,12 +404,22 @@ export const AddCustomerModal = React.memo(function AddCustomerModal({ isOpen, o
       lastVisitDate: "",
       visitNotes: "",
     })
+    setAvatarUrl("")
     setIsDirty(false)
     setCurrentStep(1)
     setErrors({})
     toast({
       title: "Cleared",
       description: isRTL ? "تم مسح المسودة" : "Draft cleared",
+    })
+  }
+
+  const regenerateAvatar = () => {
+    const newAvatar = generateRandomAvatar()
+    setAvatarUrl(newAvatar)
+    toast({
+      title: "Avatar Updated",
+      description: isRTL ? "تم تحديث الصورة الشخصية" : "Avatar regenerated successfully!",
     })
   }
 
@@ -550,6 +573,37 @@ Notes: ${formData.notes}
                   </p>
               </CardHeader>
                 <CardContent className="p-8 space-y-6">
+                  {/* Avatar Preview Section */}
+                  <div className="flex items-center justify-center p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-dashed border-blue-200">
+                    <div className="text-center space-y-4">
+                      <div className="flex justify-center">
+                        <Avatar className="h-24 w-24 border-4 border-white shadow-lg">
+                          <AvatarImage src={avatarUrl} alt="Customer Avatar" />
+                          <AvatarFallback className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                            {formData.name ? formData.name.charAt(0).toUpperCase() : "?"}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                          {isRTL ? "الصورة الشخصية" : "Customer Avatar"}
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-4">
+                          {isRTL ? "سيتم إنشاء صورة شخصية عشوائية تلقائياً" : "A random avatar will be automatically generated"}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={regenerateAvatar}
+                          className="bg-white hover:bg-blue-50 border-blue-200 text-blue-700 hover:text-blue-800"
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          {isRTL ? "توليد صورة جديدة" : "Generate New Avatar"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                       <Label htmlFor="name" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
@@ -884,6 +938,21 @@ Notes: ${formData.notes}
                   </p>
                 </CardHeader>
                 <CardContent className="p-8">
+                  {/* Avatar Preview in Review */}
+                  <div className="flex justify-center mb-8">
+                    <div className="text-center">
+                      <Avatar className="h-32 w-32 border-4 border-white shadow-xl mx-auto mb-4">
+                        <AvatarImage src={avatarUrl} alt="Customer Avatar" />
+                        <AvatarFallback className="text-3xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                          {formData.name ? formData.name.charAt(0).toUpperCase() : "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <p className="text-sm text-gray-600">
+                        {isRTL ? "الصورة الشخصية المحددة" : "Selected Avatar"}
+                      </p>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Personal Info Review */}
                     <div className="space-y-4">
