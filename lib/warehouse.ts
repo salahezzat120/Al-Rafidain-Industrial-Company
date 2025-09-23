@@ -86,29 +86,42 @@ export async function getWarehouseById(id: number): Promise<Warehouse | null> {
 }
 
 export async function createWarehouse(warehouseData: CreateWarehouseData): Promise<Warehouse> {
-  // Add Arabic fields if not provided
-  const fullWarehouseData = {
-    ...warehouseData,
-    warehouse_name_ar: warehouseData.warehouse_name_ar || warehouseData.warehouse_name,
-    location_ar: warehouseData.location_ar || warehouseData.location,
-    warehouse_type: warehouseData.warehouse_type || 'DISTRIBUTION',
-    capacity: warehouseData.capacity || 0,
-    current_utilization: 0,
-    is_active: true
-  };
+  try {
+    // Insert the required fields including Arabic fields
+    const warehouseInsertData = {
+      warehouse_name: warehouseData.warehouse_name,
+      warehouse_name_ar: warehouseData.warehouse_name_ar || warehouseData.warehouse_name,
+      location: warehouseData.location,
+      location_ar: warehouseData.location_ar || warehouseData.location
+    };
 
-  const { data, error } = await supabase
-    .from('warehouses')
-    .insert([fullWarehouseData])
-    .select()
-    .single();
+    console.log('Creating warehouse with data:', warehouseInsertData);
 
-  if (error) {
-    console.error('Error creating warehouse:', error);
-    throw new Error('Failed to create warehouse');
+    const { data, error } = await supabase
+      .from('warehouses')
+      .insert([warehouseInsertData])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating warehouse:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      
+      // If specific columns don't exist, provide helpful error message
+      if (error.message.includes('column') || error.message.includes('does not exist')) {
+        console.log('⚠️  Database table structure mismatch. Please check your warehouses table columns.');
+        throw new Error('Database table structure mismatch. Please check your warehouses table columns.');
+      }
+      
+      throw new Error('Failed to create warehouse');
+    }
+
+    console.log('Warehouse created successfully:', data);
+    return data;
+  } catch (err) {
+    console.error('Error in createWarehouse:', err);
+    throw err;
   }
-
-  return data;
 }
 
 export async function updateWarehouse(warehouseData: UpdateWarehouseData): Promise<Warehouse> {
