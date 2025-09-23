@@ -86,9 +86,21 @@ export async function getWarehouseById(id: number): Promise<Warehouse | null> {
 }
 
 export async function createWarehouse(warehouseData: CreateWarehouseData): Promise<Warehouse> {
+  // Add Arabic fields if not provided
+  const fullWarehouseData = {
+    ...warehouseData,
+    warehouse_name_ar: warehouseData.warehouse_name_ar || warehouseData.warehouse_name,
+    location_ar: warehouseData.location_ar || warehouseData.location,
+    responsible_person_ar: warehouseData.responsible_person_ar || warehouseData.responsible_person,
+    warehouse_type: warehouseData.warehouse_type || 'DISTRIBUTION',
+    capacity: warehouseData.capacity || 0,
+    current_utilization: 0,
+    is_active: true
+  };
+
   const { data, error } = await supabase
     .from('warehouses')
-    .insert([warehouseData])
+    .insert([fullWarehouseData])
     .select()
     .single();
 
@@ -369,25 +381,44 @@ export async function getProductById(id: number): Promise<Product | null> {
 }
 
 export async function createProduct(productData: CreateProductData): Promise<Product> {
-  const { data, error } = await supabase
-    .from('products')
-    .insert([productData])
-    .select(`
-      *,
-      main_group:main_groups(*),
-      sub_group:sub_groups(*),
-      color:colors(*),
-      material:materials(*),
-      unit_of_measurement:units_of_measurement(*)
-    `)
-    .single();
+  try {
+    // Add Arabic fields if not provided
+    const fullProductData = {
+      ...productData,
+      product_name_ar: productData.product_name_ar || productData.product_name,
+      description_ar: productData.description_ar || productData.description
+    };
 
-  if (error) {
-    console.error('Error creating product:', error);
-    throw new Error('Failed to create product');
+    const { data, error } = await supabase
+      .from('products')
+      .insert([fullProductData])
+      .select(`
+        *,
+        main_group:main_groups(*),
+        sub_group:sub_groups(*),
+        color:colors(*),
+        material:materials(*),
+        unit_of_measurement:units_of_measurement(*)
+      `)
+      .single();
+
+    if (error) {
+      console.error('Error creating product:', error);
+      
+      // If tables don't exist, provide helpful error message
+      if (error.message.includes('relation') || error.message.includes('does not exist')) {
+        console.log('⚠️  Database tables not found. Please run the database setup script first.');
+        throw new Error('Database tables not found. Please run: node scripts/setup-database-simple.js');
+      }
+      
+      throw new Error('Failed to create product');
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Error in createProduct:', err);
+    throw err;
   }
-
-  return data;
 }
 
 export async function updateProduct(productData: UpdateProductData): Promise<Product> {
@@ -502,22 +533,34 @@ export async function getInventoryByWarehouse(warehouseId: number): Promise<Inve
 }
 
 export async function createInventory(inventoryData: CreateInventoryData): Promise<Inventory> {
-  const { data, error } = await supabase
-    .from('inventory')
-    .insert([inventoryData])
-    .select(`
-      *,
-      product:products(*),
-      warehouse:warehouses(*)
-    `)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('inventory')
+      .insert([inventoryData])
+      .select(`
+        *,
+        product:products(*),
+        warehouse:warehouses(*)
+      `)
+      .single();
 
-  if (error) {
-    console.error('Error creating inventory:', error);
-    throw new Error('Failed to create inventory');
+    if (error) {
+      console.error('Error creating inventory:', error);
+      
+      // If tables don't exist, provide helpful error message
+      if (error.message.includes('relation') || error.message.includes('does not exist')) {
+        console.log('⚠️  Database tables not found. Please run the database setup script first.');
+        throw new Error('Database tables not found. Please run: node scripts/setup-database-simple.js');
+      }
+      
+      throw new Error('Failed to create inventory');
+    }
+
+    return data;
+  } catch (err) {
+    console.error('Error in createInventory:', err);
+    throw err;
   }
-
-  return data;
 }
 
 export async function updateInventory(inventoryData: UpdateInventoryData): Promise<Inventory> {
@@ -573,9 +616,20 @@ export async function getStockMovements(productId?: number, warehouseId?: number
 }
 
 export async function createStockMovement(movementData: CreateStockMovementData): Promise<StockMovement> {
+  // Map movement types to database values
+  const dbMovementType = movementData.movement_type === 'RECEIPT' ? 'IN' : 
+                        movementData.movement_type === 'ISSUE' ? 'OUT' : 
+                        movementData.movement_type;
+
+  const fullMovementData = {
+    ...movementData,
+    movement_type: dbMovementType,
+    created_by: movementData.created_by || 'System'
+  };
+
   const { data, error } = await supabase
     .from('stock_movements')
-    .insert([movementData])
+    .insert([fullMovementData])
     .select(`
       *,
       product:products(*),
@@ -589,7 +643,7 @@ export async function createStockMovement(movementData: CreateStockMovementData)
   }
 
   // Update inventory after stock movement
-  await updateInventoryAfterMovement(movementData);
+  await updateInventoryAfterMovement(fullMovementData);
 
   return data;
 }
@@ -823,6 +877,70 @@ async function updateInventoryAfterMovement(movementData: CreateStockMovementDat
 }
 
 // ==================== PRODUCTS WITH INVENTORY & PRICING ====================
+
+export async function getProductsWithWarehouseInfo(): Promise<any[]> {
+  try {
+    // First try to get products with all relationships
+    const { data, error } = await supabase
+      .from('products')
+      .select(`
+        *,
+        main_group:main_groups(*),
+        sub_group:sub_groups(*),
+        color:colors(*),
+        material:materials(*),
+        unit_of_measurement:units_of_measurement(*),
+        inventory:inventory(
+          *,
+          warehouse:warehouses(*)
+        )
+      `)
+      .order('product_name');
+
+    if (error) {
+      console.error('Error fetching products with warehouse info:', error);
+      
+      // If the complex query fails, try a simpler one
+      console.log('⚠️  Complex query failed, trying simpler query...');
+      const { data: simpleData, error: simpleError } = await supabase
+        .from('products')
+        .select(`
+          *,
+          main_group:main_groups(*),
+          sub_group:sub_groups(*),
+          color:colors(*),
+          material:materials(*),
+          unit_of_measurement:units_of_measurement(*)
+        `)
+        .order('product_name');
+      
+      if (simpleError) {
+        console.error('Simple query also failed:', simpleError);
+        
+        // If even the simple query fails, try the most basic one
+        console.log('⚠️  Simple query failed, trying basic query...');
+        const { data: basicData, error: basicError } = await supabase
+          .from('products')
+          .select('*')
+          .order('product_name');
+        
+        if (basicError) {
+          console.error('Basic query also failed:', basicError);
+          return [];
+        }
+        
+        return basicData || [];
+      }
+      
+      return simpleData || [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error('Error in getProductsWithWarehouseInfo:', err);
+    return [];
+  }
+}
 
 export async function getProductsWithInventoryAndPricing(warehouseId?: number): Promise<any[]> {
   let query = supabase

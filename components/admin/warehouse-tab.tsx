@@ -18,6 +18,7 @@ import {
   updateWarehouse, 
   deleteWarehouse,
   getProducts,
+  getProductsWithWarehouseInfo,
   createProduct,
   updateProduct,
   deleteProduct,
@@ -28,7 +29,8 @@ import {
   getUnitsOfMeasurement,
   getWarehouseStats,
   getStockAlerts,
-  getInventorySummary
+  getInventorySummary,
+  createInventory
 } from '@/lib/warehouse';
 import { StockMovements } from '@/components/warehouse/stock-movements';
 import { BarcodeManager } from '@/components/warehouse/barcode-manager';
@@ -91,6 +93,10 @@ export function WarehouseTab() {
   });
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
+  
+  // Warehouse selection for new products
+  const [selectedWarehouses, setSelectedWarehouses] = useState<number[]>([]);
+  const [warehouseQuantities, setWarehouseQuantities] = useState<Record<number, number>>({});
 
   useEffect(() => {
     loadData();
@@ -190,7 +196,26 @@ export function WarehouseTab() {
 
   const handleCreateProduct = async () => {
     try {
-      await createProduct(productForm);
+      const newProduct = await createProduct(productForm);
+      
+      // Create inventory records for selected warehouses
+      if (selectedWarehouses.length > 0) {
+        console.log('Creating inventory records for warehouses:', selectedWarehouses);
+        const inventoryPromises = selectedWarehouses.map(warehouseId => {
+          console.log(`Creating inventory for warehouse ${warehouseId} with quantity ${warehouseQuantities[warehouseId] || 0}`);
+          return createInventory({
+            product_id: newProduct.id,
+            warehouse_id: warehouseId,
+            available_quantity: warehouseQuantities[warehouseId] || 0,
+            minimum_stock_level: 0,
+            maximum_stock_level: undefined,
+            reorder_point: 0
+          });
+        });
+        await Promise.all(inventoryPromises);
+        console.log('Inventory records created successfully');
+      }
+      
       setProductForm({
         product_name: '',
         product_code: '',
@@ -202,6 +227,8 @@ export function WarehouseTab() {
         description: '',
         specifications: {}
       });
+      setSelectedWarehouses([]);
+      setWarehouseQuantities({});
       setProductDialogOpen(false);
       loadData();
     } catch (error) {
@@ -287,6 +314,8 @@ export function WarehouseTab() {
         specifications: {}
       });
     }
+    setSelectedWarehouses([]);
+    setWarehouseQuantities({});
     setProductDialogOpen(true);
   };
 
@@ -781,6 +810,76 @@ export function WarehouseTab() {
                           rows={3}
                         />
                       </div>
+
+                      {/* Warehouse Selection - Only for new products */}
+                      {!editingProduct && (
+                        <div className="border-t pt-4 bg-gray-50 p-4 rounded-lg">
+                          <div className="bg-blue-500 text-white p-2 rounded mb-2">
+                            🏭 Warehouse Storage Selection
+                          </div>
+                          <Label className="text-lg font-semibold">🏭 Warehouse Storage</Label>
+                          <p className="text-sm text-muted-foreground mb-3">
+                            Select which warehouses will store this product and set initial quantities.
+                          </p>
+                          <div className="text-xs text-blue-600 mb-2 font-bold">
+                            🔍 Available: {warehouses.length} warehouses
+                          </div>
+                          <div className="space-y-3 mt-2">
+                            {warehouses.length > 0 ? (
+                              warehouses.map((warehouse) => (
+                                <div key={warehouse.id} className="flex items-center space-x-3 p-3 border rounded-lg">
+                                  <input
+                                    type="checkbox"
+                                    id={`warehouse-${warehouse.id}`}
+                                    checked={selectedWarehouses.includes(warehouse.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedWarehouses(prev => [...prev, warehouse.id]);
+                                      } else {
+                                        setSelectedWarehouses(prev => prev.filter(id => id !== warehouse.id));
+                                        setWarehouseQuantities(prev => {
+                                          const newQuantities = { ...prev };
+                                          delete newQuantities[warehouse.id];
+                                          return newQuantities;
+                                        });
+                                      }
+                                    }}
+                                    className="rounded"
+                                  />
+                                  <label htmlFor={`warehouse-${warehouse.id}`} className="flex-1 cursor-pointer">
+                                    <div className="font-medium">{warehouse.warehouse_name}</div>
+                                    <div className="text-sm text-muted-foreground">{warehouse.location}</div>
+                                  </label>
+                                  {selectedWarehouses.includes(warehouse.id) && (
+                                    <div className="flex items-center space-x-2">
+                                      <Label htmlFor={`quantity-${warehouse.id}`} className="text-sm">
+                                        Quantity:
+                                      </Label>
+                                      <Input
+                                        id={`quantity-${warehouse.id}`}
+                                        type="number"
+                                        min="0"
+                                        value={warehouseQuantities[warehouse.id] || 0}
+                                        onChange={(e) => setWarehouseQuantities(prev => ({
+                                          ...prev,
+                                          [warehouse.id]: parseInt(e.target.value) || 0
+                                        }))}
+                                        className="w-20"
+                                        placeholder="0"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              ))
+                            ) : (
+                              <div className="p-4 border border-dashed border-gray-300 rounded-lg text-center">
+                                <p className="text-sm text-muted-foreground mb-2">No warehouses available</p>
+                                <p className="text-xs text-muted-foreground">Create a warehouse first to store products</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <DialogFooter>
                       <Button variant="outline" onClick={() => setProductDialogOpen(false)}>
@@ -820,6 +919,7 @@ export function WarehouseTab() {
                     <TableHead>Color</TableHead>
                     <TableHead>Material</TableHead>
                     <TableHead>Unit</TableHead>
+                    <TableHead>Warehouses</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -835,6 +935,19 @@ export function WarehouseTab() {
                       <TableCell>{product.color?.color_name || '-'}</TableCell>
                       <TableCell>{product.material?.material_name || '-'}</TableCell>
                       <TableCell>{product.unit_of_measurement?.unit_name}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {product.inventory && product.inventory.length > 0 ? (
+                            product.inventory.map((inv) => (
+                              <Badge key={inv.id} variant="outline" className="text-xs">
+                                {inv.warehouse?.warehouse_name} ({inv.available_quantity})
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-muted-foreground text-sm">No inventory</span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button

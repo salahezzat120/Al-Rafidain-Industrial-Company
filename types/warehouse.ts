@@ -152,8 +152,13 @@ export interface InventorySummary {
 // Form types for creating/updating records
 export interface CreateWarehouseData {
   warehouse_name: string;
+  warehouse_name_ar?: string;
   location: string;
+  location_ar?: string;
   responsible_person: string;
+  responsible_person_ar?: string;
+  warehouse_type?: 'FACTORY' | 'DISTRIBUTION' | 'SUB_STORE' | 'MAIN';
+  capacity?: number;
 }
 
 export interface UpdateWarehouseData extends Partial<CreateWarehouseData> {
@@ -162,6 +167,7 @@ export interface UpdateWarehouseData extends Partial<CreateWarehouseData> {
 
 export interface CreateProductData {
   product_name: string;
+  product_name_ar?: string;
   product_code?: string;
   main_group_id: number;
   sub_group_id?: number;
@@ -169,6 +175,7 @@ export interface CreateProductData {
   material_id?: number;
   unit_of_measurement_id: number;
   description?: string;
+  description_ar?: string;
   specifications?: Record<string, any>;
 }
 
@@ -193,8 +200,9 @@ export interface UpdateInventoryData extends Partial<CreateInventoryData> {
 export interface CreateStockMovementData {
   product_id: number;
   warehouse_id: number;
-  movement_type: 'IN' | 'OUT' | 'TRANSFER' | 'ADJUSTMENT';
+  movement_type: 'RECEIPT' | 'ISSUE' | 'TRANSFER' | 'RETURN' | 'ADJUSTMENT' | 'IN' | 'OUT';
   quantity: number;
+  unit_price?: number;
   reference_number?: string;
   notes?: string;
   created_by?: string;

@@ -25,7 +25,9 @@ import {
   getSubGroups,
   getColors,
   getMaterials,
-  getUnitsOfMeasurement
+  getUnitsOfMeasurement,
+  getProductsWithWarehouseInfo,
+  createInventory
 } from '@/lib/warehouse';
 import type { 
   Warehouse, 
@@ -73,12 +75,23 @@ export function WarehouseManagement() {
     description: '',
     specifications: {}
   });
+  
+  // Warehouse selection for new products
+  const [selectedWarehouses, setSelectedWarehouses] = useState<number[]>([]);
+  const [warehouseQuantities, setWarehouseQuantities] = useState<Record<number, number>>({});
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
 
   useEffect(() => {
     loadData();
   }, []);
+
+  // Force refresh when switching to products tab
+  useEffect(() => {
+    if (activeTab === 'products') {
+      loadData();
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (productForm.main_group_id) {
@@ -98,7 +111,7 @@ export function WarehouseManagement() {
         unitsData
       ] = await Promise.all([
         getWarehouses(),
-        getProducts(),
+        getProductsWithWarehouseInfo(),
         getMainGroups(),
         getColors(),
         getMaterials(),
@@ -165,7 +178,26 @@ export function WarehouseManagement() {
 
   const handleCreateProduct = async () => {
     try {
-      await createProduct(productForm);
+      // Create the product first
+      const newProduct = await createProduct(productForm);
+      
+      // Create inventory records for selected warehouses
+      if (selectedWarehouses.length > 0) {
+        const inventoryPromises = selectedWarehouses.map(warehouseId => 
+          createInventory({
+            product_id: newProduct.id,
+            warehouse_id: warehouseId,
+            available_quantity: warehouseQuantities[warehouseId] || 0,
+            minimum_stock_level: 0,
+            maximum_stock_level: undefined,
+            reorder_point: 0
+          })
+        );
+        
+        await Promise.all(inventoryPromises);
+      }
+      
+      // Reset form
       setProductForm({
         product_name: '',
         product_code: '',
@@ -177,6 +209,8 @@ export function WarehouseManagement() {
         description: '',
         specifications: {}
       });
+      setSelectedWarehouses([]);
+      setWarehouseQuantities({});
       setProductDialogOpen(false);
       loadData();
     } catch (error) {
@@ -201,6 +235,8 @@ export function WarehouseManagement() {
         description: '',
         specifications: {}
       });
+      setSelectedWarehouses([]);
+      setWarehouseQuantities({});
       setProductDialogOpen(false);
       loadData();
     } catch (error) {
@@ -248,6 +284,9 @@ export function WarehouseManagement() {
         description: product.description || '',
         specifications: product.specifications || {}
       });
+      // For editing, don't show warehouse selection
+      setSelectedWarehouses([]);
+      setWarehouseQuantities({});
     } else {
       setEditingProduct(null);
       setProductForm({
@@ -261,6 +300,9 @@ export function WarehouseManagement() {
         description: '',
         specifications: {}
       });
+      // For new products, reset warehouse selection
+      setSelectedWarehouses([]);
+      setWarehouseQuantities({});
     }
     setProductDialogOpen(true);
   };
@@ -463,7 +505,7 @@ export function WarehouseManagement() {
                     Add Product
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" style={{minHeight: '600px'}}>
                   <DialogHeader>
                     <DialogTitle>
                       {editingProduct ? 'Edit Product' : 'Add New Product'}
@@ -475,7 +517,7 @@ export function WarehouseManagement() {
                       }
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                  <div className="space-y-4 max-h-[70vh] overflow-y-auto">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="product_name">Product Name</Label>
@@ -619,6 +661,78 @@ export function WarehouseManagement() {
                         rows={3}
                       />
                     </div>
+
+                    {/* Warehouse Selection - Only for new products */}
+                    <div className="border-t pt-4 bg-gray-50 p-4 rounded-lg">
+                      <div className="bg-red-500 text-white p-2 rounded mb-2">
+                        🚨 TEST: Warehouse section is rendering!
+                      </div>
+                      <Label className="text-lg font-semibold">🏭 Warehouse Storage</Label>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Select which warehouses will store this product and set initial quantities.
+                        {console.log('Debug - Warehouses loaded:', warehouses.length, warehouses)}
+                      </p>
+                      <div className="text-xs text-blue-600 mb-2 font-bold">
+                        🔍 Debug: {warehouses.length} warehouses available
+                      </div>
+                      <div className="space-y-3 mt-2">
+                        {warehouses.length > 0 ? (
+                          warehouses.map((warehouse) => (
+                            <div key={warehouse.id} className="flex items-center space-x-3 p-3 border rounded-lg">
+                              <input
+                                type="checkbox"
+                                id={`warehouse-${warehouse.id}`}
+                                checked={selectedWarehouses.includes(warehouse.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedWarehouses(prev => [...prev, warehouse.id]);
+                                  } else {
+                                    setSelectedWarehouses(prev => prev.filter(id => id !== warehouse.id));
+                                    setWarehouseQuantities(prev => {
+                                      const newQuantities = { ...prev };
+                                      delete newQuantities[warehouse.id];
+                                      return newQuantities;
+                                    });
+                                  }
+                                }}
+                                className="rounded border-gray-300"
+                              />
+                              <label htmlFor={`warehouse-${warehouse.id}`} className="flex-1">
+                                <div className="font-medium">{warehouse.warehouse_name}</div>
+                                <div className="text-sm text-muted-foreground">{warehouse.location}</div>
+                              </label>
+                              {selectedWarehouses.includes(warehouse.id) && (
+                                <div className="flex items-center space-x-2">
+                                  <Label htmlFor={`quantity-${warehouse.id}`} className="text-sm">Quantity:</Label>
+                                  <Input
+                                    id={`quantity-${warehouse.id}`}
+                                    type="number"
+                                    min="0"
+                                    value={warehouseQuantities[warehouse.id] || 0}
+                                    onChange={(e) => setWarehouseQuantities(prev => ({
+                                      ...prev,
+                                      [warehouse.id]: parseInt(e.target.value) || 0
+                                    }))}
+                                    className="w-20"
+                                    placeholder="0"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-4 border border-dashed border-gray-300 rounded-lg text-center">
+                            <p className="text-sm text-muted-foreground mb-2">No warehouses available</p>
+                            <p className="text-xs text-muted-foreground">Create a warehouse first to store products</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Final Test */}
+                    <div className="bg-yellow-200 p-2 rounded text-center">
+                      ✅ Form ends here - Warehouse section should be above this
+                    </div>
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setProductDialogOpen(false)}>
@@ -643,6 +757,7 @@ export function WarehouseManagement() {
                   <TableHead>Color</TableHead>
                   <TableHead>Material</TableHead>
                   <TableHead>Unit</TableHead>
+                  <TableHead>Warehouses</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -658,6 +773,19 @@ export function WarehouseManagement() {
                     <TableCell>{product.color?.color_name || '-'}</TableCell>
                     <TableCell>{product.material?.material_name || '-'}</TableCell>
                     <TableCell>{product.unit_of_measurement?.unit_name}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {product.inventory && product.inventory.length > 0 ? (
+                          product.inventory.map((inv: any) => (
+                            <Badge key={inv.warehouse_id} variant="outline" className="text-xs">
+                              {inv.warehouse?.warehouse_name} ({inv.available_quantity || 0})
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-muted-foreground text-sm">No inventory</span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
