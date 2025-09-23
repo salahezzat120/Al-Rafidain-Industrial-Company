@@ -88,6 +88,8 @@ export function WarehouseTab() {
     material_id: undefined,
     unit_of_measurement_id: 0,
     description: '',
+    cost_price: undefined,
+    selling_price: undefined,
     specifications: {}
   });
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -245,6 +247,8 @@ export function WarehouseTab() {
         material_id: undefined,
         unit_of_measurement_id: 0,
         description: '',
+        cost_price: undefined,
+        selling_price: undefined,
         specifications: {}
       });
       setSelectedWarehouses([]);
@@ -272,6 +276,8 @@ export function WarehouseTab() {
         material_id: undefined,
         unit_of_measurement_id: 0,
         description: '',
+        cost_price: undefined,
+        selling_price: undefined,
         specifications: {}
       });
       setProductDialogOpen(false);
@@ -331,6 +337,8 @@ export function WarehouseTab() {
         material_id: undefined,
         unit_of_measurement_id: 0,
         description: '',
+        cost_price: undefined,
+        selling_price: undefined,
         specifications: {}
       });
     }
@@ -833,6 +841,40 @@ export function WarehouseTab() {
                         />
                       </div>
 
+                      {/* Price Fields */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="cost_price">Cost Price</Label>
+                          <Input
+                            id="cost_price"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={productForm.cost_price || ''}
+                            onChange={(e) => setProductForm(prev => ({ 
+                              ...prev, 
+                              cost_price: e.target.value ? parseFloat(e.target.value) : undefined 
+                            }))}
+                            placeholder="Enter cost price"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="selling_price">Selling Price</Label>
+                          <Input
+                            id="selling_price"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={productForm.selling_price || ''}
+                            onChange={(e) => setProductForm(prev => ({ 
+                              ...prev, 
+                              selling_price: e.target.value ? parseFloat(e.target.value) : undefined 
+                            }))}
+                            placeholder="Enter selling price"
+                          />
+                        </div>
+                      </div>
+
                       {/* Warehouse Selection - Only for new products */}
                       {!editingProduct && (
                         <div className="border-t pt-4 bg-gray-50 p-4 rounded-lg">
@@ -941,6 +983,8 @@ export function WarehouseTab() {
                     <TableHead>Color</TableHead>
                     <TableHead>Material</TableHead>
                     <TableHead>Unit</TableHead>
+                    <TableHead>Cost Price</TableHead>
+                    <TableHead>Selling Price</TableHead>
                     <TableHead>Warehouses</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -957,6 +1001,12 @@ export function WarehouseTab() {
                       <TableCell>{product.color?.color_name || '-'}</TableCell>
                       <TableCell>{product.material?.material_name || '-'}</TableCell>
                       <TableCell>{product.unit_of_measurement?.unit_name}</TableCell>
+                      <TableCell>
+                        {product.cost_price ? `$${product.cost_price.toFixed(2)}` : '-'}
+                      </TableCell>
+                      <TableCell>
+                        {product.selling_price ? `$${product.selling_price.toFixed(2)}` : '-'}
+                      </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {product.inventory && product.inventory.length > 0 ? (

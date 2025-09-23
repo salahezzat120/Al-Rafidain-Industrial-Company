@@ -172,6 +172,8 @@ export interface CreateProductData {
   unit_of_measurement_id: number;
   description?: string;
   description_ar?: string;
+  cost_price?: number;
+  selling_price?: number;
   specifications?: Record<string, any>;
 }
 
