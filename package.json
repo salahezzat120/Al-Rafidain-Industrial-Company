@@ -1,16 +1,12 @@
 {
-  "name": "al-rafidain-warehouse-system",
-  "version": "1.0.0",
-  "description": "Comprehensive Plastic Products Warehouse Management System for Al-Rafidain Industrial Company",
+  "name": "my-v0-project",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "dev": "next dev",
     "lint": "next lint",
-    "type-check": "tsc --noEmit",
-    "db:setup": "node scripts/setup-database.js",
-    "db:seed": "node scripts/seed-database.js"
+    "start": "next start"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -43,18 +39,12 @@
     "@radix-ui/react-tooltip": "1.1.6",
     "@react-three/drei": "latest",
     "@react-three/fiber": "latest",
-    "@supabase/auth-helpers-nextjs": "^0.8.7",
-    "@supabase/auth-helpers-react": "^0.4.2",
-    "@supabase/auth-ui-react": "^0.4.6",
-    "@supabase/auth-ui-shared": "^0.1.8",
     "@supabase/supabase-js": "^2.56.0",
-    "@tailwindcss/postcss": "^4.1.13",
-    "@types/leaflet": "^1.9.20",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
-    "date-fns": "^4.1.0",
+    "date-fns": "4.1.0",
     "embla-carousel-react": "8.5.1",
     "expo": "latest",
     "expo-asset": "latest",
@@ -62,14 +52,11 @@
     "expo-gl": "latest",
     "geist": "latest",
     "input-otp": "1.4.1",
-    "jsbarcode": "^3.11.5",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.454.0",
     "next": "15.2.4",
     "next-themes": "^0.4.6",
-    "qrcode": "^1.5.3",
     "react": "^19",
-    "react-csv": "^2.2.2",
     "react-datepicker": "^8.7.0",
     "react-day-picker": "9.8.0",
     "react-dom": "^19",
@@ -87,35 +74,15 @@
     "zod": "3.25.67"
   },
   "devDependencies": {
-    "@types/jsbarcode": "^3.11.0",
-    "@types/node": "^20.8.0",
-    "@types/qrcode": "^1.5.5",
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
-    "autoprefixer": "^10.4.16",
-    "eslint": "^8.52.0",
-    "eslint-config-next": "^14.0.0",
-    "postcss": "^8.4.31",
-    "tailwindcss": "^3.3.5",
-    "typescript": "^5.2.2"
-  },
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=8.0.0"
-  },
-  "keywords": [
-    "warehouse",
-    "inventory",
-    "management",
-    "plastic-products",
-    "arabic",
-    "english",
-    "bilingual",
-    "react",
-    "nextjs",
-    "typescript",
-    "supabase"
-  ],
-  "author": "Al-Rafidain Industrial Company",
-  "license": "MIT"
+    "@tailwindcss/postcss": "^4.1.9",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/three": "^0.179.0",
+    "@types/xlsx": "^0.0.36",
+    "postcss": "^8.5",
+    "tailwindcss": "^4.1.9",
+    "tw-animate-css": "1.3.3",
+    "typescript": "^5"
+  }
 }

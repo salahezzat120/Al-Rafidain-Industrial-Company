@@ -633,53 +633,6 @@ export async function getStocktakings(): Promise<Stocktaking[]> {
 
 // ==================== BARCODE MANAGEMENT ====================
 
-export async function getBarcodes(): Promise<Barcode[]> {
-  const { data, error } = await supabase
-    .from('barcodes')
-    .select(`
-      *,
-      product:products(*)
-    `)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching barcodes:', error);
-    throw new Error('Failed to fetch barcodes');
-  }
-
-  return data || [];
-}
-
-export async function createBarcode(barcodeData: any): Promise<Barcode> {
-  const { data, error } = await supabase
-    .from('barcodes')
-    .insert([barcodeData])
-    .select(`
-      *,
-      product:products(*)
-    `)
-    .single();
-
-  if (error) {
-    console.error('Error creating barcode:', error);
-    throw new Error('Failed to create barcode');
-  }
-
-  return data;
-}
-
-export async function deleteBarcode(id: number): Promise<void> {
-  const { error } = await supabase
-    .from('barcodes')
-    .delete()
-    .eq('id', id);
-
-  if (error) {
-    console.error('Error deleting barcode:', error);
-    throw new Error('Failed to delete barcode');
-  }
-}
-
 export async function generateBarcode(productId: number, barcodeType: string = 'CODE128'): Promise<Barcode> {
   const product = await getProductById(productId);
   if (!product) {
@@ -988,4 +941,64 @@ export async function getStockAlerts(): Promise<StockAlert[]> {
     minimum_stock_level: item.minimum_stock_level,
     alert_type: item.stock_status === 'LOW_STOCK' ? 'LOW_STOCK' : 'OUT_OF_STOCK'
   })) || [];
+}
+
+// ==================== BARCODE FUNCTIONS ====================
+
+export async function getBarcodes(): Promise<{ data: Barcode[] | null; error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('barcodes')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching barcodes:', error);
+      return { data: null, error: error.message };
+    }
+
+    return { data: data || [], error: null };
+  } catch (error: any) {
+    console.error('Error in getBarcodes:', error);
+    return { data: null, error: error.message || 'Failed to fetch barcodes' };
+  }
+}
+
+export async function createBarcode(barcodeData: { product_id: string; barcode: string; product_name?: string }): Promise<{ data: Barcode | null; error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('barcodes')
+      .insert([barcodeData])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating barcode:', error);
+      return { data: null, error: error.message };
+    }
+
+    return { data, error: null };
+  } catch (error: any) {
+    console.error('Error in createBarcode:', error);
+    return { data: null, error: error.message || 'Failed to create barcode' };
+  }
+}
+
+export async function deleteBarcode(id: string): Promise<{ error: string | null }> {
+  try {
+    const { error } = await supabase
+      .from('barcodes')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting barcode:', error);
+      return { error: error.message };
+    }
+
+    return { error: null };
+  } catch (error: any) {
+    console.error('Error in deleteBarcode:', error);
+    return { error: error.message || 'Failed to delete barcode' };
+  }
 }

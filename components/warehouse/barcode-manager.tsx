@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Search, Filter, QrCode, Download, Printerer, Eye, Trash2, Copy, CheckCircle, AlertCircle } from 'lucide-react';
+import { Plus, Search, Filter, QrCode, Download, Printer, Eye, Trash2, Copy, CheckCircle, AlertCircle } from 'lucide-react';
 import { useLanguage } from '@/contexts/language-context';
 import { 
   getProducts,

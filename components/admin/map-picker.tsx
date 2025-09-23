@@ -29,6 +29,8 @@ export function MapPicker({ isOpen, onClose, onLocationSelect, initialLocation }
   const [mapZoom, setMapZoom] = useState(13)
   const [map, setMap] = useState<any>(null)
   const [marker, setMarker] = useState<any>(null)
+  const [mapLoadError, setMapLoadError] = useState(false)
+  const [showFallbackMap, setShowFallbackMap] = useState(false)
 
   // Function to clear all markers from the map
   const clearAllMarkers = useCallback((mapInstance: any) => {
@@ -41,39 +43,77 @@ export function MapPicker({ isOpen, onClose, onLocationSelect, initialLocation }
     }
   }, [])
 
-  // Load Leaflet dynamically
+  // Load Leaflet dynamically with improved error handling
   useEffect(() => {
     if (isOpen && !map && mapRef.current) {
       const initializeMap = async () => {
         try {
+          console.log('Starting map initialization...')
+          
           // Check if Leaflet is already loaded
           if (!(window as any).L) {
-            // Load CSS
-            const cssLink = document.createElement('link')
-            cssLink.rel = 'stylesheet'
-            cssLink.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
-            cssLink.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY='
-            cssLink.crossOrigin = ''
-            document.head.appendChild(cssLink)
-
-            // Load JS
-            const script = document.createElement('script')
-            script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-            script.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo='
-            script.crossOrigin = ''
+            console.log('Leaflet not found, loading...')
             
-            await new Promise((resolve, reject) => {
-              script.onload = resolve
-              script.onerror = reject
-              document.head.appendChild(script)
-            })
+            // Load CSS first
+            const existingCSS = document.querySelector('link[href*="leaflet.css"]')
+            if (!existingCSS) {
+              console.log('Loading Leaflet CSS...')
+              const cssLink = document.createElement('link')
+              cssLink.rel = 'stylesheet'
+              cssLink.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+              cssLink.crossOrigin = 'anonymous'
+              document.head.appendChild(cssLink)
+            }
+
+            // Load JS with better error handling
+            const existingScript = document.querySelector('script[src*="leaflet.js"]')
+            if (!existingScript) {
+              console.log('Loading Leaflet JS...')
+              const script = document.createElement('script')
+              script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+              script.crossOrigin = 'anonymous'
+              
+              await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                  reject(new Error('Leaflet loading timeout'))
+                }, 10000) // 10 second timeout
+                
+                script.onload = () => {
+                  clearTimeout(timeout)
+                  console.log('Leaflet JS loaded successfully')
+                  resolve(true)
+                }
+                script.onerror = (error) => {
+                  clearTimeout(timeout)
+                  console.error('Failed to load Leaflet JS:', error)
+                  reject(error)
+                }
+                document.head.appendChild(script)
+              })
+            }
+          }
+
+          // Wait for Leaflet to be fully available
+          let attempts = 0
+          const maxAttempts = 50
+          while (!(window as any).L && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 100))
+            attempts++
           }
 
           const L = (window as any).L
           
+          if (!L) {
+            console.error('Leaflet not available after loading attempts')
+            throw new Error('Failed to load Leaflet library')
+          }
+          
+          console.log('Leaflet is available, initializing map...')
+          
           if (mapRef.current && !map) {
             // Check if container already has a map
             if (mapRef.current._leaflet_id) {
+              console.log('Map already exists in container')
               return
             }
 
@@ -84,6 +124,7 @@ export function MapPicker({ isOpen, onClose, onLocationSelect, initialLocation }
               return
             }
 
+            console.log('Creating map with center:', mapCenter)
             const newMap = L.map(mapRef.current, {
               center: [mapCenter.lat, mapCenter.lng],
               zoom: mapZoom,
@@ -144,10 +185,15 @@ export function MapPicker({ isOpen, onClose, onLocationSelect, initialLocation }
             })
 
             setMap(newMap)
-            console.log('Map initialized successfully')
+            console.log('Map initialized successfully!')
           }
         } catch (error) {
           console.error('Error initializing map:', error)
+          setMapLoadError(true)
+          // Show fallback map after 3 seconds
+          setTimeout(() => {
+            setShowFallbackMap(true)
+          }, 3000)
         }
       }
 
@@ -157,6 +203,7 @@ export function MapPicker({ isOpen, onClose, onLocationSelect, initialLocation }
       }, 100)
     }
 
+    // Cleanup function
     return () => {
       if (map) {
         map.remove()
@@ -329,14 +376,61 @@ export function MapPicker({ isOpen, onClose, onLocationSelect, initialLocation }
               style={{ minHeight: '400px' }}
             />
             
-            {/* Fallback iframe map if Leaflet fails */}
-            {!map && (
+            {/* Loading state */}
+            {!map && !showFallbackMap && (
               <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
                   <p className="text-sm text-gray-600">
                     {isRTL ? "جاري تحميل الخريطة..." : "Loading map..."}
                   </p>
+                  {mapLoadError && (
+                    <div className="mt-3">
+                      <p className="text-xs text-red-500 mb-2">
+                        Failed to load interactive map
+                      </p>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setMapLoadError(false)
+                          setShowFallbackMap(false)
+                          setMap(null)
+                          setMarker(null)
+                          // Force re-initialization
+                          setTimeout(() => {
+                            if (mapRef.current) {
+                              const event = new Event('resize')
+                              window.dispatchEvent(event)
+                            }
+                          }, 100)
+                        }}
+                      >
+                        Retry
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* Fallback map using OpenStreetMap iframe */}
+            {!map && showFallbackMap && (
+              <div className="absolute inset-0 bg-white rounded-lg">
+                <iframe
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${mapCenter.lng-0.01},${mapCenter.lat-0.01},${mapCenter.lng+0.01},${mapCenter.lat+0.01}&layer=mapnik&marker=${mapCenter.lat},${mapCenter.lng}`}
+                  width="100%"
+                  height="100%"
+                  style={{ border: 'none', borderRadius: '8px' }}
+                  title="Map"
+                />
+                <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded shadow text-xs">
+                  <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener noreferrer">
+                    View Larger Map
+                  </a>
+                </div>
+                <div className="absolute bottom-2 left-2 bg-yellow-100 border border-yellow-300 px-2 py-1 rounded text-xs">
+                  <p className="text-yellow-800">Using fallback map. Use coordinate inputs below to select location.</p>
                 </div>
               </div>
             )}

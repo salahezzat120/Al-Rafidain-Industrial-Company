@@ -29,7 +29,7 @@ import {
 import { createCustomer, CreateCustomerData, checkEmailExists, generateRandomAvatar } from "@/lib/customers"
 import { useToast } from "@/hooks/use-toast"
 import { useLanguage } from "@/contexts/language-context"
-import { MapPicker } from "./map-picker"
+import { LocationPicker } from "@/components/ui/location-picker"
 
 interface AddCustomerModalProps {
   isOpen: boolean
@@ -417,7 +417,7 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
                   <div className="flex gap-2">
                     <Textarea
                       id="address"
-                      value={formData.address}
+                      value={selectedLocation?.address || formData.address}
                       onChange={(e) => handleInputChange("address", e.target.value)}
                       placeholder={isRTL ? "أدخل عنوان التوصيل الكامل" : "Enter complete delivery address"}
                       rows={3}
@@ -748,13 +748,25 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
         </DialogContent>
       </Dialog>
 
-      {/* Map Picker Modal */}
+      {/* Location Picker Modal */}
       {showMapPicker && (
-        <MapPicker
+        <LocationPicker
           isOpen={showMapPicker}
           onClose={() => setShowMapPicker(false)}
-          onLocationSelect={handleLocationSelect}
-          initialLocation={selectedLocation}
+          onLocationSelect={(location) => {
+            console.log('Location selected:', location)
+            handleLocationSelect({
+              address: location.address || `${location.latitude}, ${location.longitude}`,
+              latitude: location.latitude,
+              longitude: location.longitude
+            })
+          }}
+          initialLocation={selectedLocation ? {
+            latitude: selectedLocation.latitude,
+            longitude: selectedLocation.longitude,
+            address: selectedLocation.address
+          } : undefined}
+          title={isRTL ? "اختر الموقع على الخريطة" : "Select Location on Map"}
         />
       )}
     </>

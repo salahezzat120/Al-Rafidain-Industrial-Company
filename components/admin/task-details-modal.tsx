@@ -14,7 +14,7 @@ import { Package, User, AlertCircle, Edit, Trash2, Save, X } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
 import { useToast } from "@/hooks/use-toast"
 import { updateDeliveryTask, deleteDeliveryTask } from "@/lib/delivery-tasks"
-import { getRepresentatives } from "@/lib/employees"
+import { getRepresentatives } from "@/lib/supabase-utils"
 import type { DeliveryTask, UpdateDeliveryTaskData } from "@/types/delivery-tasks"
 
 interface TaskDetailsModalProps {

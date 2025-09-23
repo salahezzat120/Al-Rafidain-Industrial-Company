@@ -110,7 +110,6 @@ export function LocationPicker({
         // Add click event to map
         map.on('click', (e: any) => {
           const { lat, lng } = e.latlng
-          setSelectedLocation({ latitude: lat, longitude: lng })
           
           // Remove existing marker
           if (markerRef.current) {
@@ -120,13 +119,55 @@ export function LocationPicker({
           // Add new marker
           markerRef.current = L.marker([lat, lng], { icon: SelectedIcon })
             .addTo(map)
-            .bindPopup(`
-              <div class="text-center">
-                <p class="font-semibold">${isRTL ? "الموقع المحدد" : "Selected Location"}</p>
-                <p class="text-sm text-gray-600">${lat.toFixed(6)}, ${lng.toFixed(6)}</p>
-              </div>
-            `)
-            .openPopup()
+          
+          // Get address from coordinates (reverse geocoding)
+          setIsLoading(true)
+          fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`)
+            .then(response => response.json())
+            .then(data => {
+              console.log('Reverse geocoding result:', data)
+              let address = ''
+              
+              // Build address from available data
+              const parts = []
+              if (data.locality) parts.push(data.locality)
+              if (data.principalSubdivision) parts.push(data.principalSubdivision)
+              if (data.countryName) parts.push(data.countryName)
+              
+              if (parts.length > 0) {
+                address = parts.join(', ')
+              } else {
+                address = `${lat.toFixed(6)}, ${lng.toFixed(6)}`
+              }
+              
+              setSelectedLocation({ latitude: lat, longitude: lng, address })
+              
+              // Update marker popup with address
+              markerRef.current.bindPopup(`
+                <div class="text-center">
+                  <p class="font-semibold">${isRTL ? "الموقع المحدد" : "Selected Location"}</p>
+                  <p class="text-sm text-gray-600">${address}</p>
+                  <p class="text-xs text-gray-500">${lat.toFixed(6)}, ${lng.toFixed(6)}</p>
+                </div>
+              `).openPopup()
+              
+              setIsLoading(false)
+            })
+            .catch((error) => {
+              console.error('Reverse geocoding error:', error)
+              // Fallback to coordinates if geocoding fails
+              const address = `${lat.toFixed(6)}, ${lng.toFixed(6)}`
+              setSelectedLocation({ latitude: lat, longitude: lng, address })
+              
+              markerRef.current.bindPopup(`
+                <div class="text-center">
+                  <p class="font-semibold">${isRTL ? "الموقع المحدد" : "Selected Location"}</p>
+                  <p class="text-sm text-gray-600">${address}</p>
+                </div>
+              `).openPopup()
+              
+              setIsLoading(false)
+            })
         })
 
         // Add initial marker if location is provided
@@ -160,7 +201,6 @@ export function LocationPicker({
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords
-        setSelectedLocation({ latitude, longitude })
         setMapCenter([latitude, longitude])
         
         // Update map view
@@ -187,16 +227,59 @@ export function LocationPicker({
           
           markerRef.current = L.marker([latitude, longitude], { icon: SelectedIcon })
             .addTo(mapInstanceRef.current)
-            .bindPopup(`
-              <div class="text-center">
-                <p class="font-semibold">${isRTL ? "موقعك الحالي" : "Your Current Location"}</p>
-                <p class="text-sm text-gray-600">${latitude.toFixed(6)}, ${longitude.toFixed(6)}</p>
-              </div>
-            `)
-            .openPopup()
         }
         
-        setIsGettingLocation(false)
+        // Get address from coordinates (reverse geocoding)
+        fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`)
+          .then(response => response.json())
+          .then(data => {
+            console.log('Current location geocoding result:', data)
+            let address = ''
+            
+            // Build address from available data
+            const parts = []
+            if (data.locality) parts.push(data.locality)
+            if (data.principalSubdivision) parts.push(data.principalSubdivision)
+            if (data.countryName) parts.push(data.countryName)
+            
+            if (parts.length > 0) {
+              address = parts.join(', ')
+            } else {
+              address = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+            }
+            
+            setSelectedLocation({ latitude, longitude, address })
+            
+            // Update marker popup with address
+            if (markerRef.current) {
+              markerRef.current.bindPopup(`
+                <div class="text-center">
+                  <p class="font-semibold">${isRTL ? "موقعك الحالي" : "Your Current Location"}</p>
+                  <p class="text-sm text-gray-600">${address}</p>
+                  <p class="text-xs text-gray-500">${latitude.toFixed(6)}, ${longitude.toFixed(6)}</p>
+                </div>
+              `).openPopup()
+            }
+            
+            setIsGettingLocation(false)
+          })
+          .catch((error) => {
+            console.error('Current location geocoding error:', error)
+            // Fallback to coordinates if geocoding fails
+            const address = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+            setSelectedLocation({ latitude, longitude, address })
+            
+            if (markerRef.current) {
+              markerRef.current.bindPopup(`
+                <div class="text-center">
+                  <p class="font-semibold">${isRTL ? "موقعك الحالي" : "Your Current Location"}</p>
+                  <p class="text-sm text-gray-600">${address}</p>
+                </div>
+              `).openPopup()
+            }
+            
+            setIsGettingLocation(false)
+          })
       },
       (error) => {
         console.error("Error getting location:", error)
@@ -313,7 +396,7 @@ export function LocationPicker({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5" />
@@ -321,7 +404,7 @@ export function LocationPicker({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 pb-4">
           {error && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
