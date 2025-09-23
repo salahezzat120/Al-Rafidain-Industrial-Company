@@ -11,9 +11,7 @@ const nextConfig = {
     domains: ['ullghcrmleaaualynomj.supabase.co'],
   },
   reactStrictMode: true,
-  experimental: {
-    serverComponentsExternalPackages: ['@supabase/supabase-js'],
-  },
+  serverExternalPackages: ['@supabase/supabase-js'],
   // Remove hardcoded env vars - use environment variables instead
 }
 
