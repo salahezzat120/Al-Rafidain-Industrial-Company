@@ -33,6 +33,7 @@ import {
   Save,
   X
 } from "lucide-react"
+import { AttendanceLocationMap } from "@/components/ui/attendance-location-map"
 import { useLanguage } from "@/contexts/language-context"
 import { format, isToday, parseISO, differenceInHours, differenceInMinutes } from "date-fns"
 import { cn } from "@/lib/utils"

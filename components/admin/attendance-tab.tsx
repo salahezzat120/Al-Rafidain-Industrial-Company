@@ -32,6 +32,7 @@ import {
   Eye,
   MoreHorizontal
 } from "lucide-react"
+import { AttendanceLocationMap } from "@/components/ui/attendance-location-map"
 import { useLanguage } from "@/contexts/language-context"
 import { format, isToday, isYesterday, parseISO, differenceInHours, differenceInMinutes } from "date-fns"
 import { cn } from "@/lib/utils"
@@ -402,7 +403,7 @@ export default function AttendanceTab() {
       {/* Details Modal */}
       {showDetails && selectedRecord && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+          <Card className="w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
@@ -442,17 +443,17 @@ export default function AttendanceTab() {
                 </div>
               </div>
               
-              {(selectedRecord.check_in_latitude && selectedRecord.check_in_longitude) && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
-                    <MapPin className="h-4 w-4" />
-                    {isRTL ? "موقع الحضور" : "Check In Location"}
-                  </label>
-                  <p className="text-sm text-gray-600">
-                    {selectedRecord.check_in_latitude.toFixed(6)}, {selectedRecord.check_in_longitude.toFixed(6)}
-                  </p>
-                </div>
-              )}
+              {/* Location Map */}
+              <div className="col-span-2">
+                <AttendanceLocationMap
+                  checkInLat={selectedRecord.check_in_latitude}
+                  checkInLng={selectedRecord.check_in_longitude}
+                  checkOutLat={selectedRecord.check_out_latitude}
+                  checkOutLng={selectedRecord.check_out_longitude}
+                  representativeName={selectedRecord.representative_name}
+                  className="w-full"
+                />
+              </div>
               
               {selectedRecord.notes && (
                 <div>

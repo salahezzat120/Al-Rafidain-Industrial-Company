@@ -207,7 +207,7 @@ export async function sendChatMessage(message: CreateChatMessageData): Promise<{
 }
 
 // Fetch representatives who have at least one chat message
-export async function getChatRepresentatives(): Promise<{ data: { id: string; name: string }[] | null; error: string | null }> {
+export async function getChatRepresentatives(): Promise<{ data: { id: string; name: string; phone: string; is_online?: boolean; last_seen?: string; unread_count?: number }[] | null; error: string | null }> {
   try {
     // 1. Get all unique representative_ids from chat_messages
     const { data: chatIds, error: chatError } = await supabase
@@ -216,14 +216,59 @@ export async function getChatRepresentatives(): Promise<{ data: { id: string; na
     if (chatError) return { data: null, error: chatError.message };
     const uniqueIds = Array.from(new Set((chatIds || []).map((row: any) => row.representative_id)));
     if (uniqueIds.length === 0) return { data: [], error: null };
-    // 2. Fetch those representatives
+    
+    // 2. Fetch those representatives with phone numbers
     const { data: reps, error: repsError } = await supabase
       .from('representatives')
-      .select('id, name')
+      .select('id, name, phone')
       .in('id', uniqueIds)
     if (repsError) return { data: null, error: repsError.message };
-    return { data: reps, error: null };
+    
+    // 3. Get latest location for online status
+    const results = []
+    for (const rep of reps || []) {
+      const { data: loc } = await supabase
+        .from('representative_live_locations')
+        .select('timestamp')
+        .eq('representative_id', rep.id)
+        .order('timestamp', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      
+      const is_online = loc ? ((new Date().getTime() - new Date(loc.timestamp).getTime()) / (1000 * 60) <= 5) : false
+      
+      results.push({
+        ...rep,
+        is_online,
+        last_seen: loc?.timestamp || null,
+        unread_count: 0 // TODO: Implement unread count logic
+      })
+    }
+    
+    return { data: results, error: null };
   } catch (err) {
     return { data: null, error: 'An unexpected error occurred' };
+  }
+}
+
+// Log call attempt for tracking
+export async function logCallAttempt(representative_id: string, phone_number: string, call_type: 'outgoing' | 'incoming' = 'outgoing'): Promise<{ data: any | null; error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('call_logs')
+      .insert({
+        representative_id,
+        phone_number,
+        call_type,
+        initiated_at: new Date().toISOString(),
+        status: 'initiated'
+      })
+      .select()
+      .single()
+    
+    if (error) return { data: null, error: error.message }
+    return { data, error: null }
+  } catch (err) {
+    return { data: null, error: 'An unexpected error occurred' }
   }
 }
