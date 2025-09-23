@@ -1030,47 +1030,98 @@ export async function getProductsWithInventoryAndPricing(warehouseId?: number): 
 // ==================== DASHBOARD & STATS ====================
 
 export async function getWarehouseStats(): Promise<WarehouseStats> {
-  const [warehousesResult, productsResult, inventoryResult, lowStockResult] = await Promise.all([
-    supabase.from('warehouses').select('id', { count: 'exact' }),
-    supabase.from('products').select('id', { count: 'exact' }).eq('is_active', true),
-    supabase.from('inventory_summary').select('available_quantity'),
-    supabase.from('inventory_summary').select('id', { count: 'exact' }).eq('stock_status', 'LOW_STOCK')
-  ]);
+  try {
+    // Get warehouses count
+    const { count: totalWarehouses } = await supabase
+      .from('warehouses')
+      .select('*', { count: 'exact', head: true });
 
-  const totalWarehouses = warehousesResult.count || 0;
-  const totalProducts = productsResult.count || 0;
-  const totalInventoryValue = inventoryResult.data?.reduce((sum, item) => sum + (item.available_quantity || 0), 0) || 0;
-  const lowStockItems = lowStockResult.count || 0;
+    // Get products count
+    const { count: totalProducts } = await supabase
+      .from('products')
+      .select('*', { count: 'exact', head: true });
 
-  return {
-    total_warehouses: totalWarehouses,
-    total_products: totalProducts,
-    total_inventory_value: totalInventoryValue,
-    low_stock_items: lowStockItems,
-    out_of_stock_items: 0 // You can implement this based on your business logic
-  };
+    // Get inventory data
+    const { data: inventoryData } = await supabase
+      .from('inventory')
+      .select('available_quantity');
+
+    // Calculate total inventory value
+    const totalInventoryValue = inventoryData?.reduce((sum, item) => sum + (item.available_quantity || 0), 0) || 0;
+
+    // Get low stock items (items with quantity <= 10)
+    const { data: lowStockData } = await supabase
+      .from('inventory')
+      .select('*')
+      .lte('available_quantity', 10);
+
+    const lowStockItems = lowStockData?.length || 0;
+
+    console.log('Warehouse Stats:', {
+      totalWarehouses: totalWarehouses || 0,
+      totalProducts: totalProducts || 0,
+      totalInventoryValue,
+      lowStockItems
+    });
+
+    return {
+      total_warehouses: totalWarehouses || 0,
+      total_products: totalProducts || 0,
+      total_inventory_value: totalInventoryValue,
+      low_stock_items: lowStockItems,
+      out_of_stock_items: 0
+    };
+  } catch (error) {
+    console.error('Error getting warehouse stats:', error);
+    return {
+      total_warehouses: 0,
+      total_products: 0,
+      total_inventory_value: 0,
+      low_stock_items: 0,
+      out_of_stock_items: 0
+    };
+  }
 }
 
 export async function getStockAlerts(): Promise<StockAlert[]> {
-  const { data, error } = await supabase
-    .from('inventory_summary')
-    .select('*')
-    .in('stock_status', ['LOW_STOCK', 'OUT_OF_STOCK'])
-    .order('available_quantity');
+  try {
+    const { data, error } = await supabase
+      .from('inventory')
+      .select(`
+        *,
+        product:products(*),
+        warehouse:warehouses(*)
+      `)
+      .lte('available_quantity', 10)
+      .order('available_quantity');
 
-  if (error) {
-    console.error('Error fetching stock alerts:', error);
-    throw new Error('Failed to fetch stock alerts');
+    if (error) {
+      console.error('Error fetching stock alerts:', error);
+      return [];
+    }
+
+    // Transform inventory data to stock alerts format
+    const alerts: StockAlert[] = (data || []).map(item => ({
+      id: item.id,
+      product_id: item.product_id,
+      warehouse_id: item.warehouse_id,
+      product_name: item.product?.product_name || 'Unknown Product',
+      warehouse_name: item.warehouse?.warehouse_name || 'Unknown Warehouse',
+      current_stock: item.available_quantity,
+      minimum_stock: item.minimum_stock_level || 0,
+      reorder_point: item.reorder_point || 0,
+      stock_status: item.available_quantity <= 0 ? 'OUT_OF_STOCK' : 'LOW_STOCK',
+      alert_type: item.available_quantity <= 0 ? 'OUT_OF_STOCK' : 'LOW_STOCK',
+      priority: item.available_quantity <= 0 ? 'HIGH' : 'MEDIUM',
+      notes: `Stock level: ${item.available_quantity}, Minimum: ${item.minimum_stock_level || 0}`,
+      created_at: new Date().toISOString()
+    }));
+
+    return alerts;
+  } catch (error) {
+    console.error('Error in getStockAlerts:', error);
+    return [];
   }
-
-  return data?.map(item => ({
-    id: item.product_id,
-    product_name: item.product_name,
-    warehouse_name: item.warehouse_name,
-    current_quantity: item.available_quantity,
-    minimum_stock_level: item.minimum_stock_level,
-    alert_type: item.stock_status === 'LOW_STOCK' ? 'LOW_STOCK' : 'OUT_OF_STOCK'
-  })) || [];
 }
 
 // ==================== BARCODE FUNCTIONS ====================

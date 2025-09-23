@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Edit, Trash2, Search, Filter, Warehouse, Package, AlertTriangle, TrendingUp, AlertCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Filter, Warehouse, Package, AlertTriangle, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react';
 import { 
   getWarehouses, 
   createWarehouse, 
@@ -99,6 +99,13 @@ export function WarehouseTab() {
 
   useEffect(() => {
     loadData();
+    
+    // Auto-refresh stats every 30 seconds
+    const interval = setInterval(() => {
+      refreshStats();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -148,6 +155,19 @@ export function WarehouseTab() {
     }
   };
 
+  const refreshStats = async () => {
+    try {
+      const [statsData, alertsData] = await Promise.all([
+        getWarehouseStats(),
+        getStockAlerts()
+      ]);
+      setStats(statsData);
+      setAlerts(alertsData);
+    } catch (error) {
+      console.error('Error refreshing stats:', error);
+    }
+  };
+
   const loadSubGroups = async (mainGroupId: number) => {
     try {
       const subGroupsData = await getSubGroups(mainGroupId);
@@ -162,7 +182,8 @@ export function WarehouseTab() {
       await createWarehouse(warehouseForm);
       setWarehouseForm({ warehouse_name: '', location: '' });
       setWarehouseDialogOpen(false);
-      loadData();
+      await loadData(); // Reload all data including stats
+      await refreshStats(); // Also refresh stats specifically
     } catch (error) {
       console.error('Error creating warehouse:', error);
     }
@@ -229,7 +250,8 @@ export function WarehouseTab() {
       setSelectedWarehouses([]);
       setWarehouseQuantities({});
       setProductDialogOpen(false);
-      loadData();
+      await loadData(); // Reload all data including stats
+      await refreshStats(); // Also refresh stats specifically
     } catch (error) {
       console.error('Error creating product:', error);
     }
@@ -393,6 +415,20 @@ export function WarehouseTab() {
 
         {/* Dashboard Tab */}
         <TabsContent value="dashboard" className="space-y-6">
+          {/* Dashboard Header with Refresh Button */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold">{t('warehouse.dashboard')}</h2>
+            <Button 
+              onClick={refreshStats} 
+              variant="outline" 
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              {t('common.refresh')}
+            </Button>
+          </div>
+          
           {/* Stats Cards */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
