@@ -73,8 +73,7 @@ export function WarehouseTab() {
   // Warehouse form state
   const [warehouseForm, setWarehouseForm] = useState<CreateWarehouseData>({
     warehouse_name: '',
-    location: '',
-    responsible_person: ''
+    location: ''
   });
   const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
   const [warehouseDialogOpen, setWarehouseDialogOpen] = useState(false);
@@ -161,7 +160,7 @@ export function WarehouseTab() {
   const handleCreateWarehouse = async () => {
     try {
       await createWarehouse(warehouseForm);
-      setWarehouseForm({ warehouse_name: '', location: '', responsible_person: '' });
+      setWarehouseForm({ warehouse_name: '', location: '' });
       setWarehouseDialogOpen(false);
       loadData();
     } catch (error) {
@@ -175,7 +174,7 @@ export function WarehouseTab() {
     try {
       await updateWarehouse({ id: editingWarehouse.id, ...warehouseForm });
       setEditingWarehouse(null);
-      setWarehouseForm({ warehouse_name: '', location: '', responsible_person: '' });
+      setWarehouseForm({ warehouse_name: '', location: '' });
       setWarehouseDialogOpen(false);
       loadData();
     } catch (error) {
@@ -277,11 +276,10 @@ export function WarehouseTab() {
       setWarehouseForm({
         warehouse_name: warehouse.warehouse_name,
         location: warehouse.location,
-        responsible_person: warehouse.responsible_person
       });
     } else {
       setEditingWarehouse(null);
-      setWarehouseForm({ warehouse_name: '', location: '', responsible_person: '' });
+      setWarehouseForm({ warehouse_name: '', location: '' });
     }
     setWarehouseDialogOpen(true);
   };
@@ -321,8 +319,7 @@ export function WarehouseTab() {
 
   const filteredWarehouses = warehouses.filter(warehouse =>
     warehouse.warehouse_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    warehouse.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    warehouse.responsible_person.toLowerCase().includes(searchTerm.toLowerCase())
+    warehouse.location.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const filteredProducts = products.filter(product =>
@@ -555,15 +552,6 @@ export function WarehouseTab() {
                           placeholder="Enter warehouse location"
                         />
                       </div>
-                      <div>
-                        <Label htmlFor="responsible_person">Responsible Person</Label>
-                        <Input
-                          id="responsible_person"
-                          value={warehouseForm.responsible_person}
-                          onChange={(e) => setWarehouseForm(prev => ({ ...prev, responsible_person: e.target.value }))}
-                          placeholder="Enter responsible person name"
-                        />
-                      </div>
                     </div>
                     <DialogFooter>
                       <Button variant="outline" onClick={() => setWarehouseDialogOpen(false)}>
@@ -598,7 +586,6 @@ export function WarehouseTab() {
                   <TableRow>
                     <TableHead>Warehouse Name</TableHead>
                     <TableHead>Location</TableHead>
-                    <TableHead>Responsible Person</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -608,7 +595,6 @@ export function WarehouseTab() {
                     <TableRow key={warehouse.id}>
                       <TableCell className="font-medium">{warehouse.warehouse_name}</TableCell>
                       <TableCell>{warehouse.location}</TableCell>
-                      <TableCell>{warehouse.responsible_person}</TableCell>
                       <TableCell>{new Date(warehouse.created_at).toLocaleDateString()}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">

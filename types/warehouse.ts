@@ -6,8 +6,6 @@ export interface Warehouse {
   warehouse_name_ar: string;
   location: string;
   location_ar: string;
-  responsible_person: string;
-  responsible_person_ar: string;
   warehouse_type: 'FACTORY' | 'DISTRIBUTION' | 'SUB_STORE' | 'MAIN';
   capacity: number;
   current_utilization: number;
@@ -155,8 +153,6 @@ export interface CreateWarehouseData {
   warehouse_name_ar?: string;
   location: string;
   location_ar?: string;
-  responsible_person: string;
-  responsible_person_ar?: string;
   warehouse_type?: 'FACTORY' | 'DISTRIBUTION' | 'SUB_STORE' | 'MAIN';
   capacity?: number;
 }

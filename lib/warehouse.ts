@@ -91,7 +91,6 @@ export async function createWarehouse(warehouseData: CreateWarehouseData): Promi
     ...warehouseData,
     warehouse_name_ar: warehouseData.warehouse_name_ar || warehouseData.warehouse_name,
     location_ar: warehouseData.location_ar || warehouseData.location,
-    responsible_person_ar: warehouseData.responsible_person_ar || warehouseData.responsible_person,
     warehouse_type: warehouseData.warehouse_type || 'DISTRIBUTION',
     capacity: warehouseData.capacity || 0,
     current_utilization: 0,
