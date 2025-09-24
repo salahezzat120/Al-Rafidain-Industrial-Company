@@ -27,11 +27,15 @@ import {
   getColors,
   getMaterials,
   getUnitsOfMeasurement,
+  createUnitOfMeasurement,
+  updateUnitOfMeasurement,
+  deleteUnitOfMeasurement,
   getWarehouseStats,
   getStockAlerts,
   getInventorySummary,
   createInventory
 } from '@/lib/warehouse';
+import { supabase } from '@/lib/supabase';
 import { StockMovements } from '@/components/warehouse/stock-movements';
 import { BarcodeManager } from '@/components/warehouse/barcode-manager';
 import { ReportsEngine } from '@/components/warehouse/reports-engine';
@@ -98,6 +102,15 @@ export function WarehouseTab() {
   // Warehouse selection for new products
   const [selectedWarehouses, setSelectedWarehouses] = useState<number[]>([]);
   const [warehouseQuantities, setWarehouseQuantities] = useState<Record<number, number>>({});
+
+  // Measurement unit form state
+  const [unitForm, setUnitForm] = useState<CreateUnitOfMeasurementData>({
+    unit_name: '',
+    unit_code: '',
+    is_user_defined: true
+  });
+  const [editingUnit, setEditingUnit] = useState<UnitOfMeasurement | null>(null);
+  const [unitDialogOpen, setUnitDialogOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -298,6 +311,151 @@ export function WarehouseTab() {
     }
   };
 
+  // Measurement Unit Handlers
+  const createUnitViaFallback = async (payload: CreateUnitOfMeasurementData) => {
+    const tableCandidates = ['units_of_measurement', 'measurement_units', 'units'];
+    const payloadCandidates: any[] = [
+      { unit_name: payload.unit_name, unit_code: payload.unit_code, is_user_defined: payload.is_user_defined ?? true },
+      { unit_name: payload.unit_name, unit_symbol: payload.unit_code, is_user_defined: payload.is_user_defined ?? true },
+      { unit_name: payload.unit_name }
+    ];
+
+    for (const table of tableCandidates) {
+      for (const body of payloadCandidates) {
+        const { data, error } = await supabase.from(table).insert([body]).select('*');
+        if (!error && data && data.length > 0) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  const deleteUnitViaFallback = async (unit: UnitOfMeasurement) => {
+    const tableCandidates = ['units_of_measurement', 'measurement_units', 'units'];
+    const possiblePkKeys = ['id', 'unit_id', 'UID'];
+
+    for (const table of tableCandidates) {
+      // 1) Try to find the row to learn the actual PK column
+      const findFilters = [
+        { column: 'id', value: unit.id },
+        { column: 'unit_name', value: unit.unit_name },
+        { column: 'unit_code', value: unit.unit_code },
+        { column: 'unit_symbol', value: unit.unit_code },
+      ];
+
+      let foundRow: any = null;
+      for (const f of findFilters) {
+        if (f.value === undefined || f.value === null || f.value === '') continue;
+        const { data, error } = await supabase.from(table).select('*').eq(f.column, f.value).limit(1);
+        if (!error && data && data.length > 0) {
+          foundRow = data[0];
+          break;
+        }
+      }
+
+      // 2) If found, try deleting by discovered PK key
+      if (foundRow) {
+        const pkKey = possiblePkKeys.find((k) => Object.prototype.hasOwnProperty.call(foundRow, k));
+        if (pkKey) {
+          const { error } = await supabase.from(table).delete().eq(pkKey, foundRow[pkKey]);
+          if (!error) return true;
+        }
+      }
+
+      // 3) Otherwise try direct deletes by known columns
+      let { error } = await supabase.from(table).delete().eq('id', unit.id);
+      if (!error) return true;
+      ({ error } = await supabase.from(table).delete().eq('unit_name', unit.unit_name));
+      if (!error) return true;
+      if (unit.unit_code) {
+        ({ error } = await supabase.from(table).delete().eq('unit_code', unit.unit_code));
+        if (!error) return true;
+        ({ error } = await supabase.from(table).delete().eq('unit_symbol', unit.unit_code));
+        if (!error) return true;
+      }
+    }
+    return false;
+  };
+
+  const handleCreateUnit = async () => {
+    try {
+      // Try fallback FIRST to avoid library schema mismatches
+      const ok = await createUnitViaFallback(unitForm);
+      if (ok) {
+        setUnitForm({ unit_name: '', unit_code: '', is_user_defined: true });
+        setUnitDialogOpen(false);
+        loadData();
+      } else {
+        // If fallback fails, try the library function as a secondary attempt
+        try {
+          await createUnitOfMeasurement(unitForm);
+          setUnitForm({ unit_name: '', unit_code: '', is_user_defined: true });
+          setUnitDialogOpen(false);
+          loadData();
+        } catch (error2) {
+          console.error('Error creating unit (library after fallback):', error2);
+          alert('Failed to create unit. Please ensure the measurement units table exists.');
+        }
+      }
+    } catch (error) {
+      console.error('Unexpected error creating unit:', error);
+      alert('Failed to create unit.');
+    }
+  };
+
+  const handleUpdateUnit = async () => {
+    if (!editingUnit) return;
+    
+    try {
+      await updateUnitOfMeasurement(editingUnit.id, unitForm);
+      setEditingUnit(null);
+      setUnitForm({ unit_name: '', unit_code: '', is_user_defined: true });
+      setUnitDialogOpen(false);
+      loadData();
+    } catch (error) {
+      console.error('Error updating unit:', error);
+    }
+  };
+
+  const handleDeleteUnit = async (unit: UnitOfMeasurement) => {
+    if (!confirm('Are you sure you want to delete this measurement unit?')) return;
+    
+    try {
+      // Try fallback FIRST to avoid library schema mismatches
+      const ok = await deleteUnitViaFallback(unit);
+      if (ok) {
+        loadData();
+      } else {
+        try {
+          await deleteUnitOfMeasurement(unit.id);
+          loadData();
+        } catch (error2) {
+          console.error('Error deleting unit (library after fallback):', error2);
+          alert('Failed to delete unit.');
+        }
+      }
+    } catch (error) {
+      console.error('Unexpected error deleting unit:', error);
+      alert('Failed to delete unit.');
+    }
+  };
+
+  const openUnitDialog = (unit?: UnitOfMeasurement) => {
+    if (unit) {
+      setEditingUnit(unit);
+      setUnitForm({
+        unit_name: unit.unit_name,
+        unit_code: unit.unit_code,
+        is_user_defined: unit.is_user_defined
+      });
+    } else {
+      setEditingUnit(null);
+      setUnitForm({ unit_name: '', unit_code: '', is_user_defined: true });
+    }
+    setUnitDialogOpen(true);
+  };
+
   const openWarehouseDialog = (warehouse?: Warehouse) => {
     if (warehouse) {
       setEditingWarehouse(warehouse);
@@ -397,6 +555,9 @@ export function WarehouseTab() {
           </TabsTrigger>
           <TabsTrigger value="products">
             {t('warehouse.products')}
+          </TabsTrigger>
+          <TabsTrigger value="measurement-units">
+            Measurement Units
           </TabsTrigger>
           <TabsTrigger value="inventory">
             {t('warehouse.inventory')}
@@ -1044,6 +1205,130 @@ export function WarehouseTab() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Measurement Units Tab */}
+        <TabsContent value="measurement-units" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Measurement Units</CardTitle>
+                  <CardDescription>
+                    Manage measurement units for products
+                  </CardDescription>
+                </div>
+                <Button onClick={() => openUnitDialog()}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Unit
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search units..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="max-w-sm"
+                  />
+                </div>
+                
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Unit Name</TableHead>
+                      <TableHead>Unit Code</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {units
+                      .filter(unit => 
+                        unit.unit_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        unit.unit_code.toLowerCase().includes(searchTerm.toLowerCase())
+                      )
+                      .map((unit) => (
+                        <TableRow key={unit.id}>
+                          <TableCell className="font-medium">{unit.unit_name}</TableCell>
+                          <TableCell>{unit.unit_code}</TableCell>
+                          <TableCell>
+                            <Badge variant={unit.is_user_defined ? "default" : "secondary"}>
+                              {unit.is_user_defined ? "User Defined" : "System"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end space-x-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openUnitDialog(unit)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              {unit.is_user_defined && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeleteUnit(unit)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Add/Edit Unit Dialog */}
+          <Dialog open={unitDialogOpen} onOpenChange={setUnitDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  {editingUnit ? 'Edit Measurement Unit' : 'Add New Measurement Unit'}
+                </DialogTitle>
+                <DialogDescription>
+                  {editingUnit ? 'Update the measurement unit details.' : 'Add a new measurement unit to the system.'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="unit_name">Unit Name</Label>
+                  <Input
+                    id="unit_name"
+                    value={unitForm.unit_name}
+                    onChange={(e) => setUnitForm(prev => ({ ...prev, unit_name: e.target.value }))}
+                    placeholder="Enter unit name (e.g., Kilogram, Liter)"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="unit_code">Unit Code</Label>
+                  <Input
+                    id="unit_code"
+                    value={unitForm.unit_code}
+                    onChange={(e) => setUnitForm(prev => ({ ...prev, unit_code: e.target.value }))}
+                    placeholder="Enter unit code (e.g., KG, L)"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setUnitDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={editingUnit ? handleUpdateUnit : handleCreateUnit}>
+                  {editingUnit ? 'Update' : 'Create'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* Inventory Tab */}

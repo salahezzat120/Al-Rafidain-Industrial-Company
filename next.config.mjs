@@ -13,6 +13,7 @@ const nextConfig = {
   reactStrictMode: true,
   serverExternalPackages: ['@supabase/supabase-js'],
   // Remove hardcoded env vars - use environment variables instead
+  distDir: '.next-dev',
 }
 
 export default nextConfig

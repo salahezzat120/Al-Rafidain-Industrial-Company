@@ -157,32 +157,176 @@ export async function deleteWarehouse(id: number): Promise<void> {
 // ==================== UNITS OF MEASUREMENT ====================
 
 export async function getUnitsOfMeasurement(): Promise<UnitOfMeasurement[]> {
-  const { data, error } = await supabase
-    .from('units_of_measurement')
-    .select('*')
-    .order('unit_name');
+  const tableCandidates = ['units_of_measurement', 'measurement_units', 'units'];
+  let lastError: any = null;
 
-  if (error) {
-    console.error('Error fetching units of measurement:', error);
-    throw new Error('Failed to fetch units of measurement');
+  for (const table of tableCandidates) {
+    const { data, error } = await supabase
+      .from(table)
+      .select('*')
+      .order('unit_name');
+
+    if (!error) {
+      const mapped: UnitOfMeasurement[] = (data || []).map((u: any) => ({
+        id: u.id,
+        unit_name: u.unit_name ?? u.name ?? u.title,
+        unit_code: u.unit_code ?? u.unit_symbol ?? u.code ?? '',
+        is_user_defined: u.is_user_defined ?? true,
+        created_at: u.created_at
+      }));
+      return mapped;
+    }
+    lastError = error;
   }
 
-  return data || [];
+  console.error('Error fetching units of measurement:', {
+    code: lastError?.code,
+    message: lastError?.message,
+    details: lastError?.details
+  });
+  throw new Error('Failed to fetch units of measurement');
 }
 
 export async function createUnitOfMeasurement(unitData: CreateUnitOfMeasurementData): Promise<UnitOfMeasurement> {
-  const { data, error } = await supabase
-    .from('units_of_measurement')
-    .insert([unitData])
-    .select()
-    .single();
+  // Try multiple payload shapes to match whichever schema exists
+  const candidates: any[] = [
+    // Full bilingual schema (unit_symbol, unit_type, etc.)
+    {
+      unit_name: unitData.unit_name,
+      unit_name_ar: (unitData as any).unit_name_ar || unitData.unit_name,
+      unit_symbol: unitData.unit_code || (unitData as any).unit_symbol || unitData.unit_name?.slice(0, 3)?.toUpperCase(),
+      unit_symbol_ar: (unitData as any).unit_symbol_ar || unitData.unit_code || unitData.unit_name,
+      unit_type: (unitData as any).unit_type || 'COUNT',
+      conversion_factor: (unitData as any).conversion_factor ?? 1,
+      base_unit_id: (unitData as any).base_unit_id ?? null,
+      is_user_defined: (unitData as any).is_user_defined ?? true
+    },
+    // Simple schema with unit_code
+    {
+      unit_name: unitData.unit_name,
+      unit_code: unitData.unit_code || unitData.unit_name?.slice(0, 3)?.toUpperCase(),
+      is_user_defined: (unitData as any).is_user_defined ?? true
+    },
+    // Minimal schema with only unit_name
+    {
+      unit_name: unitData.unit_name
+    }
+  ];
 
-  if (error) {
-    console.error('Error creating unit of measurement:', error);
-    throw new Error('Failed to create unit of measurement');
+  let lastError: any = null;
+  const tableCandidates = ['units_of_measurement', 'measurement_units', 'units'];
+  for (const table of tableCandidates) {
+    for (const payload of candidates) {
+      const { data, error } = await supabase
+        .from(table)
+        .insert([payload])
+        .select('*')
+        .single();
+
+      if (!error && data) {
+        const mapped: UnitOfMeasurement = {
+          id: data.id,
+          unit_name: data.unit_name ?? data.name ?? data.title,
+          unit_code: data.unit_code ?? data.unit_symbol ?? data.code ?? '',
+          is_user_defined: data.is_user_defined ?? true,
+          created_at: data.created_at
+        };
+        return mapped;
+      }
+
+      lastError = { ...(error || {}), tableTried: table, payloadKeys: Object.keys(payload) };
+    }
   }
 
-  return data;
+  console.error('Error creating unit of measurement:', {
+    code: lastError?.code,
+    message: lastError?.message,
+    details: lastError?.details,
+    table: lastError?.tableTried,
+    payloadKeys: lastError?.payloadKeys
+  });
+  throw new Error('Failed to create unit of measurement');
+}
+
+export async function updateUnitOfMeasurement(id: number, unitData: Partial<CreateUnitOfMeasurementData>): Promise<UnitOfMeasurement> {
+  // Prepare multiple candidate payloads to match possible schemas
+  const candidates: any[] = [
+    {
+      unit_name: unitData.unit_name,
+      unit_name_ar: (unitData as any)?.unit_name_ar,
+      unit_symbol: (unitData as any)?.unit_symbol ?? unitData.unit_code,
+      unit_symbol_ar: (unitData as any)?.unit_symbol_ar ?? unitData.unit_code,
+      unit_type: (unitData as any)?.unit_type,
+      conversion_factor: (unitData as any)?.conversion_factor,
+      base_unit_id: (unitData as any)?.base_unit_id,
+      is_user_defined: (unitData as any)?.is_user_defined
+    },
+    {
+      unit_name: unitData.unit_name,
+      unit_code: unitData.unit_code,
+      is_user_defined: (unitData as any)?.is_user_defined
+    },
+    {
+      unit_name: unitData.unit_name
+    }
+  ].map(p => Object.fromEntries(Object.entries(p).filter(([, v]) => v !== undefined)));
+
+  let lastError: any = null;
+  const tableCandidates = ['units_of_measurement', 'measurement_units', 'units'];
+  for (const table of tableCandidates) {
+    for (const payload of candidates) {
+      if (Object.keys(payload).length === 0) continue;
+      const { data, error } = await supabase
+        .from(table)
+        .update(payload)
+        .eq('id', id)
+        .select('*')
+        .single();
+
+      if (!error && data) {
+        const mapped: UnitOfMeasurement = {
+          id: data.id,
+          unit_name: data.unit_name ?? data.name ?? data.title,
+          unit_code: data.unit_code ?? data.unit_symbol ?? data.code ?? '',
+          is_user_defined: data.is_user_defined ?? true,
+          created_at: data.created_at
+        };
+        return mapped;
+      }
+      lastError = { ...(error || {}), tableTried: table, payloadKeys: Object.keys(payload) };
+    }
+  }
+
+  console.error('Error updating unit of measurement:', {
+    code: lastError?.code,
+    message: lastError?.message,
+    details: lastError?.details,
+    table: lastError?.tableTried,
+    payloadKeys: lastError?.payloadKeys
+  });
+  throw new Error('Failed to update unit of measurement');
+}
+
+export async function deleteUnitOfMeasurement(id: number): Promise<void> {
+  const tableCandidates = ['units_of_measurement', 'measurement_units', 'units'];
+  let lastError: any = null;
+  for (const table of tableCandidates) {
+    const { error } = await supabase
+      .from(table)
+      .delete()
+      .eq('id', id);
+
+    if (!error) return;
+    lastError = { ...(error || {}), tableTried: table };
+  }
+
+  console.error('Error deleting unit of measurement:', {
+    code: lastError?.code,
+    message: lastError?.message,
+    details: lastError?.details,
+    table: lastError?.tableTried
+  });
+  throw new Error('Failed to delete unit of measurement');
 }
 
 // ==================== MAIN GROUPS ====================
