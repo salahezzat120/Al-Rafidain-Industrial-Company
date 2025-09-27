@@ -132,6 +132,7 @@ export function WarehouseTab() {
   const loadData = async () => {
     try {
       setLoading(true);
+      console.log('Loading warehouse data...');
       const [
         warehousesData,
         productsData,
@@ -153,6 +154,11 @@ export function WarehouseTab() {
         getWarehouseStats(),
         getStockAlerts()
       ]);
+
+      console.log('Products loaded:', productsData.length);
+      console.log('Sample product:', productsData[0]);
+      console.log('Main groups loaded:', mainGroupsData.length);
+      console.log('Units loaded:', unitsData.length);
 
       setWarehouses(warehousesData);
       setProducts(productsData);
