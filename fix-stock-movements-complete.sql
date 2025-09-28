@@ -55,7 +55,7 @@ TO authenticated;
 GRANT ALL ON stock_movements TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE stock_movements_id_seq TO authenticated;
 
--- Step 7: Insert sample data for testing
+-- Step 7: Insert some sample stock movements for testing (Arabic & English)
 INSERT INTO stock_movements (
     product_id, 
     warehouse_id, 
@@ -63,13 +63,13 @@ INSERT INTO stock_movements (
     movement_type_ar,
     quantity, 
     unit_price, 
-    reference_number,
+    reference_number, 
     reference_number_ar,
-    notes,
+    notes, 
     notes_ar,
     created_by,
     created_by_ar
-) VALUES 
+) VALUES
 (
     (SELECT id FROM products LIMIT 1),
     (SELECT id FROM warehouses LIMIT 1),
@@ -89,20 +89,19 @@ INSERT INTO stock_movements (
     (SELECT id FROM warehouses LIMIT 1),
     'OUT',
     'خروج',
-    50,
-    2.00,
+    10,
+    1.50,
     'OUT-001',
     'خروج-001',
     'Stock issue',
-    'صرف مخزون',
+    'إصدار مخزون',
     'System',
     'النظام'
 );
 
--- Step 8: Verify the table was created successfully
-SELECT 'Stock Movements Table Created Successfully!' as status;
+-- Step 8: Verify the table structure
+SELECT 'Stock Movements Table Created Successfully' as status;
 
--- Step 9: Show table structure
 SELECT 
     column_name,
     data_type,
@@ -113,19 +112,26 @@ WHERE table_name = 'stock_movements'
 AND table_schema = 'public'
 ORDER BY ordinal_position;
 
--- Step 10: Show sample data
-SELECT 'Sample Stock Movements:' as status;
+-- Step 9: Test the table with a sample query (Arabic & English)
+SELECT 'Sample Stock Movements (Arabic & English):' as status;
+
 SELECT 
     sm.id,
     sm.movement_type,
     sm.movement_type_ar,
     sm.quantity,
     sm.unit_price,
+    sm.total_value,
     sm.reference_number,
+    sm.reference_number_ar,
     sm.notes,
+    sm.notes_ar,
+    sm.created_by,
+    sm.created_by_ar,
     p.product_name,
+    p.product_name_ar,
     w.warehouse_name,
-    sm.created_at
+    w.warehouse_name_ar
 FROM stock_movements sm
 LEFT JOIN products p ON sm.product_id = p.id
 LEFT JOIN warehouses w ON sm.warehouse_id = w.id
