@@ -4,18 +4,22 @@
 -- Step 1: Drop the table if it exists (to recreate with correct structure)
 DROP TABLE IF EXISTS stock_movements CASCADE;
 
--- Step 2: Create stock_movements table with complete structure
+-- Step 2: Create stock_movements table with complete structure (Arabic & English support)
 CREATE TABLE stock_movements (
     id SERIAL PRIMARY KEY,
     product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     warehouse_id INTEGER NOT NULL REFERENCES warehouses(id) ON DELETE CASCADE,
     movement_type VARCHAR(20) NOT NULL CHECK (movement_type IN ('IN', 'OUT', 'TRANSFER', 'ADJUSTMENT', 'RECEIPT', 'ISSUE', 'RETURN')),
+    movement_type_ar VARCHAR(20) NOT NULL, -- Arabic version of movement type
     quantity INTEGER NOT NULL,
     unit_price DECIMAL(10,2) DEFAULT 0,
     total_value DECIMAL(10,2) GENERATED ALWAYS AS (quantity * unit_price) STORED,
     reference_number VARCHAR(100),
+    reference_number_ar VARCHAR(100), -- Arabic reference number
     notes TEXT,
+    notes_ar TEXT, -- Arabic notes
     created_by VARCHAR(255) DEFAULT 'System',
+    created_by_ar VARCHAR(255) DEFAULT 'النظام', -- Arabic version of created_by
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -51,27 +55,48 @@ TO authenticated;
 GRANT ALL ON stock_movements TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE stock_movements_id_seq TO authenticated;
 
--- Step 7: Insert some sample stock movements for testing
-INSERT INTO stock_movements (product_id, warehouse_id, movement_type, quantity, unit_price, reference_number, notes, created_by) VALUES
+-- Step 7: Insert some sample stock movements for testing (Arabic & English)
+INSERT INTO stock_movements (
+    product_id, 
+    warehouse_id, 
+    movement_type, 
+    movement_type_ar,
+    quantity, 
+    unit_price, 
+    reference_number, 
+    reference_number_ar,
+    notes, 
+    notes_ar,
+    created_by,
+    created_by_ar
+) VALUES
 (
     (SELECT id FROM products LIMIT 1),
     (SELECT id FROM warehouses LIMIT 1),
     'IN',
+    'دخول',
     100,
     1.50,
     'INIT-001',
+    'إدخال-001',
     'Initial stock entry',
-    'System'
+    'إدخال مخزون أولي',
+    'System',
+    'النظام'
 ),
 (
     (SELECT id FROM products LIMIT 1),
     (SELECT id FROM warehouses LIMIT 1),
     'OUT',
+    'خروج',
     10,
     1.50,
     'OUT-001',
+    'خروج-001',
     'Stock issue',
-    'System'
+    'إصدار مخزون',
+    'System',
+    'النظام'
 );
 
 -- Step 8: Verify the table structure
@@ -87,18 +112,26 @@ WHERE table_name = 'stock_movements'
 AND table_schema = 'public'
 ORDER BY ordinal_position;
 
--- Step 9: Test the table with a sample query
-SELECT 'Sample Stock Movements:' as status;
+-- Step 9: Test the table with a sample query (Arabic & English)
+SELECT 'Sample Stock Movements (Arabic & English):' as status;
 
 SELECT 
     sm.id,
     sm.movement_type,
+    sm.movement_type_ar,
     sm.quantity,
     sm.unit_price,
     sm.total_value,
     sm.reference_number,
+    sm.reference_number_ar,
+    sm.notes,
+    sm.notes_ar,
+    sm.created_by,
+    sm.created_by_ar,
     p.product_name,
-    w.warehouse_name
+    p.product_name_ar,
+    w.warehouse_name,
+    w.warehouse_name_ar
 FROM stock_movements sm
 LEFT JOIN products p ON sm.product_id = p.id
 LEFT JOIN warehouses w ON sm.warehouse_id = w.id

@@ -15,16 +15,31 @@ export async function createStockMovement(movementData: CreateStockMovementData)
                           movementData.movement_type === 'RETURN' ? 'IN' :
                           movementData.movement_type;
 
-    // Prepare the data for insertion
+    // Map movement types to Arabic
+    const movementTypeArabic = {
+      'IN': 'دخول',
+      'OUT': 'خروج', 
+      'TRANSFER': 'نقل',
+      'ADJUSTMENT': 'تعديل',
+      'RECEIPT': 'استلام',
+      'ISSUE': 'إصدار',
+      'RETURN': 'إرجاع'
+    };
+
+    // Prepare the data for insertion (Arabic & English)
     const fullMovementData = {
       product_id: movementData.product_id,
       warehouse_id: movementData.warehouse_id,
       movement_type: dbMovementType,
+      movement_type_ar: movementTypeArabic[dbMovementType] || dbMovementType,
       quantity: Math.abs(movementData.quantity), // Ensure positive quantity
       unit_price: movementData.unit_price || 0,
       reference_number: movementData.reference_number || `REF-${Date.now()}`,
+      reference_number_ar: movementData.reference_number_ar || `مرجع-${Date.now()}`,
       notes: movementData.notes || '',
-      created_by: movementData.created_by || 'System'
+      notes_ar: movementData.notes_ar || '',
+      created_by: movementData.created_by || 'System',
+      created_by_ar: movementData.created_by_ar || 'النظام'
     };
 
     console.log('Creating stock movement with data:', fullMovementData);

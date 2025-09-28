@@ -103,10 +103,14 @@ export function WarehouseTab() {
   const [selectedWarehouses, setSelectedWarehouses] = useState<number[]>([]);
   const [warehouseQuantities, setWarehouseQuantities] = useState<Record<number, number>>({});
 
-  // Measurement unit form state
+  // Measurement unit form state (bilingual)
   const [unitForm, setUnitForm] = useState<CreateUnitOfMeasurementData>({
     unit_name: '',
+    unit_name_ar: '',
     unit_code: '',
+    unit_symbol: '',
+    unit_symbol_ar: '',
+    unit_type: 'COUNT',
     is_user_defined: true
   });
   const [editingUnit, setEditingUnit] = useState<UnitOfMeasurement | null>(null);
@@ -389,14 +393,30 @@ export function WarehouseTab() {
       // Try fallback FIRST to avoid library schema mismatches
       const ok = await createUnitViaFallback(unitForm);
       if (ok) {
-        setUnitForm({ unit_name: '', unit_code: '', is_user_defined: true });
+        setUnitForm({ 
+          unit_name: '', 
+          unit_name_ar: '',
+          unit_code: '', 
+          unit_symbol: '',
+          unit_symbol_ar: '',
+          unit_type: 'COUNT',
+          is_user_defined: true 
+        });
         setUnitDialogOpen(false);
         loadData();
       } else {
         // If fallback fails, try the library function as a secondary attempt
         try {
           await createUnitOfMeasurement(unitForm);
-          setUnitForm({ unit_name: '', unit_code: '', is_user_defined: true });
+          setUnitForm({ 
+          unit_name: '', 
+          unit_name_ar: '',
+          unit_code: '', 
+          unit_symbol: '',
+          unit_symbol_ar: '',
+          unit_type: 'COUNT',
+          is_user_defined: true 
+        });
           setUnitDialogOpen(false);
           loadData();
         } catch (error2) {
@@ -452,12 +472,24 @@ export function WarehouseTab() {
       setEditingUnit(unit);
       setUnitForm({
         unit_name: unit.unit_name,
+        unit_name_ar: unit.unit_name_ar || '',
         unit_code: unit.unit_code,
+        unit_symbol: unit.unit_symbol || '',
+        unit_symbol_ar: unit.unit_symbol_ar || '',
+        unit_type: unit.unit_type || 'COUNT',
         is_user_defined: unit.is_user_defined
       });
     } else {
       setEditingUnit(null);
-      setUnitForm({ unit_name: '', unit_code: '', is_user_defined: true });
+      setUnitForm({ 
+        unit_name: '', 
+        unit_name_ar: '',
+        unit_code: '', 
+        unit_symbol: '',
+        unit_symbol_ar: '',
+        unit_type: 'COUNT',
+        is_user_defined: true 
+      });
     }
     setUnitDialogOpen(true);
   };
@@ -563,7 +595,7 @@ export function WarehouseTab() {
             {t('warehouse.products')}
           </TabsTrigger>
           <TabsTrigger value="measurement-units">
-            Measurement Units
+            {isRTL ? 'وحدات القياس' : 'Measurement Units'}
           </TabsTrigger>
           <TabsTrigger value="inventory">
             {t('warehouse.inventory')}
@@ -1219,14 +1251,14 @@ export function WarehouseTab() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Measurement Units</CardTitle>
+                  <CardTitle>{isRTL ? 'وحدات القياس' : 'Measurement Units'}</CardTitle>
                   <CardDescription>
-                    Manage measurement units for products
+                    {isRTL ? 'إدارة وحدات القياس للمنتجات' : 'Manage measurement units for products'}
                   </CardDescription>
                 </div>
                 <Button onClick={() => openUnitDialog()}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Unit
+                  {isRTL ? 'إضافة وحدة' : 'Add Unit'}
                 </Button>
               </div>
             </CardHeader>
@@ -1235,7 +1267,7 @@ export function WarehouseTab() {
                 <div className="flex items-center space-x-2">
                   <Search className="h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search units..."
+                    placeholder={isRTL ? 'البحث في الوحدات...' : 'Search units...'}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="max-w-sm"
@@ -1245,25 +1277,28 @@ export function WarehouseTab() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Unit Name</TableHead>
-                      <TableHead>Unit Code</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead>{isRTL ? 'اسم الوحدة' : 'Unit Name'}</TableHead>
+                      <TableHead>{isRTL ? 'الاسم العربي' : 'Arabic Name'}</TableHead>
+                      <TableHead>{isRTL ? 'رمز الوحدة' : 'Unit Code'}</TableHead>
+                      <TableHead>{isRTL ? 'النوع' : 'Type'}</TableHead>
+                      <TableHead className="text-right">{isRTL ? 'الإجراءات' : 'Actions'}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {units
                       .filter(unit => 
                         unit.unit_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        (unit.unit_name_ar && unit.unit_name_ar.toLowerCase().includes(searchTerm.toLowerCase())) ||
                         unit.unit_code.toLowerCase().includes(searchTerm.toLowerCase())
                       )
                       .map((unit) => (
                         <TableRow key={unit.id}>
                           <TableCell className="font-medium">{unit.unit_name}</TableCell>
+                          <TableCell>{unit.unit_name_ar || '-'}</TableCell>
                           <TableCell>{unit.unit_code}</TableCell>
                           <TableCell>
                             <Badge variant={unit.is_user_defined ? "default" : "secondary"}>
-                              {unit.is_user_defined ? "User Defined" : "System"}
+                              {unit.is_user_defined ? (isRTL ? "محدد من المستخدم" : "User Defined") : (isRTL ? "النظام" : "System")}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
@@ -1299,38 +1334,75 @@ export function WarehouseTab() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>
-                  {editingUnit ? 'Edit Measurement Unit' : 'Add New Measurement Unit'}
+                  {editingUnit ? (isRTL ? 'تعديل وحدة القياس' : 'Edit Measurement Unit') : (isRTL ? 'إضافة وحدة قياس جديدة' : 'Add New Measurement Unit')}
                 </DialogTitle>
                 <DialogDescription>
-                  {editingUnit ? 'Update the measurement unit details.' : 'Add a new measurement unit to the system.'}
+                  {editingUnit ? (isRTL ? 'تحديث تفاصيل وحدة القياس.' : 'Update the measurement unit details.') : (isRTL ? 'إضافة وحدة قياس جديدة إلى النظام.' : 'Add a new measurement unit to the system.')}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="unit_name">Unit Name</Label>
+                  <Label htmlFor="unit_name">{isRTL ? 'اسم الوحدة (إنجليزي)' : 'Unit Name (English)'}</Label>
                   <Input
                     id="unit_name"
                     value={unitForm.unit_name}
                     onChange={(e) => setUnitForm(prev => ({ ...prev, unit_name: e.target.value }))}
-                    placeholder="Enter unit name (e.g., Kilogram, Liter)"
+                    placeholder={isRTL ? 'أدخل اسم الوحدة (مثل: كيلوغرام، لتر)' : 'Enter unit name (e.g., Kilogram, Liter)'}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="unit_code">Unit Code</Label>
+                  <Label htmlFor="unit_name_ar">{isRTL ? 'اسم الوحدة (عربي)' : 'Unit Name (Arabic)'}</Label>
+                  <Input
+                    id="unit_name_ar"
+                    value={unitForm.unit_name_ar || ''}
+                    onChange={(e) => setUnitForm(prev => ({ ...prev, unit_name_ar: e.target.value }))}
+                    placeholder={isRTL ? 'أدخل الاسم العربي للوحدة (مثل: كيلوغرام، لتر)' : 'Enter Arabic unit name (e.g., كيلوغرام، لتر)'}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="unit_code">{isRTL ? 'رمز الوحدة' : 'Unit Code'}</Label>
                   <Input
                     id="unit_code"
                     value={unitForm.unit_code}
                     onChange={(e) => setUnitForm(prev => ({ ...prev, unit_code: e.target.value }))}
-                    placeholder="Enter unit code (e.g., KG, L)"
+                    placeholder={isRTL ? 'أدخل رمز الوحدة (مثل: كغ، ل)' : 'Enter unit code (e.g., KG, L)'}
                   />
+                </div>
+                <div>
+                  <Label htmlFor="unit_symbol">{isRTL ? 'رمز الوحدة (عربي)' : 'Unit Symbol (Arabic)'}</Label>
+                  <Input
+                    id="unit_symbol"
+                    value={unitForm.unit_symbol || ''}
+                    onChange={(e) => setUnitForm(prev => ({ ...prev, unit_symbol: e.target.value }))}
+                    placeholder={isRTL ? 'أدخل الرمز العربي (مثل: كغ، ل)' : 'Enter Arabic symbol (e.g., كغ، ل)'}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="unit_type">{isRTL ? 'نوع الوحدة' : 'Unit Type'}</Label>
+                  <Select
+                    value={unitForm.unit_type || 'COUNT'}
+                    onValueChange={(value) => setUnitForm(prev => ({ ...prev, unit_type: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="COUNT">{isRTL ? 'عدد' : 'Count'}</SelectItem>
+                      <SelectItem value="WEIGHT">{isRTL ? 'وزن' : 'Weight'}</SelectItem>
+                      <SelectItem value="VOLUME">{isRTL ? 'حجم' : 'Volume'}</SelectItem>
+                      <SelectItem value="LENGTH">{isRTL ? 'طول' : 'Length'}</SelectItem>
+                      <SelectItem value="AREA">{isRTL ? 'مساحة' : 'Area'}</SelectItem>
+                      <SelectItem value="TIME">{isRTL ? 'وقت' : 'Time'}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setUnitDialogOpen(false)}>
-                  Cancel
+                  {isRTL ? 'إلغاء' : 'Cancel'}
                 </Button>
                 <Button onClick={editingUnit ? handleUpdateUnit : handleCreateUnit}>
-                  {editingUnit ? 'Update' : 'Create'}
+                  {editingUnit ? (isRTL ? 'تحديث' : 'Update') : (isRTL ? 'إنشاء' : 'Create')}
                 </Button>
               </DialogFooter>
             </DialogContent>
