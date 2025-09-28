@@ -109,17 +109,20 @@ export interface StockMovement {
   id: number;
   product_id: number;
   warehouse_id: number;
-  movement_type: 'RECEIPT' | 'ISSUE' | 'TRANSFER' | 'RETURN' | 'ADJUSTMENT' | 'STOCKTAKING';
+  movement_type: 'RECEIPT' | 'ISSUE' | 'TRANSFER' | 'RETURN' | 'ADJUSTMENT' | 'STOCKTAKING' | 'IN' | 'OUT';
+  movement_type_ar?: string;
   quantity: number;
   unit_price?: number;
   total_value?: number;
   reference_number?: string;
+  reference_number_ar?: string;
   reference_type?: 'PURCHASE_ORDER' | 'SALES_ORDER' | 'PRODUCTION' | 'TRANSFER' | 'RETURN' | 'STOCKTAKING';
   notes?: string;
   notes_ar?: string;
   created_by?: string;
+  created_by_ar?: string;
   approved_by?: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED';
   created_at: string;
   updated_at: string;
   
@@ -202,8 +205,11 @@ export interface CreateStockMovementData {
   quantity: number;
   unit_price?: number;
   reference_number?: string;
+  reference_number_ar?: string;
   notes?: string;
+  notes_ar?: string;
   created_by?: string;
+  created_by_ar?: string;
 }
 
 // Master data creation types
@@ -382,8 +388,9 @@ export interface WarehouseReport {
 }
 
 export interface ReportData {
+  title: string;
   headers: string[];
   rows: any[][];
   summary?: Record<string, any>;
-  generated_at: string;
+  generated_at?: string;
 }

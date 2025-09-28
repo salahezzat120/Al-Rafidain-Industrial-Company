@@ -17,6 +17,7 @@ import {
   getWarehouses,
   getProducts
 } from '@/lib/warehouse';
+import { CustomReportBuilder } from './custom-report-builder';
 import type { 
   Warehouse, 
   Product,
@@ -72,7 +73,10 @@ export function ReportsEngine() {
     try {
       setLoading(true);
       const data = await generateReport(selectedReport, filters);
-      setReportData(data);
+      setReportData({
+        ...data,
+        generated_at: new Date().toISOString()
+      });
       setDialogOpen(false);
     } catch (error) {
       console.error('Error generating report:', error);
@@ -248,10 +252,10 @@ export function ReportsEngine() {
               </TabsContent>
 
               <TabsContent value="custom" className="space-y-4">
-                <div className="text-center py-8 text-muted-foreground">
-                  <Settings className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>{isRTL ? 'محرر التقارير المخصصة قيد التطوير' : 'Custom report designer is under development'}</p>
-                </div>
+                <CustomReportBuilder onReportGenerated={(report) => {
+                  setReportData(report);
+                  setDialogOpen(false);
+                }} />
               </TabsContent>
             </Tabs>
 

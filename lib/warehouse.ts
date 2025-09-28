@@ -772,20 +772,52 @@ export async function getStockMovements(productId?: number, warehouseId?: number
 }
 
 export async function createStockMovement(movementData: CreateStockMovementData): Promise<StockMovement> {
+  try {
+    // Validate required fields
+    if (!movementData.product_id || !movementData.warehouse_id || !movementData.quantity) {
+      throw new Error('Missing required fields: product_id, warehouse_id, or quantity');
+    }
+
   // Map movement types to database values
   const dbMovementType = movementData.movement_type === 'RECEIPT' ? 'IN' : 
                         movementData.movement_type === 'ISSUE' ? 'OUT' : 
+                          movementData.movement_type === 'TRANSFER' ? 'TRANSFER' :
+                          movementData.movement_type === 'RETURN' ? 'IN' :
                         movementData.movement_type;
 
-  const fullMovementData = {
-    ...movementData,
-    movement_type: dbMovementType,
-    created_by: movementData.created_by || 'System'
-  };
+    // Map movement types to Arabic
+    const movementTypeArabic = {
+      'IN': 'دخول',
+      'OUT': 'خروج', 
+      'TRANSFER': 'نقل',
+      'ADJUSTMENT': 'تعديل',
+      'RECEIPT': 'استلام',
+      'ISSUE': 'إصدار',
+      'RETURN': 'إرجاع'
+    };
 
+    // Use data structure that includes required Arabic fields
+    const minimalData = {
+      product_id: movementData.product_id,
+      warehouse_id: movementData.warehouse_id,
+    movement_type: dbMovementType,
+      movement_type_ar: movementTypeArabic[dbMovementType] || dbMovementType,
+      quantity: Math.abs(movementData.quantity),
+      unit_price: movementData.unit_price || 0,
+      reference_number: movementData.reference_number || `REF-${Date.now()}`,
+      reference_number_ar: movementData.reference_number_ar || `مرجع-${Date.now()}`,
+      notes: movementData.notes || '',
+      notes_ar: movementData.notes_ar || '',
+      created_by: movementData.created_by || 'System',
+      created_by_ar: movementData.created_by_ar || 'النظام'
+    };
+
+    console.log('Creating stock movement with minimal data:', minimalData);
+
+    // Try the insert with minimal data
   const { data, error } = await supabase
     .from('stock_movements')
-    .insert([fullMovementData])
+      .insert([minimalData])
     .select(`
       *,
       product:products(*),
@@ -795,13 +827,27 @@ export async function createStockMovement(movementData: CreateStockMovementData)
 
   if (error) {
     console.error('Error creating stock movement:', error);
-    throw new Error('Failed to create stock movement');
+      
+      // If it's still an RLS error, provide a more helpful message
+      if (error.message.includes('row-level security')) {
+        throw new Error('RLS policy is blocking the insert. Please run the RLS fix script in Supabase SQL Editor.');
+      }
+      
+      throw new Error(`Failed to create stock movement: ${error.message}`);
   }
 
   // Update inventory after stock movement
-  await updateInventoryAfterMovement(fullMovementData);
+    try {
+      await updateInventoryAfterMovement(minimalData);
+    } catch (inventoryError) {
+      console.warn('Inventory update failed, but movement was created:', inventoryError);
+    }
 
   return data;
+  } catch (error) {
+    console.error('Error in createStockMovement:', error);
+    throw error;
+  }
 }
 
 // ==================== STOCKTAKING ====================
@@ -1270,46 +1316,52 @@ export async function getStockAlerts(): Promise<StockAlert[]> {
 
 // ==================== BARCODE FUNCTIONS ====================
 
-export async function getBarcodes(): Promise<{ data: Barcode[] | null; error: string | null }> {
+export async function getBarcodes(): Promise<Barcode[]> {
   try {
     const { data, error } = await supabase
       .from('barcodes')
-      .select('*')
+      .select(`
+        *,
+        product:products(*)
+      `)
       .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching barcodes:', error);
-      return { data: null, error: error.message };
+      throw new Error('Failed to fetch barcodes');
     }
 
-    return { data: data || [], error: null };
+    return data || [];
   } catch (error: any) {
     console.error('Error in getBarcodes:', error);
-    return { data: null, error: error.message || 'Failed to fetch barcodes' };
+    throw new Error('Failed to fetch barcodes');
   }
 }
 
-export async function createBarcode(barcodeData: { product_id: string; barcode: string; product_name?: string }): Promise<{ data: Barcode | null; error: string | null }> {
+export async function createBarcode(barcodeData: { product_id: string; barcode: string; product_name?: string }): Promise<Barcode> {
   try {
     const { data, error } = await supabase
       .from('barcodes')
       .insert([barcodeData])
-      .select()
+      .select(`
+        *,
+        product:products(*)
+      `)
       .single();
 
     if (error) {
       console.error('Error creating barcode:', error);
-      return { data: null, error: error.message };
+      throw new Error('Failed to create barcode');
     }
 
-    return { data, error: null };
+    return data;
   } catch (error: any) {
     console.error('Error in createBarcode:', error);
-    return { data: null, error: error.message || 'Failed to create barcode' };
+    throw new Error('Failed to create barcode');
   }
 }
 
-export async function deleteBarcode(id: string): Promise<{ error: string | null }> {
+export async function deleteBarcode(id: string): Promise<void> {
   try {
     const { error } = await supabase
       .from('barcodes')
@@ -1318,12 +1370,545 @@ export async function deleteBarcode(id: string): Promise<{ error: string | null 
 
     if (error) {
       console.error('Error deleting barcode:', error);
-      return { error: error.message };
+      throw new Error('Failed to delete barcode');
     }
-
-    return { error: null };
   } catch (error: any) {
     console.error('Error in deleteBarcode:', error);
-    return { error: error.message || 'Failed to delete barcode' };
+    throw new Error('Failed to delete barcode');
+  }
+}
+
+// ==================== REPORTS ====================
+
+export async function generateReport(reportType: string, filters: any = {}): Promise<ReportData> {
+  try {
+    console.log('Generating report:', reportType, 'with filters:', filters);
+    
+    switch (reportType) {
+      case 'COST_SALES':
+        return await generateCostSalesReport(filters);
+      case 'CONSIGNMENT':
+        return await generateConsignmentReport(filters);
+      case 'DAMAGED':
+        return await generateDamagedGoodsReport(filters);
+      case 'EXPIRY':
+        return await generateExpiryReport(filters);
+      case 'SERIAL_TRACKING':
+        return await generateSerialTrackingReport(filters);
+      case 'PRODUCT_CARD':
+        return await generateProductCardReport(filters);
+      case 'MONITORING_CARD':
+        return await generateMonitoringCardReport(filters);
+      case 'AGING':
+        return await generateAgingReport(filters);
+      case 'STOCK_ANALYSIS':
+        return await generateStockAnalysisReport(filters);
+      case 'VALUATION':
+        return await generateValuationReport(filters);
+      case 'ISSUED_ITEMS':
+        return await generateIssuedItemsReport(filters);
+      case 'CUSTOM':
+        return await generateCustomReport(filters);
+      default:
+        throw new Error(`Unknown report type: ${reportType}`);
+    }
+  } catch (error: any) {
+    console.error('Error generating report:', error);
+    throw new Error(`Failed to generate ${reportType} report: ${error.message}`);
+  }
+}
+
+// Cost & Sales Price Report
+async function generateCostSalesReport(filters: any): Promise<ReportData> {
+  const { data, error } = await supabase
+    .from('products')
+    .select(`
+      *,
+      inventory:inventory(*),
+      stock_movements:stock_movements(*)
+    `)
+    .order('product_name');
+
+  if (error) throw error;
+
+  const headers = ['Product Code', 'Product Name', 'Cost Price', 'Sales Price', 'Margin %', 'Stock Level'];
+  const rows = data?.map(product => [
+    product.product_code || '',
+    product.product_name || '',
+    product.cost_price || '0.00',
+    product.sales_price || '0.00',
+    product.sales_price && product.cost_price ? 
+      (((product.sales_price - product.cost_price) / product.cost_price) * 100).toFixed(2) + '%' : '0.00%',
+    product.inventory?.[0]?.available_quantity || '0'
+  ]) || [];
+
+  return {
+    title: 'Cost & Sales Price Report',
+    headers,
+    rows,
+    summary: {
+      totalProducts: data?.length || 0,
+      averageMargin: '0.00%'
+    }
+  };
+}
+
+// Consignment Stock Report
+async function generateConsignmentReport(filters: any): Promise<ReportData> {
+  const { data, error } = await supabase
+    .from('inventory')
+    .select(`
+      *,
+      product:products(*),
+      warehouse:warehouses(*)
+    `)
+    .eq('consignment', true);
+
+  if (error) throw error;
+
+  const headers = ['Product', 'Warehouse', 'Consignment Quantity', 'Consignment Value', 'Status'];
+  const rows = data?.map(item => [
+    item.product?.product_name || '',
+    item.warehouse?.warehouse_name || '',
+    item.consignment_quantity || '0',
+    item.consignment_value || '0.00',
+    item.consignment_status || 'Active'
+  ]) || [];
+
+  return {
+    title: 'Consignment Stock Report',
+    headers,
+    rows,
+    summary: {
+      totalItems: data?.length || 0,
+      totalValue: '0.00'
+    }
+  };
+}
+
+// Damaged Goods Report
+async function generateDamagedGoodsReport(filters: any): Promise<ReportData> {
+  const { data, error } = await supabase
+    .from('stock_movements')
+    .select(`
+      *,
+      product:products(*),
+      warehouse:warehouses(*)
+    `)
+    .eq('movement_type', 'DAMAGE')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  const headers = ['Date', 'Product', 'Warehouse', 'Damaged Quantity', 'Reason', 'Value'];
+  const rows = data?.map(movement => [
+    new Date(movement.created_at).toLocaleDateString(),
+    movement.product?.product_name || '',
+    movement.warehouse?.warehouse_name || '',
+    movement.quantity || '0',
+    movement.notes || '',
+    (movement.quantity * movement.unit_price).toFixed(2)
+  ]) || [];
+
+  return {
+    title: 'Damaged Goods Report',
+    headers,
+    rows,
+    summary: {
+      totalDamaged: data?.length || 0,
+      totalValue: '0.00'
+    }
+  };
+}
+
+// Expiry Report
+async function generateExpiryReport(filters: any): Promise<ReportData> {
+  const { data, error } = await supabase
+    .from('products')
+    .select(`
+      *,
+      inventory:inventory(*)
+    `)
+    .not('expiry_date', 'is', null)
+    .order('expiry_date');
+
+  if (error) throw error;
+
+  const headers = ['Product', 'Expiry Date', 'Days Until Expiry', 'Quantity', 'Status'];
+  const rows = data?.map(product => {
+    const expiryDate = new Date(product.expiry_date);
+    const today = new Date();
+    const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    let status = 'Good';
+    if (daysUntilExpiry < 0) status = 'Expired';
+    else if (daysUntilExpiry <= 30) status = 'Expiring Soon';
+    else if (daysUntilExpiry <= 60) status = 'Warning';
+
+    return [
+      product.product_name || '',
+      expiryDate.toLocaleDateString(),
+      daysUntilExpiry.toString(),
+      product.inventory?.[0]?.available_quantity || '0',
+      status
+    ];
+  }) || [];
+
+  return {
+    title: 'Expiry Report',
+    headers,
+    rows,
+    summary: {
+      totalProducts: data?.length || 0,
+      expiringSoon: rows.filter(row => row[4] === 'Expiring Soon').length,
+      expired: rows.filter(row => row[4] === 'Expired').length
+    }
+  };
+}
+
+// Serial Number Tracking Report
+async function generateSerialTrackingReport(filters: any): Promise<ReportData> {
+  const { data, error } = await supabase
+    .from('serial_numbers')
+    .select(`
+      *,
+      product:products(*),
+      warehouse:warehouses(*)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  const headers = ['Serial Number', 'Product', 'Warehouse', 'Status', 'Date', 'Notes'];
+  const rows = data?.map(serial => [
+    serial.serial_number || '',
+    serial.product?.product_name || '',
+    serial.warehouse?.warehouse_name || '',
+    serial.status || 'Active',
+    new Date(serial.created_at).toLocaleDateString(),
+    serial.notes || ''
+  ]) || [];
+
+  return {
+    title: 'Serial Number Tracking Report',
+    headers,
+    rows,
+    summary: {
+      totalSerials: data?.length || 0,
+      active: rows.filter(row => row[3] === 'Active').length
+    }
+  };
+}
+
+// Product Card Report
+async function generateProductCardReport(filters: any): Promise<ReportData> {
+  const { data, error } = await supabase
+    .from('products')
+    .select(`
+      *,
+      inventory:inventory(*),
+      stock_movements:stock_movements(*)
+    `)
+    .order('product_name');
+
+  if (error) throw error;
+
+  const headers = ['Product Code', 'Product Name', 'Description', 'Category', 'Current Stock', 'Last Movement'];
+  const rows = data?.map(product => [
+    product.product_code || '',
+    product.product_name || '',
+    product.description || '',
+    product.category || '',
+    product.inventory?.[0]?.available_quantity || '0',
+    product.stock_movements?.[0] ? new Date(product.stock_movements[0].created_at).toLocaleDateString() : 'Never'
+  ]) || [];
+
+  return {
+    title: 'Product Card Report',
+    headers,
+    rows,
+    summary: {
+      totalProducts: data?.length || 0
+    }
+  };
+}
+
+// Product Monitoring Card Report
+async function generateMonitoringCardReport(filters: any): Promise<ReportData> {
+  const { data, error } = await supabase
+    .from('stock_movements')
+    .select(`
+      *,
+      product:products(*),
+      warehouse:warehouses(*)
+    `)
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (error) throw error;
+
+  const headers = ['Date', 'Product', 'Warehouse', 'Movement Type', 'Quantity', 'Reference'];
+  const rows = data?.map(movement => [
+    new Date(movement.created_at).toLocaleDateString(),
+    movement.product?.product_name || '',
+    movement.warehouse?.warehouse_name || '',
+    movement.movement_type || '',
+    movement.quantity || '0',
+    movement.reference_number || ''
+  ]) || [];
+
+  return {
+    title: 'Product Monitoring Card Report',
+    headers,
+    rows,
+    summary: {
+      totalMovements: data?.length || 0
+    }
+  };
+}
+
+// Aging Report
+async function generateAgingReport(filters: any): Promise<ReportData> {
+  const { data, error } = await supabase
+    .from('aging_items')
+    .select(`
+      *,
+      product:products(*),
+      warehouse:warehouses(*)
+    `)
+    .order('days_in_stock', { ascending: false });
+
+  if (error) throw error;
+
+  const headers = ['Product', 'Warehouse', 'Quantity', 'Days in Stock', 'Age Category', 'Last Movement'];
+  const rows = data?.map(item => [
+    item.product?.product_name || '',
+    item.warehouse?.warehouse_name || '',
+    item.quantity || '0',
+    item.days_in_stock || '0',
+    item.age_category || '',
+    item.last_movement_date ? new Date(item.last_movement_date).toLocaleDateString() : 'Never'
+  ]) || [];
+
+  return {
+    title: 'Aging Report',
+    headers,
+    rows,
+    summary: {
+      totalItems: data?.length || 0,
+      oldItems: rows.filter(row => row[4] === 'OLD').length
+    }
+  };
+}
+
+// Stock Analysis Report
+async function generateStockAnalysisReport(filters: any): Promise<ReportData> {
+  const { data, error } = await supabase
+    .from('stock_analysis')
+    .select(`
+      *,
+      product:products(*)
+    `)
+    .order('analysis_date', { ascending: false });
+
+  if (error) throw error;
+
+  const headers = ['Product', 'Analysis Date', 'Total In', 'Total Out', 'Net Movement', 'Current Stock', 'Turnover Rate'];
+  const rows = data?.map(analysis => [
+    analysis.product?.product_name || '',
+    new Date(analysis.analysis_date).toLocaleDateString(),
+    analysis.total_in || '0',
+    analysis.total_out || '0',
+    analysis.net_movement || '0',
+    analysis.current_stock || '0',
+    analysis.turnover_rate ? analysis.turnover_rate.toFixed(2) + '%' : '0.00%'
+  ]) || [];
+
+  return {
+    title: 'Stock Analysis Report',
+    headers,
+    rows,
+    summary: {
+      totalAnalyses: data?.length || 0
+    }
+  };
+}
+
+// Valuation Report
+async function generateValuationReport(filters: any): Promise<ReportData> {
+  const { data, error } = await supabase
+    .from('valuation_items')
+    .select(`
+      *,
+      product:products(*),
+      warehouse:warehouses(*)
+    `)
+    .order('valuation_date', { ascending: false });
+
+  if (error) throw error;
+
+  const headers = ['Product', 'Warehouse', 'Quantity', 'Unit Cost', 'Total Value', 'Valuation Date'];
+  const rows = data?.map(item => [
+    item.product?.product_name || '',
+    item.warehouse?.warehouse_name || '',
+    item.quantity || '0',
+    item.unit_cost || '0.00',
+    item.total_value || '0.00',
+    new Date(item.valuation_date).toLocaleDateString()
+  ]) || [];
+
+  return {
+    title: 'Valuation Report',
+    headers,
+    rows,
+    summary: {
+      totalValue: data?.reduce((sum, item) => sum + (parseFloat(item.total_value) || 0), 0).toFixed(2),
+      totalItems: data?.length || 0
+    }
+  };
+}
+
+// Issued Items Report
+async function generateIssuedItemsReport(filters: any): Promise<ReportData> {
+  const { data, error } = await supabase
+    .from('stock_movements')
+    .select(`
+      *,
+      product:products(*),
+      warehouse:warehouses(*)
+    `)
+    .eq('movement_type', 'ISSUE')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  const headers = ['Date', 'Product', 'Warehouse', 'Quantity', 'Issued To', 'Reference', 'Notes'];
+  const rows = data?.map(movement => [
+    new Date(movement.created_at).toLocaleDateString(),
+    movement.product?.product_name || '',
+    movement.warehouse?.warehouse_name || '',
+    movement.quantity || '0',
+    movement.issued_to || '',
+    movement.reference_number || '',
+    movement.notes || ''
+  ]) || [];
+
+  return {
+    title: 'Issued Items Report',
+    headers,
+    rows,
+    summary: {
+      totalIssued: data?.length || 0,
+      totalQuantity: data?.reduce((sum, movement) => sum + (parseInt(movement.quantity) || 0), 0)
+    }
+  };
+}
+
+// Custom Report Generator
+async function generateCustomReport(config: any): Promise<ReportData> {
+  try {
+    const { tables, fields, filters, sorting } = config;
+    
+    // Build the select query based on selected tables and fields
+    let selectQuery = '';
+    const tableJoins: string[] = [];
+    
+    // Add main table
+    const mainTable = tables[0];
+    const mainFields = fields[mainTable] || [];
+    selectQuery = mainFields.map(field => `${mainTable}.${field}`).join(', ');
+    
+    // Add joins for other tables
+    for (let i = 1; i < tables.length; i++) {
+      const table = tables[i];
+      const tableFields = fields[table] || [];
+      if (tableFields.length > 0) {
+        const joinFields = tableFields.map(field => `${table}.${field}`).join(', ');
+        selectQuery += `, ${joinFields}`;
+        
+        // Add join condition (assuming foreign key relationships)
+        if (table === 'products' && mainTable === 'inventory') {
+          tableJoins.push(`LEFT JOIN products ON inventory.product_id = products.id`);
+        } else if (table === 'warehouses' && mainTable === 'inventory') {
+          tableJoins.push(`LEFT JOIN warehouses ON inventory.warehouse_id = warehouses.id`);
+        }
+        // Add more join conditions as needed
+      }
+    }
+    
+    // Build the complete query
+    let query = supabase.from(mainTable).select(selectQuery);
+    
+    // Apply filters
+    if (filters && filters.length > 0) {
+      filters.forEach((filter: any) => {
+        if (filter.field && filter.value) {
+          const [table, field] = filter.field.split('.');
+          switch (filter.operator) {
+            case '=':
+              query = query.eq(`${table}.${field}`, filter.value);
+              break;
+            case '!=':
+              query = query.neq(`${table}.${field}`, filter.value);
+              break;
+            case '>':
+              query = query.gt(`${table}.${field}`, filter.value);
+              break;
+            case '<':
+              query = query.lt(`${table}.${field}`, filter.value);
+              break;
+            case 'LIKE':
+              query = query.ilike(`${table}.${field}`, `%${filter.value}%`);
+              break;
+          }
+        }
+      });
+    }
+    
+    // Apply sorting
+    if (sorting && sorting.length > 0) {
+      sorting.forEach((sort: any) => {
+        if (sort.field) {
+          const [table, field] = sort.field.split('.');
+          query = query.order(`${table}.${field}`, { ascending: sort.direction === 'ASC' });
+        }
+      });
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    
+    // Generate headers and rows
+    const headers: string[] = [];
+    const allFields: string[] = [];
+    
+    tables.forEach((table: string) => {
+      const tableFields = fields[table] || [];
+      tableFields.forEach(field => {
+        headers.push(`${table}.${field}`);
+        allFields.push(`${table}.${field}`);
+      });
+    });
+    
+    const rows = data?.map((item: any) => 
+      allFields.map(field => {
+        const [table, fieldName] = field.split('.');
+        return item[fieldName] || '';
+      })
+    ) || [];
+    
+    return {
+      title: config.name || 'Custom Report',
+      headers,
+      rows,
+      summary: {
+        totalRecords: data?.length || 0,
+        generatedAt: new Date().toISOString()
+      }
+    };
+  } catch (error: any) {
+    console.error('Error generating custom report:', error);
+    throw new Error(`Failed to generate custom report: ${error.message}`);
   }
 }

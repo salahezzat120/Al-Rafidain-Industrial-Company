@@ -44,7 +44,11 @@ export function StockMovements() {
     quantity: 0,
     unit_price: 0,
     reference_number: '',
-    notes: ''
+    reference_number_ar: '',
+    notes: '',
+    notes_ar: '',
+    created_by: 'System',
+    created_by_ar: 'النظام'
   });
 
   useEffect(() => {
@@ -80,7 +84,11 @@ export function StockMovements() {
         quantity: 0,
         unit_price: 0,
         reference_number: '',
-        notes: ''
+        reference_number_ar: '',
+        notes: '',
+        notes_ar: '',
+        created_by: 'System',
+        created_by_ar: 'النظام'
       });
       setDialogOpen(false);
       loadData();
@@ -321,9 +329,12 @@ export function StockMovements() {
                       {getMovementTypeIcon(movement.movement_type)}
                       <span className="font-medium">
                         {isRTL ? 
-                          (movement.movement_type === 'RECEIPT' ? 'إضافة' :
-                           movement.movement_type === 'ISSUE' ? 'صرف' :
-                           movement.movement_type === 'TRANSFER' ? 'تحويل' : 'إرجاع') :
+                          (movement.movement_type_ar || 
+                           (movement.movement_type === 'RECEIPT' ? 'إضافة' :
+                            movement.movement_type === 'ISSUE' ? 'صرف' :
+                            movement.movement_type === 'TRANSFER' ? 'تحويل' : 
+                            movement.movement_type === 'IN' ? 'دخول' :
+                            movement.movement_type === 'OUT' ? 'خروج' : 'إرجاع')) :
                           movement.movement_type
                         }
                       </span>
@@ -337,7 +348,7 @@ export function StockMovements() {
                   </TableCell>
                   <TableCell>{movement.quantity}</TableCell>
                   <TableCell>{movement.unit_price ? `$${movement.unit_price.toFixed(2)}` : '-'}</TableCell>
-                  <TableCell>{movement.reference_number || '-'}</TableCell>
+                  <TableCell>{isRTL ? (movement.reference_number_ar || movement.reference_number) : movement.reference_number || '-'}</TableCell>
                   <TableCell>{getStatusBadge(movement.status)}</TableCell>
                   <TableCell>{new Date(movement.created_at).toLocaleDateString()}</TableCell>
                 </TableRow>

@@ -47,10 +47,12 @@ export function BarcodeManager() {
         getProducts(),
         getBarcodes()
       ]);
-      setProducts(productsData);
-      setBarcodes(barcodesData);
+      setProducts(productsData || []);
+      setBarcodes(barcodesData || []);
     } catch (error) {
       console.error('Error loading data:', error);
+      setProducts([]);
+      setBarcodes([]);
     } finally {
       setLoading(false);
     }
@@ -83,7 +85,7 @@ export function BarcodeManager() {
 
   const handleDeleteBarcode = async (barcodeId: number) => {
     try {
-      await deleteBarcode(barcodeId);
+      await deleteBarcode(barcodeId.toString());
       setBarcodes(prev => prev.filter(b => b.id !== barcodeId));
     } catch (error) {
       console.error('Error deleting barcode:', error);
@@ -164,13 +166,13 @@ export function BarcodeManager() {
     }
   };
 
-  const filteredProducts = products.filter(product =>
+  const filteredProducts = (products || []).filter(product =>
     product.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.product_name_ar?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.product_code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredBarcodes = barcodes.filter(barcode =>
+  const filteredBarcodes = (barcodes || []).filter(barcode =>
     barcode.barcode_value.toLowerCase().includes(searchTerm.toLowerCase()) ||
     barcode.product?.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     barcode.product?.product_name_ar?.toLowerCase().includes(searchTerm.toLowerCase()) ||
