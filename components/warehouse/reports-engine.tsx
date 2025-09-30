@@ -15,7 +15,7 @@ import { useLanguage } from '@/contexts/language-context';
 import { 
   generateReport,
   getWarehouses,
-  getProducts
+  getProductsWithWarehouseInfo
 } from '@/lib/warehouse';
 import { CustomReportBuilder } from './custom-report-builder';
 import type { 
@@ -58,7 +58,7 @@ export function ReportsEngine() {
     try {
       const [warehousesData, productsData] = await Promise.all([
         getWarehouses(),
-        getProducts()
+        getProductsWithWarehouseInfo()
       ]);
       setWarehouses(warehousesData);
       setProducts(productsData);

@@ -467,6 +467,40 @@ export async function createMaterial(materialData: CreateMaterialData): Promise<
 
 // ==================== PRODUCTS ====================
 
+// Test function to verify joins are working
+export async function testProductJoins(): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select(`
+        id,
+        product_name,
+        main_group_id,
+        sub_group_id,
+        color_id,
+        material_id,
+        unit_of_measurement_id,
+        main_group:main_groups(group_name),
+        sub_group:sub_groups(sub_group_name),
+        color:colors(color_name),
+        material:materials(material_name),
+        unit_of_measurement:units_of_measurement(unit_name)
+      `)
+      .limit(5);
+
+    if (error) {
+      console.error('Error testing joins:', error);
+      return [];
+    }
+
+    console.log('Test join results:', data);
+    return data || [];
+  } catch (err) {
+    console.error('Error in testProductJoins:', err);
+    return [];
+  }
+}
+
 export async function getProducts(filters?: ProductFilters): Promise<Product[]> {
   let query = supabase
     .from('products')
@@ -1035,6 +1069,7 @@ export async function getProductsWithWarehouseInfo(): Promise<any[]> {
 
     if (error) {
       console.error('Error fetching products with warehouse info:', error);
+      console.error('Error details:', error.message, error.details, error.hint);
       
       // If the complex query fails, try a simpler one
       console.log('⚠️  Complex query failed, trying simpler query...');
@@ -1071,6 +1106,16 @@ export async function getProductsWithWarehouseInfo(): Promise<any[]> {
       return simpleData || [];
     }
 
+    console.log('Products with warehouse info loaded:', data?.length, 'items');
+    if (data && data.length > 0) {
+      console.log('Sample product data:', {
+        id: data[0].id,
+        name: data[0].product_name,
+        main_group: data[0].main_group,
+        color: data[0].color,
+        material: data[0].material
+      });
+    }
     return data || [];
   } catch (err) {
     console.error('Error in getProductsWithWarehouseInfo:', err);
@@ -1079,24 +1124,6 @@ export async function getProductsWithWarehouseInfo(): Promise<any[]> {
 }
 
 export async function getProductsWithInventoryAndPricing(warehouseId?: number): Promise<any[]> {
-  let query = supabase
-    .from('products')
-    .select(`
-      *,
-      main_group:main_groups(*),
-      sub_group:sub_groups(*),
-      color:colors(*),
-      material:materials(*),
-      unit_of_measurement:units_of_measurement(*),
-      inventory:inventory(
-        *,
-        warehouse:warehouses(*)
-      ),
-      product_prices:product_prices(*)
-    `)
-    .eq('is_active', true)
-    .order('product_name');
-
   const { data: products, error } = await supabase
     .from('products')
     .select(`

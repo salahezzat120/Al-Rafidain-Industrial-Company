@@ -17,7 +17,7 @@ import {
   getStocktakings,
   createStocktaking,
   getWarehouses,
-  getProducts,
+  getProductsWithWarehouseInfo,
   getInventorySummary
 } from '@/lib/warehouse';
 import type { 
@@ -60,7 +60,7 @@ export function StocktakingModule() {
       const [stocktakingsData, warehousesData, productsData, inventoryData] = await Promise.all([
         getStocktakings(),
         getWarehouses(),
-        getProducts(),
+        getProductsWithWarehouseInfo(),
         getInventorySummary()
       ]);
 

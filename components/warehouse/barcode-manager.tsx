@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Search, Filter, QrCode, Download, Printer, Eye, Trash2, Copy, CheckCircle, AlertCircle } from 'lucide-react';
 import { useLanguage } from '@/contexts/language-context';
 import { 
-  getProducts,
+  getProductsWithWarehouseInfo,
   getBarcodes,
   createBarcode,
   deleteBarcode
@@ -44,7 +44,7 @@ export function BarcodeManager() {
     try {
       setLoading(true);
       const [productsData, barcodesData] = await Promise.all([
-        getProducts(),
+        getProductsWithWarehouseInfo(),
         getBarcodes()
       ]);
       setProducts(productsData || []);

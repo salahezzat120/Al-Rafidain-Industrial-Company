@@ -42,6 +42,7 @@ import { ReportsEngine } from '@/components/warehouse/reports-engine';
 import { StocktakingModule } from '@/components/warehouse/stocktaking-module';
 import { BulkUpload } from '@/components/warehouse/bulk-upload';
 import { WorkflowIntegration } from '@/components/warehouse/workflow-integration';
+import { TestJoins } from '@/components/warehouse/test-joins';
 import { useLanguage } from '@/contexts/language-context';
 import type { 
   Warehouse, 
@@ -584,7 +585,7 @@ export function WarehouseTab() {
       </div>
 
       <Tabs value={activeSubTab} onValueChange={(value) => setActiveSubTab(value as any)}>
-        <TabsList className="grid w-full grid-cols-10">
+        <TabsList className="grid w-full grid-cols-11">
           <TabsTrigger value="dashboard">
             {t('warehouse.dashboard')}
           </TabsTrigger>
@@ -617,6 +618,9 @@ export function WarehouseTab() {
           </TabsTrigger>
           <TabsTrigger value="workflow">
             {t('warehouse.workflow')}
+          </TabsTrigger>
+          <TabsTrigger value="test">
+            Test Joins
           </TabsTrigger>
         </TabsList>
 
@@ -1504,6 +1508,11 @@ export function WarehouseTab() {
         {/* Workflow Integration Tab */}
         <TabsContent value="workflow" className="space-y-6">
           <WorkflowIntegration />
+        </TabsContent>
+
+        {/* Test Joins Tab */}
+        <TabsContent value="test" className="space-y-6">
+          <TestJoins />
         </TabsContent>
       </Tabs>
     </div>

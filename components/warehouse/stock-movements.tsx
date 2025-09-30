@@ -16,7 +16,7 @@ import { useLanguage } from '@/contexts/language-context';
 import { 
   getStockMovements, 
   createStockMovement,
-  getProducts,
+  getProductsWithWarehouseInfo,
   getWarehouses
 } from '@/lib/warehouse';
 import type { 
@@ -60,7 +60,7 @@ export function StockMovements() {
       setLoading(true);
       const [movementsData, productsData, warehousesData] = await Promise.all([
         getStockMovements(),
-        getProducts(),
+        getProductsWithWarehouseInfo(),
         getWarehouses()
       ]);
 
