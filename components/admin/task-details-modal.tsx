@@ -44,14 +44,54 @@ export function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: TaskDetail
   const loadRepresentatives = useCallback(async () => {
     try {
       setIsLoadingRepresentatives(true)
+      console.log('🔄 Loading representatives...')
+      
       const representativesData = await getRepresentatives()
-      setRepresentatives(representativesData.map(rep => ({
+      console.log('📋 Raw representatives data:', representativesData)
+      console.log('📋 Data type:', typeof representativesData)
+      console.log('📋 Is array:', Array.isArray(representativesData))
+      console.log('📋 Constructor:', representativesData?.constructor?.name)
+      
+      // Ensure representativesData is an array
+      if (!Array.isArray(representativesData)) {
+        console.error('❌ Representatives data is not an array:', representativesData)
+        console.error('❌ Data type:', typeof representativesData)
+        console.error('❌ Data value:', JSON.stringify(representativesData, null, 2))
+        console.error('❌ Constructor:', representativesData?.constructor?.name)
+        
+        // Try to convert to array if it's an object with array-like properties
+        if (representativesData && typeof representativesData === 'object') {
+          console.log('🔄 Attempting to convert object to array...')
+          const convertedArray = Object.values(representativesData)
+          if (Array.isArray(convertedArray)) {
+            console.log('✅ Successfully converted to array:', convertedArray)
+            setRepresentatives(convertedArray.map(rep => ({
+              id: rep.id?.toString() || '',
+              name: rep.name || '',
+              status: rep.status || 'available'
+            })))
+            return
+          }
+        }
+        
+        setRepresentatives([])
+        return
+      }
+      
+      console.log('📋 Representatives data length:', representativesData.length)
+      console.log('📋 Representatives data:', representativesData)
+      
+      const mappedRepresentatives = representativesData.map(rep => ({
         id: rep.id.toString(),
         name: rep.name,
         status: rep.status || 'available'
-      })))
+      }))
+      
+      console.log('📋 Mapped representatives:', mappedRepresentatives)
+      setRepresentatives(mappedRepresentatives)
     } catch (error) {
-      console.error('Error loading representatives:', error)
+      console.error('❌ Error loading representatives:', error)
+      setRepresentatives([]) // Set empty array on error
       toast({
         title: "Error",
         description: "Failed to load representatives",
@@ -379,19 +419,27 @@ export function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: TaskDetail
                   <div>
                     <Label htmlFor="representative">Assigned Representative</Label>
                     {isEditing ? (
-                      <Select value={editData.representative_id} onValueChange={(value) => {
-                        const rep = representatives.find(r => r.id === value)
-                        setEditData(prev => ({ 
-                          ...prev, 
-                          representative_id: value,
-                          representative_name: rep?.name || ""
-                        }))
+                      <Select value={editData.representative_id || "unassigned"} onValueChange={(value) => {
+                        if (value === "unassigned") {
+                          setEditData(prev => ({ 
+                            ...prev, 
+                            representative_id: "",
+                            representative_name: ""
+                          }))
+                        } else {
+                          const rep = representatives.find(r => r.id === value)
+                          setEditData(prev => ({ 
+                            ...prev, 
+                            representative_id: value,
+                            representative_name: rep?.name || ""
+                          }))
+                        }
                       }} disabled={isLoadingRepresentatives}>
                         <SelectTrigger>
                           <SelectValue placeholder={isLoadingRepresentatives ? "Loading..." : "Select representative"} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Unassigned</SelectItem>
+                          <SelectItem value="unassigned">Unassigned</SelectItem>
                           {representatives.map((rep) => (
                             <SelectItem key={rep.id} value={rep.id}>
                               {rep.name}

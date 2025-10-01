@@ -1,23 +1,23 @@
 // Delivery Tasks Types for Al-Rafidain Industrial Company
 
 export interface DeliveryTask {
-  id: number;
+  id: string; // UUID
   task_id: string;
   title: string;
   description?: string;
-  customer_id: string;
+  customer_id: string; // UUID
   customer_name: string;
   customer_address: string;
-  customer_phone?: string;
+  customer_phone: string;
   representative_id?: string;
   representative_name?: string;
-  status: 'pending' | 'assigned' | 'in-progress' | 'completed' | 'cancelled';
+  status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   estimated_duration?: string;
   scheduled_for?: string;
+  completed_at?: string;
   created_at: string;
   updated_at: string;
-  created_by?: string;
   notes?: string;
   total_value: number;
   currency: string;
@@ -28,9 +28,9 @@ export interface DeliveryTask {
 }
 
 export interface TaskItem {
-  id: number;
-  task_id: string;
-  product_id: number;
+  id: string; // UUID
+  task_id: string; // UUID
+  product_id?: number;
   product_name: string;
   product_code?: string;
   quantity: number;
@@ -70,14 +70,14 @@ export interface CreateDeliveryTaskData {
 }
 
 export interface CreateTaskItemData {
-  product_id: number;
+  product_id?: number | null;
   product_name: string;
   product_code?: string;
   quantity: number;
   unit_price: number;
   total_price: number;
   unit_of_measurement?: string;
-  warehouse_id?: number;
+  warehouse_id?: number | null;
   warehouse_name?: string;
 }
 

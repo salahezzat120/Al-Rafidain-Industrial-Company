@@ -16,14 +16,16 @@ import type {
 // ==================== DELIVERY TASKS ====================
 
 export async function getDeliveryTasks(filters?: DeliveryTaskFilters): Promise<DeliveryTask[]> {
-  let query = supabase
-    .from('delivery_tasks')
-    .select(`
-      *,
-      items:task_items(*),
-      status_history:task_status_history(*)
-    `)
-    .order('created_at', { ascending: false });
+  try {
+    console.log('🔍 Fetching delivery tasks...');
+    
+    let query = supabase
+      .from('delivery_tasks')
+      .select(`
+        *,
+        items:task_items(*)
+      `)
+      .order('created_at', { ascending: false });
 
   if (filters?.status) {
     query = query.eq('status', filters.status);
@@ -53,55 +55,107 @@ export async function getDeliveryTasks(filters?: DeliveryTaskFilters): Promise<D
     query = query.or(`title.ilike.%${filters.search}%,customer_name.ilike.%${filters.search}%,task_id.ilike.%${filters.search}%`);
   }
 
-  const { data, error } = await query;
+    const { data, error } = await query;
 
-  if (error) {
-    console.error('Error fetching delivery tasks:', error);
-    throw new Error('Failed to fetch delivery tasks');
+    if (error) {
+      console.error('❌ Error fetching delivery tasks:', error);
+      throw new Error('Failed to fetch delivery tasks');
+    }
+
+    console.log('✅ Delivery tasks fetched successfully:', data?.length || 0);
+    return data || [];
+  } catch (error) {
+    console.error('❌ Error in getDeliveryTasks:', error);
+    return [];
   }
-
-  return data || [];
 }
 
-export async function getDeliveryTaskById(id: number): Promise<DeliveryTask | null> {
-  const { data, error } = await supabase
-    .from('delivery_tasks')
-    .select(`
-      *,
-      items:task_items(*),
-      status_history:task_status_history(*)
-    `)
-    .eq('id', id)
-    .single();
+export async function getDeliveryTaskById(id: string): Promise<DeliveryTask | null> {
+  try {
+    const { data, error } = await supabase
+      .from('delivery_tasks')
+      .select(`
+        *,
+        items:task_items(*)
+      `)
+      .eq('id', id)
+      .single();
 
-  if (error) {
-    console.error('Error fetching delivery task:', error);
-    throw new Error('Failed to fetch delivery task');
+    if (error) {
+      console.error('❌ Error fetching delivery task:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('❌ Error in getDeliveryTaskById:', error);
+    return null;
   }
-
-  return data;
 }
 
 export async function getDeliveryTaskByTaskId(taskId: string): Promise<DeliveryTask | null> {
-  const { data, error } = await supabase
-    .from('delivery_tasks')
-    .select(`
-      *,
-      items:task_items(*),
-      status_history:task_status_history(*)
-    `)
-    .eq('task_id', taskId)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('delivery_tasks')
+      .select(`
+        *,
+        items:task_items(*)
+      `)
+      .eq('task_id', taskId)
+      .single();
 
-  if (error) {
-    console.error('Error fetching delivery task:', error);
-    throw new Error('Failed to fetch delivery task');
+    if (error) {
+      console.error('❌ Error fetching delivery task:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('❌ Error in getDeliveryTaskByTaskId:', error);
+    return null;
   }
-
-  return data;
 }
 
 export async function createDeliveryTask(taskData: CreateDeliveryTaskData): Promise<DeliveryTask> {
+  // Validate stock availability before creating the task
+  if (taskData.items && taskData.items.length > 0) {
+    console.log('🔍 Validating stock availability...');
+    
+    for (const item of taskData.items) {
+      if (item.product_id && item.quantity > 0) {
+        try {
+          const { data: product, error: fetchError } = await supabase
+            .from('products')
+            .select('stock, product_name, product_code')
+            .eq('id', item.product_id)
+            .single();
+
+          if (fetchError) {
+            console.error(`❌ Error fetching product ${item.product_id}:`, fetchError);
+            throw new Error(`Product ${item.product_id} not found`);
+          }
+
+          if (!product) {
+            throw new Error(`Product ${item.product_id} not found`);
+          }
+
+          const currentStock = parseFloat(product.stock) || 0;
+          
+          if (currentStock < item.quantity) {
+            throw new Error(`Insufficient stock for ${product.product_name} (${product.product_code}). Available: ${currentStock}, Required: ${item.quantity}`);
+          }
+
+          console.log(`✅ Stock validation passed for ${product.product_name}: ${currentStock} >= ${item.quantity}`);
+        } catch (error) {
+          console.error(`❌ Stock validation failed for product ${item.product_id}:`, error);
+          throw error;
+        }
+      }
+    }
+    
+    console.log('✅ All stock validations passed');
+  }
+
   // Generate unique task ID
   const taskId = await generateTaskId();
 
@@ -123,21 +177,33 @@ export async function createDeliveryTask(taskData: CreateDeliveryTaskData): Prom
       scheduled_for: taskData.scheduled_for,
       notes: taskData.notes,
       total_value: taskData.total_value,
-      currency: taskData.currency || 'IQD',
-      created_by: 'admin' // TODO: Get from auth context
+      currency: taskData.currency || 'IQD'
     }])
     .select()
     .single();
 
   if (taskError) {
-    console.error('Error creating delivery task:', taskError);
-    throw new Error('Failed to create delivery task');
+    console.error('❌ Error creating delivery task:', taskError);
+    console.error('❌ Full error details:', JSON.stringify(taskError, null, 2));
+    
+    // Handle specific error cases
+    if (taskError.code === '23505') {
+      throw new Error('Task ID already exists. Please try again.');
+    } else if (taskError.code === '23503') {
+      throw new Error('Invalid customer or representative ID.');
+    } else {
+      throw new Error('Failed to create delivery task');
+    }
   }
+
+  console.log('✅ Delivery task created successfully:', task.id);
 
   // Create task items if provided
   if (taskData.items && taskData.items.length > 0) {
+    console.log('🔍 Creating task items:', taskData.items.length);
+    
     const itemsData = taskData.items.map(item => ({
-      task_id: taskId,
+      task_id: task.id, // Use the UUID from the created task (this is correct)
       product_id: item.product_id,
       product_name: item.product_name,
       product_code: item.product_code,
@@ -149,34 +215,78 @@ export async function createDeliveryTask(taskData: CreateDeliveryTaskData): Prom
       warehouse_name: item.warehouse_name
     }));
 
+    console.log('📦 Task items data to insert:', itemsData);
+
     const { error: itemsError } = await supabase
       .from('task_items')
       .insert(itemsData);
 
     if (itemsError) {
-      console.error('Error creating task items:', itemsError);
+      console.error('❌ Error creating task items:', itemsError);
+      console.error('❌ Full error details:', JSON.stringify(itemsError, null, 2));
       // Rollback the task creation
       await supabase.from('delivery_tasks').delete().eq('id', task.id);
       throw new Error('Failed to create task items');
     }
+    
+    console.log('✅ Task items created successfully');
+    
+    // Reduce stock for products that have product_id
+    console.log('📉 Reducing stock for products...');
+    for (const item of taskData.items) {
+      if (item.product_id && item.quantity > 0) {
+        try {
+          console.log(`🔍 Reducing stock for product ${item.product_id} by ${item.quantity}`);
+          
+          // Get current stock
+          const { data: product, error: fetchError } = await supabase
+            .from('products')
+            .select('stock, product_name')
+            .eq('id', item.product_id)
+            .single();
+
+          if (fetchError) {
+            console.error(`❌ Error fetching product ${item.product_id}:`, fetchError);
+            continue;
+          }
+
+          if (!product) {
+            console.error(`❌ Product ${item.product_id} not found`);
+            continue;
+          }
+
+          const currentStock = parseFloat(product.stock) || 0;
+          const newStock = Math.max(0, currentStock - item.quantity);
+
+          console.log(`📊 Product ${item.product_name}: ${currentStock} -> ${newStock}`);
+
+          // Update stock
+          const { error: updateError } = await supabase
+            .from('products')
+            .update({ 
+              stock: newStock,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', item.product_id);
+
+          if (updateError) {
+            console.error(`❌ Error updating stock for product ${item.product_id}:`, updateError);
+          } else {
+            console.log(`✅ Stock updated for product ${item.product_name}: ${newStock}`);
+          }
+        } catch (error) {
+          console.error(`❌ Error processing stock reduction for product ${item.product_id}:`, error);
+        }
+      }
+    }
   }
 
-  // Create initial status history
-  await supabase
-    .from('task_status_history')
-    .insert([{
-      task_id: taskId,
-      status: 'pending',
-      changed_by: 'admin', // TODO: Get from auth context
-      notes: 'Task created'
-    }]);
-
-  // Fetch the complete task with items and history
+  // Fetch the complete task with items
   const completeTask = await getDeliveryTaskById(task.id);
   return completeTask!;
 }
 
-export async function updateDeliveryTask(id: number, updateData: UpdateDeliveryTaskData): Promise<DeliveryTask> {
+export async function updateDeliveryTask(id: string, updateData: UpdateDeliveryTaskData): Promise<DeliveryTask> {
   const { data, error } = await supabase
     .from('delivery_tasks')
     .update({
@@ -192,25 +302,20 @@ export async function updateDeliveryTask(id: number, updateData: UpdateDeliveryT
     throw new Error('Failed to update delivery task');
   }
 
-  // If status changed, add to history
-  if (updateData.status) {
-    const currentTask = await getDeliveryTaskById(id);
-    if (currentTask && currentTask.status !== updateData.status) {
-      await supabase
-        .from('task_status_history')
-        .insert([{
-          task_id: currentTask.task_id,
-          status: updateData.status,
-          changed_by: 'admin', // TODO: Get from auth context
-          notes: `Status changed to ${updateData.status}`
-        }]);
-    }
+  // If status changed to cancelled, restore stock
+  if (updateData.status === 'cancelled') {
+    console.log('🔄 Task cancelled, restoring stock...');
+    await restoreStockForTask(id);
   }
 
   return await getDeliveryTaskById(id) as DeliveryTask;
 }
 
-export async function deleteDeliveryTask(id: number): Promise<void> {
+export async function deleteDeliveryTask(id: string): Promise<void> {
+  // Restore stock before deleting the task
+  console.log('🔄 Deleting task, restoring stock...');
+  await restoreStockForTask(id);
+  
   const { error } = await supabase
     .from('delivery_tasks')
     .delete()
@@ -219,6 +324,81 @@ export async function deleteDeliveryTask(id: number): Promise<void> {
   if (error) {
     console.error('Error deleting delivery task:', error);
     throw new Error('Failed to delete delivery task');
+  }
+}
+
+// Helper function to restore stock when a task is cancelled or deleted
+async function restoreStockForTask(taskId: string): Promise<void> {
+  try {
+    console.log(`🔍 Restoring stock for task ${taskId}...`);
+    
+    // Get task items
+    const { data: items, error: itemsError } = await supabase
+      .from('task_items')
+      .select('product_id, quantity, product_name')
+      .eq('task_id', taskId);
+
+    if (itemsError) {
+      console.error('❌ Error fetching task items:', itemsError);
+      return;
+    }
+
+    if (!items || items.length === 0) {
+      console.log('📋 No items to restore stock for');
+      return;
+    }
+
+    // Restore stock for each item
+    for (const item of items) {
+      if (item.product_id && item.quantity > 0) {
+        try {
+          console.log(`🔄 Restoring ${item.quantity} units for product ${item.product_id}`);
+          
+          // Get current stock
+          const { data: product, error: fetchError } = await supabase
+            .from('products')
+            .select('stock, product_name')
+            .eq('id', item.product_id)
+            .single();
+
+          if (fetchError) {
+            console.error(`❌ Error fetching product ${item.product_id}:`, fetchError);
+            continue;
+          }
+
+          if (!product) {
+            console.error(`❌ Product ${item.product_id} not found`);
+            continue;
+          }
+
+          const currentStock = parseFloat(product.stock) || 0;
+          const newStock = currentStock + item.quantity;
+
+          console.log(`📊 Product ${product.product_name}: ${currentStock} -> ${newStock}`);
+
+          // Update stock
+          const { error: updateError } = await supabase
+            .from('products')
+            .update({ 
+              stock: newStock,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', item.product_id);
+
+          if (updateError) {
+            console.error(`❌ Error updating stock for product ${item.product_id}:`, updateError);
+          } else {
+            console.log(`✅ Stock restored for product ${product.product_name}: ${newStock}`);
+          }
+        } catch (error) {
+          console.error(`❌ Error processing stock restoration for product ${item.product_id}:`, error);
+        }
+      }
+    }
+    
+    console.log('✅ Stock restoration completed');
+  } catch (error) {
+    console.error('❌ Error in restoreStockForTask:', error);
   }
 }
 
@@ -288,28 +468,78 @@ export async function deleteTaskItem(id: number): Promise<void> {
 // ==================== UTILITY FUNCTIONS ====================
 
 async function generateTaskId(): Promise<string> {
-  // Get the latest task ID
-  const { data, error } = await supabase
-    .from('delivery_tasks')
-    .select('task_id')
-    .order('created_at', { ascending: false })
-    .limit(1);
+  const maxRetries = 5;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Get all existing task IDs to find the highest number
+      const { data, error } = await supabase
+        .from('delivery_tasks')
+        .select('task_id')
+        .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error generating task ID:', error);
-    throw new Error('Failed to generate task ID');
-  }
+      if (error) {
+        console.error('Error generating task ID:', error);
+        throw new Error('Failed to generate task ID');
+      }
 
-  let nextNumber = 1;
-  if (data && data.length > 0) {
-    const lastTaskId = data[0].task_id;
-    const match = lastTaskId.match(/T(\d+)/);
-    if (match) {
-      nextNumber = parseInt(match[1]) + 1;
+      let nextNumber = 1;
+      if (data && data.length > 0) {
+        // Find the highest task number
+        let maxNumber = 0;
+        for (const task of data) {
+          const match = task.task_id.match(/T(\d+)/);
+          if (match) {
+            const number = parseInt(match[1]);
+            if (number > maxNumber) {
+              maxNumber = number;
+            }
+          }
+        }
+        nextNumber = maxNumber + 1;
+      }
+
+      // Generate a unique task ID with timestamp and random component
+      const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      const taskId = `T${String(nextNumber).padStart(3, '0')}-${timestamp}-${random}`;
+      
+      console.log(`🔍 Generated task ID (attempt ${attempt}): ${taskId}`);
+      
+      // Check if this task ID already exists
+      const { data: existingTask, error: checkError } = await supabase
+        .from('delivery_tasks')
+        .select('id')
+        .eq('task_id', taskId)
+        .limit(1);
+
+      if (checkError) {
+        console.error('Error checking task ID uniqueness:', checkError);
+        throw new Error('Failed to check task ID uniqueness');
+      }
+
+      if (!existingTask || existingTask.length === 0) {
+        console.log(`✅ Unique task ID generated: ${taskId}`);
+        return taskId;
+      } else {
+        console.log(`⚠️  Task ID ${taskId} already exists, retrying...`);
+        if (attempt === maxRetries) {
+          throw new Error('Failed to generate unique task ID after maximum retries');
+        }
+        // Wait a bit before retrying
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    } catch (error) {
+      if (attempt === maxRetries) {
+        console.error('❌ Failed to generate task ID after all retries:', error);
+        throw error;
+      }
+      console.log(`⚠️  Attempt ${attempt} failed, retrying...`);
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
   }
-
-  return `T${String(nextNumber).padStart(3, '0')}`;
+  
+  throw new Error('Failed to generate unique task ID');
 }
 
 export async function getDeliveryTaskStats(): Promise<DeliveryTaskStats> {

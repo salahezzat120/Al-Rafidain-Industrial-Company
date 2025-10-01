@@ -16,7 +16,7 @@ import { Package, User, AlertCircle, Search, Plus, Minus, ShoppingCart, Warehous
 import { useLanguage } from "@/contexts/language-context"
 import { useToast } from "@/hooks/use-toast"
 import { createDeliveryTask } from "@/lib/delivery-tasks"
-import { getWarehouses, getProductsForDelivery } from "@/lib/warehouse"
+import { getWarehouses, getProductsForDelivery, getCustomers, getRepresentatives } from "@/lib/warehouse"
 import type { CreateDeliveryTaskData, CreateTaskItemData } from "@/types/delivery-tasks"
 
 interface CreateTaskModalProps {
@@ -38,19 +38,9 @@ interface SelectedProduct {
 }
 
 
-const mockCustomers = [
-  { id: "C001", name: "John Doe", address: "123 Main St, Downtown, City 12345", phone: "+1 (555) 123-4567" },
-  { id: "C002", name: "Jane Smith", address: "456 Oak Ave, North Zone, City 12345", phone: "+1 (555) 234-5678" },
-  { id: "C003", name: "Bob Johnson", address: "789 Pine Rd, East District, City 12345", phone: "+1 (555) 345-6789" },
-  { id: "C004", name: "Alice Brown", address: "321 Elm St, West Zone, City 12345", phone: "+1 (555) 456-7890" },
-]
+// Customer data will be loaded from database
 
-const mockRepresentatives = [
-  { id: "1", name: "Mike Johnson", status: "available" },
-  { id: "2", name: "Sarah Wilson", status: "available" },
-  { id: "3", name: "David Chen", status: "busy" },
-  { id: "4", name: "Emma Rodriguez", status: "available" },
-]
+// Representative data will be loaded from database
 
 // Warehouse interface
 interface Warehouse {
@@ -82,7 +72,6 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
     priority: "medium",
     scheduledFor: "",
     estimatedTime: "",
-    items: "",
     notes: "",
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -101,6 +90,14 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
   const [products, setProducts] = useState<any[]>([])
   const [isLoadingProducts, setIsLoadingProducts] = useState(false)
   const [filteredProducts, setFilteredProducts] = useState<any[]>([])
+  
+  // Customer data state
+  const [customers, setCustomers] = useState<any[]>([])
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false)
+  
+  // Representative data state
+  const [representatives, setRepresentatives] = useState<any[]>([])
+  const [isLoadingRepresentatives, setIsLoadingRepresentatives] = useState(false)
   
 
   // Load warehouses from Supabase
@@ -143,14 +140,58 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
     }
   }, [toast])
 
+  // Load customers from Supabase
+  const loadCustomers = useCallback(async () => {
+    try {
+      console.log('🔄 Loading customers...')
+      setIsLoadingCustomers(true)
+      const customersData = await getCustomers()
+      console.log('👥 Customers loaded:', customersData?.length || 0)
+      console.log('📋 Customers data:', customersData)
+      setCustomers(customersData)
+    } catch (error) {
+      console.error('❌ Error loading customers:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load customers",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingCustomers(false)
+    }
+  }, [toast])
 
-  // Load warehouses and products when modal opens
+  // Load representatives from Supabase
+  const loadRepresentatives = useCallback(async () => {
+    try {
+      console.log('🔄 Loading representatives...')
+      setIsLoadingRepresentatives(true)
+      const representativesData = await getRepresentatives()
+      console.log('👨‍💼 Representatives loaded:', representativesData?.length || 0)
+      console.log('📋 Representatives data:', representativesData)
+      setRepresentatives(representativesData)
+    } catch (error) {
+      console.error('❌ Error loading representatives:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load representatives",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingRepresentatives(false)
+    }
+  }, [toast])
+
+
+  // Load warehouses, products, customers, and representatives when modal opens
   useEffect(() => {
     if (isOpen) {
       loadWarehouses()
       loadProducts()
+      loadCustomers()
+      loadRepresentatives()
     }
-  }, [isOpen, loadWarehouses, loadProducts])
+  }, [isOpen, loadWarehouses, loadProducts, loadCustomers, loadRepresentatives])
 
   // Filter products based on search term and warehouse
   useEffect(() => {
@@ -160,9 +201,22 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
     console.log('🏢 Selected warehouse:', selectedWarehouse)
     
     const filtered = products.filter(product => {
-      const matchesSearch = product.product_name.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+      // Handle quick filter buttons
+      if (productSearchTerm === 'low stock') {
+        return product.stock > 0 && product.stock <= 5
+      }
+      if (productSearchTerm === 'out of stock') {
+        return product.stock <= 0
+      }
+      
+      // Regular search functionality
+      const matchesSearch = productSearchTerm === '' || 
+        product.product_name.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
         product.product_code?.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-        product.main_group?.toLowerCase().includes(productSearchTerm.toLowerCase())
+        product.main_group?.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+        product.sub_group?.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+        product.color?.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+        product.material?.toLowerCase().includes(productSearchTerm.toLowerCase())
       
       const matchesWarehouse = selectedWarehouse === "all" || 
         product.warehouses?.includes(warehouses.find(w => w.id.toString() === selectedWarehouse)?.warehouse_name || '')
@@ -229,7 +283,7 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
     if (!formData.customerId) newErrors.customerId = t("task.customerRequired")
     if (!formData.scheduledFor) newErrors.scheduledFor = t("task.scheduledRequired")
     if (!formData.estimatedTime) newErrors.estimatedTime = t("task.estimatedRequired")
-    if (!formData.items.trim()) newErrors.items = t("task.itemsRequired")
+    // Items field removed - products are selected in the products tab
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -243,8 +297,8 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
     setIsSubmitting(true)
 
     try {
-      const selectedCustomer = mockCustomers.find((c) => c.id === formData.customerId)
-      const selectedRepresentative = formData.representativeId ? mockRepresentatives.find((r) => r.id === formData.representativeId) : null
+      const selectedCustomer = customers.find((c) => c.id === formData.customerId)
+      const selectedRepresentative = formData.representativeId ? representatives.find((r) => r.id === formData.representativeId) : null
 
       if (!selectedCustomer) {
         toast({
@@ -257,6 +311,8 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
       }
 
       // Prepare task items from selected products
+      console.log('🔍 Selected products for task items:', selectedProducts);
+      
       const taskItems: CreateTaskItemData[] = selectedProducts.map(product => ({
         product_id: product.id,
         product_name: product.name,
@@ -265,24 +321,26 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
         unit_price: product.price,
         total_price: product.price * product.quantity,
         unit_of_measurement: product.unit,
-        warehouse_id: 1, // Default warehouse ID
-        warehouse_name: product.warehouse
+        warehouse_id: null, // No warehouse ID for now - will be set later
+        warehouse_name: product.warehouse || 'Unknown Warehouse'
       }))
+      
+      console.log('📦 Task items created from products:', taskItems);
 
       // If no products selected, create items from the text input
       if (taskItems.length === 0 && formData.items.trim()) {
         const textItems = formData.items.split(",").map((item) => item.trim())
         textItems.forEach((item, index) => {
           taskItems.push({
-            product_id: 999 + index, // Dummy product ID for text items
+            product_id: null, // No product ID for text items
             product_name: item,
             product_code: `TEXT-${index + 1}`,
             quantity: 1,
             unit_price: 0,
             total_price: 0,
             unit_of_measurement: 'pcs',
-            warehouse_id: 1,
-            warehouse_name: 'Main Warehouse'
+            warehouse_id: null, // No warehouse ID for text items
+            warehouse_name: 'Text Item'
           })
         })
       }
@@ -304,6 +362,8 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
         total_value: getTotalValue(),
         currency: 'IQD'
       }
+      
+      console.log('📋 Final task data to create:', taskData);
 
       const newTask = await createDeliveryTask(taskData)
 
@@ -320,7 +380,6 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
         priority: "medium",
         scheduledFor: "",
         estimatedTime: "",
-        items: "",
         notes: "",
       })
       setSelectedProducts([])
@@ -353,7 +412,17 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
     }
   }
 
-  const availableRepresentatives = mockRepresentatives.filter((representative) => representative.status === "available")
+  const availableRepresentatives = representatives.filter((representative) => 
+    representative.status === "active" || representative.status === "on-route"
+  )
+  
+  // Debug logging for representatives
+  console.log('🔍 Representatives debug:', {
+    totalRepresentatives: representatives.length,
+    availableRepresentatives: availableRepresentatives.length,
+    representatives: representatives,
+    availableRepresentatives: availableRepresentatives
+  })
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -431,16 +500,7 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
                     </Select>
                   </div>
 
-                  <div>
-                    <Label htmlFor="items">{t("task.items")} (Optional - use Products tab instead)</Label>
-                    <Textarea
-                      id="items"
-                      value={formData.items}
-                      onChange={(e) => handleInputChange("items", e.target.value)}
-                      placeholder={t("task.itemsPlaceholder")}
-                      rows={3}
-                    />
-                  </div>
+                  {/* Items field removed - products are selected in the Products tab */}
 
                   <div>
                     <Label htmlFor="notes">{t("task.specialInstructions")}</Label>
@@ -470,11 +530,21 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
                         <SelectValue placeholder={t("task.selectCustomer")} />
                       </SelectTrigger>
                       <SelectContent>
-                        {mockCustomers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name} - {customer.address.split(",")[0]}
+                        {isLoadingCustomers ? (
+                          <SelectItem value="loading" disabled>
+                            Loading customers...
                           </SelectItem>
-                        ))}
+                        ) : customers.length === 0 ? (
+                          <SelectItem value="no-customers" disabled>
+                            No customers found
+                          </SelectItem>
+                        ) : (
+                          customers.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.name} - {customer.address.split(",")[0]}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     {errors.customerId && <p className="text-sm text-red-600 mt-1">{errors.customerId}</p>}
@@ -491,11 +561,21 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="unassigned">{t("task.unassigned")}</SelectItem>
-                        {availableRepresentatives.map((representative) => (
-                          <SelectItem key={representative.id} value={representative.id}>
-                            {representative.name} ({t("task.available")})
+                        {isLoadingRepresentatives ? (
+                          <SelectItem value="loading" disabled>
+                            Loading representatives...
                           </SelectItem>
-                        ))}
+                        ) : availableRepresentatives.length === 0 ? (
+                          <SelectItem value="no-representatives" disabled>
+                            No available representatives
+                          </SelectItem>
+                        ) : (
+                          availableRepresentatives.map((representative) => (
+                            <SelectItem key={representative.id} value={representative.id}>
+                              {representative.name} ({representative.status === 'active' ? 'Available' : 'On Route'})
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     {availableRepresentatives.length === 0 && (
@@ -505,13 +585,42 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
 
                   <div>
                     <Label htmlFor="scheduledFor">{t("task.scheduledDateTime")} *</Label>
-                    <Input
-                      id="scheduledFor"
-                      type="datetime-local"
-                      value={formData.scheduledFor}
-                      onChange={(e) => handleInputChange("scheduledFor", e.target.value)}
-                      className={errors.scheduledFor ? "border-red-500" : ""}
-                    />
+                    <div className="space-y-2">
+                      <Input
+                        id="scheduledFor"
+                        type="datetime-local"
+                        value={formData.scheduledFor}
+                        onChange={(e) => handleInputChange("scheduledFor", e.target.value)}
+                        className={errors.scheduledFor ? "border-red-500" : ""}
+                        min={new Date().toISOString().slice(0, 16)} // Prevent past dates
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const now = new Date()
+                            const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+                            handleInputChange("scheduledFor", tomorrow.toISOString().slice(0, 16))
+                          }}
+                        >
+                          Tomorrow
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const now = new Date()
+                            const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+                            handleInputChange("scheduledFor", nextWeek.toISOString().slice(0, 16))
+                          }}
+                        >
+                          Next Week
+                        </Button>
+                      </div>
+                    </div>
                     {errors.scheduledFor && <p className="text-sm text-red-600 mt-1">{errors.scheduledFor}</p>}
                   </div>
 
@@ -547,28 +656,43 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Warehouse className="h-4 w-4" />
-                    Warehouse Products
+                    Product Search & Filters
                   </CardTitle>
+                  <p className="text-sm text-gray-600">
+                    Find and select products for your delivery task
+                  </p>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex gap-4">
-                    <div className="flex-1">
-                      <Label htmlFor="productSearch">Search Products</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="productSearch" className="text-sm font-medium">
+                        Search Products
+                      </Label>
                       <div className="relative">
-                        <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <Input
                           id="productSearch"
                           placeholder="Search by name, code, or category..."
                           value={productSearchTerm}
                           onChange={(e) => setProductSearchTerm(e.target.value)}
-                          className="pl-10"
+                          className="pl-10 h-10"
                         />
+                        {productSearchTerm && (
+                          <button
+                            onClick={() => setProductSearchTerm('')}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          >
+                            ✕
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <div className="w-48">
-                      <Label htmlFor="warehouseFilter">Filter by Warehouse</Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="warehouseFilter" className="text-sm font-medium">
+                        Filter by Warehouse
+                      </Label>
                       <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse} disabled={isLoadingWarehouses}>
-                        <SelectTrigger>
+                        <SelectTrigger className="h-10">
                           <SelectValue placeholder={isLoadingWarehouses ? "Loading..." : "All Warehouses"} />
                         </SelectTrigger>
                         <SelectContent>
@@ -581,6 +705,31 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+                  
+                  {/* Quick Filters */}
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant={productSearchTerm === '' ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setProductSearchTerm('')}
+                    >
+                      All Products
+                    </Button>
+                    <Button
+                      variant={productSearchTerm === 'low stock' ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setProductSearchTerm(productSearchTerm === 'low stock' ? '' : 'low stock')}
+                    >
+                      Low Stock
+                    </Button>
+                    <Button
+                      variant={productSearchTerm === 'out of stock' ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setProductSearchTerm(productSearchTerm === 'out of stock' ? '' : 'out of stock')}
+                    >
+                      Out of Stock
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -652,43 +801,150 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
               {/* Available Products */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Available Products</CardTitle>
+                  <CardTitle className="text-lg flex items-center justify-between">
+                    <span>Available Products</span>
+                    <Badge variant="outline" className="text-xs">
+                      {filteredProducts.length} products
+                    </Badge>
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {isLoadingProducts ? (
-                    <div className="text-center py-8 text-gray-500">Loading products...</div>
+                    <div className="text-center py-8 text-gray-500">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
+                      Loading products...
+                    </div>
                   ) : filteredProducts.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">No products found</div>
+                    <div className="text-center py-8 text-gray-500">
+                      <div className="text-4xl mb-2">📦</div>
+                      <p>No products found</p>
+                      <p className="text-sm">Try adjusting your search or filters</p>
+                    </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {filteredProducts.map((product) => (
-                        <div key={product.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex-1">
-                              <h3 className="font-medium text-sm">{product.product_name}</h3>
-                              <p className="text-xs text-gray-500">{product.product_code}</p>
-                              <p className="text-xs text-gray-500">{product.main_group}</p>
+                      {filteredProducts.map((product) => {
+                        const isSelected = selectedProducts.some(p => p.id === product.id);
+                        const isOutOfStock = product.stock <= 0;
+                        const isLowStock = product.stock > 0 && product.stock <= 5;
+                        
+                        return (
+                          <div 
+                            key={product.id} 
+                            className={`border rounded-lg p-4 hover:shadow-md transition-all duration-200 ${
+                              isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+                            } ${isOutOfStock ? 'opacity-60' : ''}`}
+                          >
+                            {/* Product Header */}
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex-1">
+                                <h3 className="font-semibold text-sm text-gray-900 line-clamp-1">
+                                  {product.product_name}
+                                </h3>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Code: {product.product_code || 'N/A'}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {product.main_group}
+                                </p>
+                              </div>
+                              <div className="flex flex-col items-end gap-1">
+                                <Badge 
+                                  variant={
+                                    isOutOfStock ? "destructive" : 
+                                    isLowStock ? "secondary" : 
+                                    "default"
+                                  }
+                                  className="text-xs"
+                                >
+                                  {product.stock} {product.unit || 'pcs'}
+                                </Badge>
+                                {isLowStock && !isOutOfStock && (
+                                  <span className="text-xs text-orange-600 font-medium">Low Stock</span>
+                                )}
+                              </div>
                             </div>
-                            <Badge variant={product.stock > 0 ? "default" : "destructive"}>
-                              {product.stock} {product.unit || 'pcs'}
-                            </Badge>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <div className="font-medium text-sm">{product.selling_price?.toLocaleString() || product.cost_price?.toLocaleString() || '0'} IQD</div>
-                              <div className="text-xs text-gray-500">per {product.unit || 'pcs'}</div>
+
+                            {/* Product Details */}
+                            <div className="space-y-2 mb-3">
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs text-gray-500">Price:</span>
+                                <span className="font-medium text-sm">
+                                  {product.selling_price?.toLocaleString() || product.cost_price?.toLocaleString() || '0'} IQD
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs text-gray-500">Unit:</span>
+                                <span className="text-xs text-gray-600">{product.unit || 'pcs'}</span>
+                              </div>
+                              {product.warehouses && (
+                                <div className="flex justify-between items-center">
+                                  <span className="text-xs text-gray-500">Warehouse:</span>
+                                  <span className="text-xs text-gray-600 truncate max-w-20">
+                                    {product.warehouses}
+                                  </span>
+                                </div>
+                              )}
                             </div>
-                            <Button
-                              size="sm"
-                              onClick={() => handleAddProduct(product)}
-                              disabled={product.stock <= 0}
-                            >
-                              <Plus className="h-3 w-3 mr-1" />
-                              Add
-                            </Button>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-2">
+                              {isSelected ? (
+                                <div className="flex-1 flex items-center justify-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleUpdateQuantity(product.id, selectedProducts.find(p => p.id === product.id)?.quantity - 1 || 0)}
+                                    disabled={!selectedProducts.find(p => p.id === product.id) || selectedProducts.find(p => p.id === product.id)?.quantity <= 1}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="text-sm font-medium min-w-8 text-center">
+                                    {selectedProducts.find(p => p.id === product.id)?.quantity || 0}
+                                  </span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleUpdateQuantity(product.id, (selectedProducts.find(p => p.id === product.id)?.quantity || 0) + 1)}
+                                    disabled={!selectedProducts.find(p => p.id === product.id) || (selectedProducts.find(p => p.id === product.id)?.quantity || 0) >= product.stock}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleAddProduct(product)}
+                                  disabled={isOutOfStock}
+                                  className="flex-1"
+                                >
+                                  <Plus className="h-3 w-3 mr-1" />
+                                  {isOutOfStock ? 'Out of Stock' : 'Add to Order'}
+                                </Button>
+                              )}
+                              
+                              {isSelected && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleRemoveProduct(product.id)}
+                                  className="px-2"
+                                >
+                                  ✕
+                                </Button>
+                              )}
+                            </div>
+
+                            {/* Stock Warning */}
+                            {isLowStock && !isOutOfStock && (
+                              <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
+                                ⚠️ Only {product.stock} units remaining
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </CardContent>

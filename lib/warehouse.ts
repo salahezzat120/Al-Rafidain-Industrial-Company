@@ -586,6 +586,175 @@ export async function getProducts(filters?: ProductFilters): Promise<Product[]> 
   return data || [];
 }
 
+// ==================== CUSTOMERS ====================
+
+export interface Customer {
+  id: string;
+  customer_id: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  status: 'active' | 'vip' | 'inactive';
+  total_orders: number;
+  total_spent: number;
+  last_order_date: string | null;
+  rating: number;
+  preferred_delivery_time: string;
+  avatar_url: string | null;
+  join_date: string;
+  notes: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  visit_status: 'visited' | 'not_visited';
+  last_visit_date: string | null;
+  visit_notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getCustomers(): Promise<Customer[]> {
+  try {
+    console.log('🔍 Fetching customers...');
+    
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('status', 'active') // Only active customers
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('❌ Error fetching customers:', error);
+      throw error;
+    }
+
+    console.log('✅ Customers fetched successfully:', data?.length || 0);
+    return data || [];
+  } catch (error) {
+    console.error('❌ Error in getCustomers:', error);
+    return [];
+  }
+}
+
+export async function getCustomerById(id: string): Promise<Customer | null> {
+  try {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('❌ Error fetching customer:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('❌ Error in getCustomerById:', error);
+    return null;
+  }
+}
+
+// ==================== REPRESENTATIVES ====================
+
+export interface Representative {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  address?: string;
+  license_number?: string;
+  emergency_contact?: string;
+  vehicle?: string;
+  status: 'active' | 'inactive' | 'on-route' | 'offline';
+  coverage_areas?: string[];
+  transportation_type: 'foot' | 'vehicle';
+  avatar_url?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getRepresentatives(): Promise<Representative[]> {
+  try {
+    console.log('🔍 Fetching representatives...');
+    
+    // Simple query first to check if table exists
+    const { data: simpleData, error: simpleError } = await supabase
+      .from('representatives')
+      .select('id, name, status')
+      .limit(5);
+    
+    if (simpleError) {
+      console.error('❌ Error fetching representatives (simple query):', simpleError);
+      console.log('⚠️  Representatives table may not exist or have issues');
+      return [];
+    }
+    
+    console.log('📊 Simple query result:', simpleData);
+    console.log('📊 Data type:', typeof simpleData);
+    console.log('📊 Is array:', Array.isArray(simpleData));
+    
+    // Ensure data is an array
+    if (!Array.isArray(simpleData)) {
+      console.error('❌ Simple query returned non-array:', simpleData);
+      return [];
+    }
+    
+    console.log('📊 Total representatives available:', simpleData.length);
+    
+    if (simpleData.length === 0) {
+      console.log('📋 No representatives found in database');
+      return [];
+    }
+    
+    // If we have data, try to get more details
+    const { data: fullData, error: fullError } = await supabase
+      .from('representatives')
+      .select('*')
+      .in('status', ['active', 'on-route'])
+      .order('name', { ascending: true });
+
+    if (fullError) {
+      console.error('❌ Error fetching filtered representatives:', fullError);
+      console.log('✅ Using simple query results as fallback');
+      return simpleData;
+    }
+
+    // Ensure full data is an array
+    if (!Array.isArray(fullData)) {
+      console.error('❌ Full query returned non-array:', fullData);
+      return simpleData;
+    }
+
+    console.log('✅ Representatives fetched successfully:', fullData.length);
+    return fullData;
+  } catch (error) {
+    console.error('❌ Error in getRepresentatives:', error);
+    return [];
+  }
+}
+
+export async function getRepresentativeById(id: string): Promise<Representative | null> {
+  try {
+    const { data, error } = await supabase
+      .from('representatives')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('❌ Error fetching representative:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('❌ Error in getRepresentativeById:', error);
+    return null;
+  }
+}
+
 // Get products for delivery task selection
 export async function getProductsForDelivery(): Promise<Product[]> {
   try {
