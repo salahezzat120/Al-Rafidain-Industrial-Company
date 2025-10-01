@@ -98,12 +98,21 @@ export async function getWarehouseById(id: number): Promise<Warehouse | null> {
 
 export async function createWarehouse(warehouseData: CreateWarehouseData): Promise<Warehouse> {
   try {
-    // Insert the required fields including Arabic fields
+    // Insert all warehouse fields including Arabic fields
     const warehouseInsertData = {
       warehouse_name: warehouseData.warehouse_name,
       warehouse_name_ar: warehouseData.warehouse_name_ar || warehouseData.warehouse_name,
       location: warehouseData.location,
-      location_ar: warehouseData.location_ar || warehouseData.location
+      location_ar: warehouseData.location_ar || warehouseData.location,
+      address: warehouseData.address,
+      latitude: warehouseData.latitude,
+      longitude: warehouseData.longitude,
+      responsible_person: warehouseData.responsible_person,
+      responsible_person_ar: warehouseData.responsible_person_ar || warehouseData.responsible_person,
+      warehouse_type: warehouseData.warehouse_type,
+      capacity: warehouseData.capacity,
+      contact_phone: warehouseData.contact_phone,
+      contact_email: warehouseData.contact_email
     };
 
     console.log('Creating warehouse with data:', warehouseInsertData);
