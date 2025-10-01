@@ -98,14 +98,19 @@ export function WarehouseTab() {
   const [productForm, setProductForm] = useState<CreateProductData>({
     product_name: '',
     product_code: '',
-    main_group_id: 0,
-    sub_group_id: undefined,
-    color_id: undefined,
-    material_id: undefined,
-    unit_of_measurement_id: 0,
+    main_group: '',
+    sub_group: '',
+    color: '',
+    material: '',
+    unit: '',
     description: '',
     cost_price: undefined,
     selling_price: undefined,
+    weight: undefined,
+    dimensions: '',
+    expiry_date: '',
+    serial_number: '',
+    warehouses: '',
     specifications: {}
   });
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -291,14 +296,19 @@ export function WarehouseTab() {
       setProductForm({
         product_name: '',
         product_code: '',
-        main_group_id: 0,
-        sub_group_id: undefined,
-        color_id: undefined,
-        material_id: undefined,
-        unit_of_measurement_id: 0,
+        main_group: '',
+        sub_group: '',
+        color: '',
+        material: '',
+        unit: '',
         description: '',
         cost_price: undefined,
         selling_price: undefined,
+        weight: undefined,
+        dimensions: '',
+        expiry_date: '',
+        serial_number: '',
+        warehouses: '',
         specifications: {}
       });
       setSelectedWarehouses([]);
@@ -320,14 +330,19 @@ export function WarehouseTab() {
       setProductForm({
         product_name: '',
         product_code: '',
-        main_group_id: 0,
-        sub_group_id: undefined,
-        color_id: undefined,
-        material_id: undefined,
-        unit_of_measurement_id: 0,
+        main_group: '',
+        sub_group: '',
+        color: '',
+        material: '',
+        unit: '',
         description: '',
         cost_price: undefined,
         selling_price: undefined,
+        weight: undefined,
+        dimensions: '',
+        expiry_date: '',
+        serial_number: '',
+        warehouses: '',
         specifications: {}
       });
       setProductDialogOpen(false);
@@ -554,14 +569,19 @@ export function WarehouseTab() {
       setProductForm({
         product_name: '',
         product_code: '',
-        main_group_id: 0,
-        sub_group_id: undefined,
-        color_id: undefined,
-        material_id: undefined,
-        unit_of_measurement_id: 0,
+        main_group: '',
+        sub_group: '',
+        color: '',
+        material: '',
+        unit: '',
         description: '',
         cost_price: undefined,
         selling_price: undefined,
+        weight: undefined,
+        dimensions: '',
+        expiry_date: '',
+        serial_number: '',
+        warehouses: '',
         specifications: {}
       });
     }
@@ -939,112 +959,51 @@ export function WarehouseTab() {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="main_group">Main Group</Label>
-                          <Select
-                            value={productForm.main_group_id.toString()}
-                            onValueChange={(value) => setProductForm(prev => ({ 
-                              ...prev, 
-                              main_group_id: parseInt(value),
-                              sub_group_id: undefined
-                            }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select main group" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {mainGroups.map((group) => (
-                                <SelectItem key={group.id} value={group.id.toString()}>
-                                  {group.group_name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Input
+                            id="main_group"
+                            value={productForm.main_group}
+                            onChange={(e) => setProductForm(prev => ({ ...prev, main_group: e.target.value }))}
+                            placeholder="Enter main group"
+                          />
                         </div>
                         <div>
                           <Label htmlFor="sub_group">Sub Group</Label>
-                          <Select
-                            value={productForm.sub_group_id?.toString() || ''}
-                            onValueChange={(value) => setProductForm(prev => ({ 
-                              ...prev, 
-                              sub_group_id: value ? parseInt(value) : undefined
-                            }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select sub group" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {subGroups.map((subGroup) => (
-                                <SelectItem key={subGroup.id} value={subGroup.id.toString()}>
-                                  {subGroup.sub_group_name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Input
+                            id="sub_group"
+                            value={productForm.sub_group}
+                            onChange={(e) => setProductForm(prev => ({ ...prev, sub_group: e.target.value }))}
+                            placeholder="Enter sub group"
+                          />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-3 gap-4">
                         <div>
                           <Label htmlFor="color">Color</Label>
-                          <Select
-                            value={productForm.color_id?.toString() || ''}
-                            onValueChange={(value) => setProductForm(prev => ({ 
-                              ...prev, 
-                              color_id: value ? parseInt(value) : undefined
-                            }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select color" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {colors.map((color) => (
-                                <SelectItem key={color.id} value={color.id.toString()}>
-                                  {color.color_name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Input
+                            id="color"
+                            value={productForm.color}
+                            onChange={(e) => setProductForm(prev => ({ ...prev, color: e.target.value }))}
+                            placeholder="Enter color"
+                          />
                         </div>
                         <div>
                           <Label htmlFor="material">Material</Label>
-                          <Select
-                            value={productForm.material_id?.toString() || ''}
-                            onValueChange={(value) => setProductForm(prev => ({ 
-                              ...prev, 
-                              material_id: value ? parseInt(value) : undefined
-                            }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select material" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {materials.map((material) => (
-                                <SelectItem key={material.id} value={material.id.toString()}>
-                                  {material.material_name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Input
+                            id="material"
+                            value={productForm.material}
+                            onChange={(e) => setProductForm(prev => ({ ...prev, material: e.target.value }))}
+                            placeholder="Enter material"
+                          />
                         </div>
                         <div>
                           <Label htmlFor="unit">Unit of Measurement</Label>
-                          <Select
-                            value={productForm.unit_of_measurement_id.toString()}
-                            onValueChange={(value) => setProductForm(prev => ({ 
-                              ...prev, 
-                              unit_of_measurement_id: parseInt(value)
-                            }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select unit" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {units.map((unit) => (
-                                <SelectItem key={unit.id} value={unit.id.toString()}>
-                                  {unit.unit_name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <Input
+                            id="unit"
+                            value={productForm.unit}
+                            onChange={(e) => setProductForm(prev => ({ ...prev, unit: e.target.value }))}
+                            placeholder="Enter unit (e.g., pcs, kg, m)"
+                          />
                         </div>
                       </div>
 
@@ -1091,6 +1050,65 @@ export function WarehouseTab() {
                             placeholder="Enter selling price"
                           />
                         </div>
+                      </div>
+
+                      {/* Additional Product Fields */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="weight">Weight (kg)</Label>
+                          <Input
+                            id="weight"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={productForm.weight || ''}
+                            onChange={(e) => setProductForm(prev => ({ 
+                              ...prev, 
+                              weight: e.target.value ? parseFloat(e.target.value) : undefined 
+                            }))}
+                            placeholder="Enter weight"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="dimensions">Dimensions</Label>
+                          <Input
+                            id="dimensions"
+                            value={productForm.dimensions}
+                            onChange={(e) => setProductForm(prev => ({ ...prev, dimensions: e.target.value }))}
+                            placeholder="e.g., 10x20x30 cm"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="expiry_date">Expiry Date</Label>
+                          <Input
+                            id="expiry_date"
+                            type="date"
+                            value={productForm.expiry_date}
+                            onChange={(e) => setProductForm(prev => ({ ...prev, expiry_date: e.target.value }))}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="serial_number">Serial Number</Label>
+                          <Input
+                            id="serial_number"
+                            value={productForm.serial_number}
+                            onChange={(e) => setProductForm(prev => ({ ...prev, serial_number: e.target.value }))}
+                            placeholder="Enter serial number"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="warehouses">Warehouses</Label>
+                        <Input
+                          id="warehouses"
+                          value={productForm.warehouses}
+                          onChange={(e) => setProductForm(prev => ({ ...prev, warehouses: e.target.value }))}
+                          placeholder="Enter warehouse names (comma-separated)"
+                        />
                       </div>
 
                       {/* Warehouse Selection - Only for new products */}
@@ -1213,12 +1231,12 @@ export function WarehouseTab() {
                       <TableCell className="font-medium">{product.product_name}</TableCell>
                       <TableCell>{product.product_code || '-'}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{product.main_group?.group_name}</Badge>
+                        <Badge variant="secondary">{product.main_group}</Badge>
                       </TableCell>
-                      <TableCell>{product.sub_group?.sub_group_name || '-'}</TableCell>
-                      <TableCell>{product.color?.color_name || '-'}</TableCell>
-                      <TableCell>{product.material?.material_name || '-'}</TableCell>
-                      <TableCell>{product.unit_of_measurement?.unit_name}</TableCell>
+                      <TableCell>{product.sub_group || '-'}</TableCell>
+                      <TableCell>{product.color || '-'}</TableCell>
+                      <TableCell>{product.material || '-'}</TableCell>
+                      <TableCell>{product.unit}</TableCell>
                       <TableCell>
                         {product.cost_price ? `$${product.cost_price.toFixed(2)}` : '-'}
                       </TableCell>
@@ -1227,14 +1245,14 @@ export function WarehouseTab() {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
-                          {product.inventory && product.inventory.length > 0 ? (
-                            product.inventory.map((inv) => (
-                              <Badge key={inv.id} variant="outline" className="text-xs">
-                                {inv.warehouse?.warehouse_name} ({inv.available_quantity})
+                          {product.warehouses ? (
+                            product.warehouses.split(',').map((warehouse, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {warehouse.trim()}
                               </Badge>
                             ))
                           ) : (
-                            <span className="text-muted-foreground text-sm">No inventory</span>
+                            <span className="text-muted-foreground text-sm">No warehouses</span>
                           )}
                         </div>
                       </TableCell>

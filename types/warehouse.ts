@@ -73,11 +73,11 @@ export interface Product {
   barcode?: string;
   stock_number?: string;
   stock_number_ar?: string;
-  main_group_id: number;
-  sub_group_id?: number;
-  color_id?: number;
-  material_id?: number;
-  unit_of_measurement_id: number;
+  main_group: string; // Changed from ID to direct string
+  sub_group?: string; // Changed from ID to direct string
+  color: string; // Changed from ID to direct string
+  material: string; // Changed from ID to direct string
+  unit: string; // Changed from ID to direct string
   description?: string;
   description_ar?: string;
   specifications?: Record<string, any>;
@@ -87,16 +87,10 @@ export interface Product {
   dimensions?: string;
   expiry_date?: string;
   serial_number?: string;
+  warehouses?: string; // Comma-separated warehouse names
   is_active: boolean;
   created_at: string;
   updated_at: string;
-  
-  // Related data
-  main_group?: MainGroup;
-  sub_group?: SubGroup;
-  color?: Color;
-  material?: Material;
-  unit_of_measurement?: UnitOfMeasurement;
 }
 
 export interface Inventory {
@@ -187,15 +181,20 @@ export interface CreateProductData {
   product_code?: string;
   stock_number?: string;
   stock_number_ar?: string;
-  main_group_id: number;
-  sub_group_id?: number;
-  color_id?: number;
-  material_id?: number;
-  unit_of_measurement_id: number;
+  main_group: string;
+  sub_group?: string;
+  color: string;
+  material: string;
+  unit: string;
   description?: string;
   description_ar?: string;
   cost_price?: number;
   selling_price?: number;
+  weight?: number;
+  dimensions?: string;
+  expiry_date?: string;
+  serial_number?: string;
+  warehouses?: string;
   specifications?: Record<string, any>;
 }
 
@@ -273,10 +272,11 @@ export interface WarehouseFilters {
 
 export interface ProductFilters {
   search?: string;
-  main_group_id?: number;
-  sub_group_id?: number;
-  color_id?: number;
-  material_id?: number;
+  main_group?: string;
+  sub_group?: string;
+  color?: string;
+  material?: string;
+  unit?: string;
   is_active?: boolean;
 }
 

@@ -524,34 +524,27 @@ export async function testProductJoins(): Promise<any[]> {
 export async function getProducts(filters?: ProductFilters): Promise<Product[]> {
   let query = supabase
     .from('products')
-    .select(`
-      *,
-      main_group:main_groups(*),
-      sub_group:sub_groups(*),
-      color:colors(*),
-      material:materials(*),
-      unit_of_measurement:units_of_measurement(*)
-    `)
+    .select('*')
     .order('product_name');
 
   if (filters?.search) {
     query = query.or(`product_name.ilike.%${filters.search}%,product_code.ilike.%${filters.search}%`);
   }
 
-  if (filters?.main_group_id) {
-    query = query.eq('main_group_id', filters.main_group_id);
+  if (filters?.main_group) {
+    query = query.eq('main_group', filters.main_group);
   }
 
-  if (filters?.sub_group_id) {
-    query = query.eq('sub_group_id', filters.sub_group_id);
+  if (filters?.sub_group) {
+    query = query.eq('sub_group', filters.sub_group);
   }
 
-  if (filters?.color_id) {
-    query = query.eq('color_id', filters.color_id);
+  if (filters?.color) {
+    query = query.eq('color', filters.color);
   }
 
-  if (filters?.material_id) {
-    query = query.eq('material_id', filters.material_id);
+  if (filters?.material) {
+    query = query.eq('material', filters.material);
   }
 
   if (filters?.is_active !== undefined) {
@@ -592,38 +585,53 @@ export async function getProductById(id: number): Promise<Product | null> {
 
 export async function createProduct(productData: CreateProductData): Promise<Product> {
   try {
-    // Add Arabic fields if not provided
+    // Prepare complete product data with all fields
     const fullProductData = {
-      ...productData,
+      product_name: productData.product_name,
       product_name_ar: productData.product_name_ar || productData.product_name,
-      description_ar: productData.description_ar || productData.description
+      product_code: productData.product_code || '',
+      stock_number: productData.stock_number || '',
+      stock_number_ar: productData.stock_number_ar || productData.stock_number || '',
+      main_group: productData.main_group,
+      sub_group: productData.sub_group || '',
+      color: productData.color,
+      material: productData.material,
+      unit: productData.unit,
+      description: productData.description || '',
+      description_ar: productData.description_ar || productData.description || '',
+      cost_price: productData.cost_price || 0,
+      selling_price: productData.selling_price || 0,
+      weight: productData.weight || null,
+      dimensions: productData.dimensions || '',
+      expiry_date: productData.expiry_date || null,
+      serial_number: productData.serial_number || '',
+      warehouses: productData.warehouses || '',
+      specifications: productData.specifications || {},
+      is_active: true
     };
+
+    console.log('Creating product with data:', fullProductData);
 
     const { data, error } = await supabase
       .from('products')
       .insert([fullProductData])
-      .select(`
-        *,
-        main_group:main_groups(*),
-        sub_group:sub_groups(*),
-        color:colors(*),
-        material:materials(*),
-        unit_of_measurement:units_of_measurement(*)
-      `)
+      .select('*')
       .single();
 
     if (error) {
       console.error('Error creating product:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       
-      // If tables don't exist, provide helpful error message
-      if (error.message.includes('relation') || error.message.includes('does not exist')) {
-        console.log('⚠️  Database tables not found. Please run the database setup script first.');
-        throw new Error('Database tables not found. Please run: node scripts/setup-database-simple.js');
+      // If specific columns don't exist, provide helpful error message
+      if (error.message.includes('column') || error.message.includes('does not exist')) {
+        console.log('⚠️  Database table structure mismatch. Please check your products table columns.');
+        throw new Error('Database table structure mismatch. Please check your products table columns.');
       }
       
       throw new Error('Failed to create product');
     }
 
+    console.log('Product created successfully:', data);
     return data;
   } catch (err) {
     console.error('Error in createProduct:', err);
