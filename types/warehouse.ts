@@ -6,10 +6,18 @@ export interface Warehouse {
   warehouse_name_ar: string;
   location: string;
   location_ar: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  responsible_person?: string;
+  responsible_person_ar?: string;
   warehouse_type: 'FACTORY' | 'DISTRIBUTION' | 'SUB_STORE' | 'MAIN';
   capacity: number;
   current_utilization: number;
+  contact_phone?: string;
+  contact_email?: string;
   is_active: boolean;
+  status?: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE';
   created_at: string;
   updated_at: string;
 }
@@ -158,8 +166,15 @@ export interface CreateWarehouseData {
   warehouse_name_ar?: string;
   location: string;
   location_ar?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  responsible_person?: string;
+  responsible_person_ar?: string;
   warehouse_type?: 'FACTORY' | 'DISTRIBUTION' | 'SUB_STORE' | 'MAIN';
   capacity?: number;
+  contact_phone?: string;
+  contact_email?: string;
 }
 
 export interface UpdateWarehouseData extends Partial<CreateWarehouseData> {
