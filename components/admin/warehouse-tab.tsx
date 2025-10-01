@@ -607,35 +607,35 @@ export function WarehouseTab() {
       </div>
 
       <Tabs value={activeSubTab} onValueChange={(value) => setActiveSubTab(value as any)}>
-        <TabsList className="grid w-full grid-cols-9">
-          <TabsTrigger value="dashboard">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-9 gap-1 p-1">
+          <TabsTrigger value="dashboard" className="text-xs sm:text-sm px-2 py-2">
             {t('warehouse.dashboard')}
           </TabsTrigger>
-          <TabsTrigger value="warehouses">
+          <TabsTrigger value="warehouses" className="text-xs sm:text-sm px-2 py-2">
             {t('warehouse.warehouses')}
           </TabsTrigger>
-          <TabsTrigger value="products">
+          <TabsTrigger value="products" className="text-xs sm:text-sm px-2 py-2">
             {t('warehouse.products')}
           </TabsTrigger>
-          <TabsTrigger value="measurement-units">
+          <TabsTrigger value="measurement-units" className="text-xs sm:text-sm px-2 py-2">
             {isRTL ? 'وحدات القياس' : 'Measurement Units'}
           </TabsTrigger>
-          <TabsTrigger value="movements">
+          <TabsTrigger value="movements" className="text-xs sm:text-sm px-2 py-2">
             {t('warehouse.stockMovements')}
           </TabsTrigger>
-          <TabsTrigger value="barcodes">
+          <TabsTrigger value="barcodes" className="text-xs sm:text-sm px-2 py-2">
             {t('warehouse.barcodes')}
           </TabsTrigger>
-          <TabsTrigger value="reports">
+          <TabsTrigger value="reports" className="text-xs sm:text-sm px-2 py-2">
             {t('warehouse.reports')}
           </TabsTrigger>
-          <TabsTrigger value="stocktaking">
+          <TabsTrigger value="stocktaking" className="text-xs sm:text-sm px-2 py-2">
             {t('warehouse.stocktaking')}
           </TabsTrigger>
-          <TabsTrigger value="bulk-upload">
+          <TabsTrigger value="bulk-upload" className="text-xs sm:text-sm px-2 py-2">
             {t('warehouse.bulkUpload')}
           </TabsTrigger>
-          <TabsTrigger value="workflow">
+          <TabsTrigger value="workflow" className="text-xs sm:text-sm px-2 py-2">
             {t('warehouse.workflow')}
           </TabsTrigger>
         </TabsList>
