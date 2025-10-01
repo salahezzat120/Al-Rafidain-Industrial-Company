@@ -313,32 +313,55 @@ async function generateTaskId(): Promise<string> {
 }
 
 export async function getDeliveryTaskStats(): Promise<DeliveryTaskStats> {
-  const { data, error } = await supabase
-    .from('delivery_tasks')
-    .select('status, total_value');
+  try {
+    const { data, error } = await supabase
+      .from('delivery_tasks')
+      .select('status, total_value');
 
-  if (error) {
-    console.error('Error fetching delivery task stats:', error);
-    throw new Error('Failed to fetch delivery task stats');
+    if (error) {
+      console.error('Error fetching delivery task stats:', error);
+      // Return default stats if table doesn't exist or has issues
+      return {
+        total: 0,
+        pending: 0,
+        assigned: 0,
+        in_progress: 0,
+        completed: 0,
+        cancelled: 0,
+        total_value: 0
+      };
+    }
+
+    const stats: DeliveryTaskStats = {
+      total: 0,
+      pending: 0,
+      assigned: 0,
+      in_progress: 0,
+      completed: 0,
+      cancelled: 0,
+      total_value: 0
+    };
+
+    data?.forEach(task => {
+      stats.total++;
+      stats[task.status as keyof DeliveryTaskStats]++;
+      stats.total_value += task.total_value || 0;
+    });
+
+    return stats;
+  } catch (error) {
+    console.error('Error in getDeliveryTaskStats:', error);
+    // Return default stats on any error
+    return {
+      total: 0,
+      pending: 0,
+      assigned: 0,
+      in_progress: 0,
+      completed: 0,
+      cancelled: 0,
+      total_value: 0
+    };
   }
-
-  const stats: DeliveryTaskStats = {
-    total: 0,
-    pending: 0,
-    assigned: 0,
-    in_progress: 0,
-    completed: 0,
-    cancelled: 0,
-    total_value: 0
-  };
-
-  data?.forEach(task => {
-    stats.total++;
-    stats[task.status as keyof DeliveryTaskStats]++;
-    stats.total_value += task.total_value || 0;
-  });
-
-  return stats;
 }
 
 export async function updateTaskStatus(taskId: string, status: string, notes?: string): Promise<void> {

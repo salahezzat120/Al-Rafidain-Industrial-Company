@@ -586,6 +586,77 @@ export async function getProducts(filters?: ProductFilters): Promise<Product[]> 
   return data || [];
 }
 
+// Get products for delivery task selection
+export async function getProductsForDelivery(): Promise<Product[]> {
+  try {
+    console.log('🔍 getProductsForDelivery called');
+    
+    // Simple query first - just get basic product info
+    const { data: simpleData, error: simpleError } = await supabase
+      .from('products')
+      .select('id, product_name, product_code, stock, is_active')
+      .eq('is_active', true)
+      .gt('stock', 0);
+    
+    if (simpleError) {
+      console.error('❌ Simple query error:', simpleError);
+      // Try even simpler query
+      const { data: basicData, error: basicError } = await supabase
+        .from('products')
+        .select('*')
+        .limit(10);
+      
+      if (basicError) {
+        console.error('❌ Basic query also failed:', basicError);
+        return [];
+      }
+      
+      console.log('✅ Basic query successful, products:', basicData?.length || 0);
+      return basicData || [];
+    }
+    
+    console.log('✅ Simple query successful, products:', simpleData?.length || 0);
+    
+    // If simple query works, try the full query
+    const { data, error } = await supabase
+      .from('products')
+      .select(`
+        id,
+        product_name,
+        product_name_ar,
+        product_code,
+        stock,
+        main_group,
+        sub_group,
+        color,
+        material,
+        unit,
+        description,
+        cost_price,
+        selling_price,
+        weight,
+        dimensions,
+        warehouses,
+        is_active
+      `)
+      .eq('is_active', true)
+      .gt('stock', 0)
+      .order('product_name', { ascending: true });
+
+    if (error) {
+      console.error('❌ Full query error:', error);
+      // Return the simple data if full query fails
+      return simpleData || [];
+    }
+
+    console.log('✅ Full query successful, products:', data?.length || 0);
+    return data || [];
+  } catch (error) {
+    console.error('❌ Error in getProductsForDelivery:', error);
+    return [];
+  }
+}
+
 export async function getProductById(id: number): Promise<Product | null> {
   const { data, error } = await supabase
     .from('products')
@@ -707,10 +778,9 @@ export async function createProduct(productData: CreateProductData): Promise<Pro
       product_name: productData.product_name.trim(),
       product_name_ar: productData.product_name_ar || productData.product_name.trim(),
       product_code: productData.product_code || '',
-      barcode: productData.barcode || '',
       stock_number: productData.stock_number || '',
       stock_number_ar: productData.stock_number_ar || productData.stock_number || '',
-      stock: 0, // Default stock
+      stock: productData.stock || parseFloat(productData.stock_number) || 0, // Use provided stock or parse stock_number
       main_group: mainGroupName,
       sub_group: subGroupName,
       color: colorName,

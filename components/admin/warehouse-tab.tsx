@@ -98,7 +98,7 @@ export function WarehouseTab() {
     product_name: '',
     product_code: '',
     stock_number: '',
-    barcode: '',
+    stock: 0,
     main_group_id: 0,
     sub_group_id: undefined,
     color_id: undefined,
@@ -324,6 +324,11 @@ export function WarehouseTab() {
         alert('Product name is required');
         return;
       }
+
+      if (selectedWarehouses.length === 0) {
+        alert('Please select a warehouse for this product');
+        return;
+      }
       
       // Generate unique product code if not provided
       let finalProductCode = productForm.product_code;
@@ -381,7 +386,7 @@ export function WarehouseTab() {
         product_name: '',
         product_code: '',
         stock_number: '',
-        barcode: '',
+        stock: 0,
         main_group_id: 0,
         sub_group_id: undefined,
         color_id: undefined,
@@ -416,7 +421,7 @@ export function WarehouseTab() {
         product_name: '',
         product_code: '',
         stock_number: '',
-        barcode: '',
+        stock: 0,
         main_group_id: 0,
         sub_group_id: undefined,
         color_id: undefined,
@@ -644,7 +649,7 @@ export function WarehouseTab() {
         product_name: product.product_name,
         product_code: product.product_code || '',
         stock_number: product.stock_number || '',
-        barcode: product.barcode || '',
+        stock: product.stock || 0,
         main_group_id: product.main_group_id,
         sub_group_id: product.sub_group_id,
         color_id: product.color_id,
@@ -659,7 +664,7 @@ export function WarehouseTab() {
         product_name: '',
         product_code: '',
         stock_number: '',
-        barcode: '',
+        stock: 0,
         main_group_id: 0,
         sub_group_id: undefined,
         color_id: undefined,
@@ -1057,12 +1062,13 @@ export function WarehouseTab() {
                           />
                         </div>
                         <div>
-                          <Label htmlFor="barcode">Barcode</Label>
+                          <Label htmlFor="stock">Stock Quantity</Label>
                           <Input
-                            id="barcode"
-                            value={productForm.barcode || ''}
-                            onChange={(e) => setProductForm(prev => ({ ...prev, barcode: e.target.value }))}
-                            placeholder="Enter barcode"
+                            id="stock"
+                            type="number"
+                            value={productForm.stock || ''}
+                            onChange={(e) => setProductForm(prev => ({ ...prev, stock: parseFloat(e.target.value) || 0 }))}
+                            placeholder="Enter stock quantity"
                           />
                         </div>
                       </div>
@@ -1292,46 +1298,94 @@ export function WarehouseTab() {
                       {/* Warehouse Selection - Only for new products */}
                       {!editingProduct && (
                         <div className="border-t pt-4 bg-gray-50 p-4 rounded-lg">
-                          <div className="bg-blue-500 text-white p-2 rounded mb-2">
-                            🏭 Warehouse Storage Selection
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="bg-blue-500 text-white p-2 rounded">
+                              🏭
+                            </div>
+                            <div>
+                              <Label className="text-lg font-semibold">Warehouse Storage</Label>
+                              <p className="text-sm text-muted-foreground">
+                                Select the warehouse where this product will be stored
+                              </p>
+                            </div>
                           </div>
-                          <Label className="text-lg font-semibold">🏭 Warehouse Storage</Label>
-                          <p className="text-sm text-muted-foreground mb-3">
-                            Select which warehouses will store this product and set initial quantities.
-                          </p>
-                          <div className="text-xs text-blue-600 mb-2 font-bold">
-                            🔍 Available: {warehouses.length} warehouses
-                          </div>
-                          <div className="space-y-3 mt-2">
+                          
+                          <div className="space-y-2">
                             {warehouses.length > 0 ? (
                               warehouses.map((warehouse) => (
-                                <div key={warehouse.id} className="flex items-center space-x-3 p-3 border rounded-lg">
+                                <div key={warehouse.id} className="relative">
                                   <input
-                                    type="checkbox"
+                                    type="radio"
                                     id={`warehouse-${warehouse.id}`}
+                                    name="warehouse-selection"
+                                    value={warehouse.id}
                                     checked={selectedWarehouses.includes(warehouse.id)}
                                     onChange={(e) => {
                                       if (e.target.checked) {
-                                        setSelectedWarehouses(prev => [...prev, warehouse.id]);
-                                      } else {
-                                        setSelectedWarehouses(prev => prev.filter(id => id !== warehouse.id));
+                                        setSelectedWarehouses([warehouse.id]);
                                       }
                                     }}
-                                    className="rounded"
+                                    className="sr-only"
                                   />
-                                  <label htmlFor={`warehouse-${warehouse.id}`} className="flex-1 cursor-pointer">
-                                    <div className="font-medium">{warehouse.warehouse_name}</div>
-                                    <div className="text-sm text-muted-foreground">{warehouse.location}</div>
+                                  <label 
+                                    htmlFor={`warehouse-${warehouse.id}`} 
+                                    className={`flex items-center p-3 border rounded-lg cursor-pointer transition-all hover:bg-blue-50 ${
+                                      selectedWarehouses.includes(warehouse.id) 
+                                        ? 'border-blue-500 bg-blue-50' 
+                                        : 'border-gray-200 hover:border-gray-300'
+                                    }`}
+                                  >
+                                    <div className={`w-4 h-4 rounded-full border-2 mr-3 flex items-center justify-center ${
+                                      selectedWarehouses.includes(warehouse.id)
+                                        ? 'border-blue-500 bg-blue-500'
+                                        : 'border-gray-300'
+                                    }`}>
+                                      {selectedWarehouses.includes(warehouse.id) && (
+                                        <div className="w-2 h-2 bg-white rounded-full"></div>
+                                      )}
+                                    </div>
+                                    <div className="flex-1">
+                                      <div className="font-medium text-gray-900">{warehouse.warehouse_name}</div>
+                                      <div className="text-sm text-gray-500">{warehouse.location}</div>
+                                      <div className="text-xs text-gray-400 mt-1">
+                                        {warehouse.warehouse_type} • Capacity: {warehouse.capacity}
+                                      </div>
+                                    </div>
+                                    {selectedWarehouses.includes(warehouse.id) && (
+                                      <div className="text-blue-500">
+                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                        </svg>
+                                      </div>
+                                    )}
                                   </label>
                                 </div>
                               ))
                             ) : (
-                              <div className="p-4 border border-dashed border-gray-300 rounded-lg text-center">
-                                <p className="text-sm text-muted-foreground mb-2">No warehouses available</p>
-                                <p className="text-xs text-muted-foreground">Create a warehouse first to store products</p>
+                              <div className="p-6 border border-dashed border-gray-300 rounded-lg text-center">
+                                <div className="text-gray-400 mb-2">
+                                  <svg className="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                  </svg>
+                                </div>
+                                <p className="text-sm text-gray-500 mb-1">No warehouses available</p>
+                                <p className="text-xs text-gray-400">Create a warehouse first to store products</p>
                               </div>
                             )}
                           </div>
+                          
+                          {selectedWarehouses.length > 0 && (
+                            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                <span className="text-sm text-green-700 font-medium">
+                                  Selected: {warehouses.find(w => w.id === selectedWarehouses[0])?.warehouse_name}
+                                </span>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

@@ -16,7 +16,7 @@ import { Package, User, AlertCircle, Search, Plus, Minus, ShoppingCart, Warehous
 import { useLanguage } from "@/contexts/language-context"
 import { useToast } from "@/hooks/use-toast"
 import { createDeliveryTask } from "@/lib/delivery-tasks"
-import { getWarehouses } from "@/lib/warehouse"
+import { getWarehouses, getProductsForDelivery } from "@/lib/warehouse"
 import type { CreateDeliveryTaskData, CreateTaskItemData } from "@/types/delivery-tasks"
 
 interface CreateTaskModalProps {
@@ -36,6 +36,7 @@ interface SelectedProduct {
   warehouse: string
   availableStock: number
 }
+
 
 const mockCustomers = [
   { id: "C001", name: "John Doe", address: "123 Main St, Downtown, City 12345", phone: "+1 (555) 123-4567" },
@@ -69,118 +70,6 @@ interface Warehouse {
   updated_at: string;
 }
 
-const mockProducts = [
-  {
-    id: 1,
-    product_name: "Industrial Steel Pipes",
-    product_code: "ISP-001",
-    main_group: { group_name: "Steel Products" },
-    unit_of_measurement: { unit_name: "meters" },
-    currentStock: 150,
-    currentPrice: 25000,
-    currency: "IQD",
-    warehouses: [
-      { id: 1, name: "Main Warehouse", stock: 100, location: "Baghdad Central" },
-      { id: 2, name: "North Warehouse", stock: 50, location: "Mosul" }
-    ]
-  },
-  {
-    id: 2,
-    product_name: "Aluminum Sheets",
-    product_code: "ALS-002",
-    main_group: { group_name: "Aluminum Products" },
-    unit_of_measurement: { unit_name: "sheets" },
-    currentStock: 75,
-    currentPrice: 18000,
-    currency: "IQD",
-    warehouses: [
-      { id: 1, name: "Main Warehouse", stock: 45, location: "Baghdad Central" },
-      { id: 3, name: "South Warehouse", stock: 30, location: "Basra" }
-    ]
-  },
-  {
-    id: 3,
-    product_name: "Copper Wire",
-    product_code: "CW-003",
-    main_group: { group_name: "Electrical Components" },
-    unit_of_measurement: { unit_name: "meters" },
-    currentStock: 200,
-    currentPrice: 12000,
-    currency: "IQD",
-    warehouses: [
-      { id: 1, name: "Main Warehouse", stock: 120, location: "Baghdad Central" },
-      { id: 4, name: "East Warehouse", stock: 80, location: "Erbil" }
-    ]
-  },
-  {
-    id: 4,
-    product_name: "Industrial Valves",
-    product_code: "IV-004",
-    main_group: { group_name: "Mechanical Parts" },
-    unit_of_measurement: { unit_name: "pieces" },
-    currentStock: 45,
-    currentPrice: 35000,
-    currency: "IQD",
-    warehouses: [
-      { id: 2, name: "North Warehouse", stock: 25, location: "Mosul" },
-      { id: 3, name: "South Warehouse", stock: 20, location: "Basra" }
-    ]
-  },
-  {
-    id: 5,
-    product_name: "Steel Beams",
-    product_code: "SB-005",
-    main_group: { group_name: "Steel Products" },
-    unit_of_measurement: { unit_name: "pieces" },
-    currentStock: 30,
-    currentPrice: 45000,
-    currency: "IQD",
-    warehouses: [
-      { id: 1, name: "Main Warehouse", stock: 20, location: "Baghdad Central" },
-      { id: 2, name: "North Warehouse", stock: 10, location: "Mosul" }
-    ]
-  },
-  {
-    id: 6,
-    product_name: "Electrical Cables",
-    product_code: "EC-006",
-    main_group: { group_name: "Electrical Components" },
-    unit_of_measurement: { unit_name: "meters" },
-    currentStock: 0,
-    currentPrice: 8000,
-    currency: "IQD",
-    warehouses: []
-  },
-  {
-    id: 7,
-    product_name: "Aluminum Frames",
-    product_code: "AF-007",
-    main_group: { group_name: "Aluminum Products" },
-    unit_of_measurement: { unit_name: "pieces" },
-    currentStock: 60,
-    currentPrice: 22000,
-    currency: "IQD",
-    warehouses: [
-      { id: 3, name: "South Warehouse", stock: 35, location: "Basra" },
-      { id: 4, name: "East Warehouse", stock: 25, location: "Erbil" }
-    ]
-  },
-  {
-    id: 8,
-    product_name: "Steel Plates",
-    product_code: "SP-008",
-    main_group: { group_name: "Steel Products" },
-    unit_of_measurement: { unit_name: "pieces" },
-    currentStock: 90,
-    currentPrice: 28000,
-    currency: "IQD",
-    warehouses: [
-      { id: 1, name: "Main Warehouse", stock: 50, location: "Baghdad Central" },
-      { id: 2, name: "North Warehouse", stock: 25, location: "Mosul" },
-      { id: 4, name: "East Warehouse", stock: 15, location: "Erbil" }
-    ]
-  }
-]
 
 export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalProps) {
   const { t } = useLanguage()
@@ -199,13 +88,20 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [isLoadingWarehouses, setIsLoadingWarehouses] = useState(false)
+  
   // Product selection state
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([])
   const [productSearchTerm, setProductSearchTerm] = useState("")
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>("all")
   const [activeTab, setActiveTab] = useState<"details" | "products">("details")
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
-  const [isLoadingWarehouses, setIsLoadingWarehouses] = useState(false)
+  
+  // Product data state
+  const [products, setProducts] = useState<any[]>([])
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false)
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([])
+  
 
   // Load warehouses from Supabase
   const loadWarehouses = useCallback(async () => {
@@ -225,32 +121,65 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
     }
   }, [toast])
 
-  // Load warehouses when modal opens
+  // Load products from Supabase
+  const loadProducts = useCallback(async () => {
+    try {
+      console.log('🔄 Loading products...')
+      setIsLoadingProducts(true)
+      const productsData = await getProductsForDelivery()
+      console.log('📦 Products loaded:', productsData?.length || 0)
+      console.log('📋 Products data:', productsData)
+      setProducts(productsData)
+      setFilteredProducts(productsData)
+    } catch (error) {
+      console.error('❌ Error loading products:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load products",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingProducts(false)
+    }
+  }, [toast])
+
+
+  // Load warehouses and products when modal opens
   useEffect(() => {
     if (isOpen) {
       loadWarehouses()
+      loadProducts()
     }
-  }, [isOpen, loadWarehouses])
+  }, [isOpen, loadWarehouses, loadProducts])
 
   // Filter products based on search term and warehouse
-  const filteredProducts = mockProducts.filter(product => {
-    const matchesSearch = product.product_name.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-      product.product_code?.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-      product.main_group?.group_name?.toLowerCase().includes(productSearchTerm.toLowerCase())
+  useEffect(() => {
+    console.log('🔍 Filtering products...')
+    console.log('📊 Total products:', products.length)
+    console.log('🔍 Search term:', productSearchTerm)
+    console.log('🏢 Selected warehouse:', selectedWarehouse)
     
-    const matchesWarehouse = !selectedWarehouse || selectedWarehouse === "all" || 
-      product.warehouses.some(w => w.id.toString() === selectedWarehouse)
+    const filtered = products.filter(product => {
+      const matchesSearch = product.product_name.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+        product.product_code?.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+        product.main_group?.toLowerCase().includes(productSearchTerm.toLowerCase())
+      
+      const matchesWarehouse = selectedWarehouse === "all" || 
+        product.warehouses?.includes(warehouses.find(w => w.id.toString() === selectedWarehouse)?.warehouse_name || '')
+      
+      return matchesSearch && matchesWarehouse
+    })
     
-    return matchesSearch && matchesWarehouse
-  })
+    console.log('✅ Filtered products:', filtered.length)
+    setFilteredProducts(filtered)
+  }, [products, productSearchTerm, selectedWarehouse, warehouses])
 
   // Handle product selection
   const handleAddProduct = (product: any) => {
-    const warehouse = product.warehouses?.[0] // Use first available warehouse
-    if (!warehouse || warehouse.stock <= 0) {
+    if (product.stock <= 0) {
       toast({
         title: "No Stock Available",
-        description: "This product is not available in any warehouse",
+        description: "This product is out of stock",
         variant: "destructive",
       })
       return
@@ -269,11 +198,11 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
         name: product.product_name,
         code: product.product_code || '',
         quantity: 1,
-        price: product.currentPrice || 0,
-        currency: product.currency || 'IQD',
-        unit: product.unit_of_measurement?.unit_name || 'pcs',
-        warehouse: warehouse.name,
-        availableStock: warehouse.stock
+        price: product.selling_price || product.cost_price || 0,
+        currency: 'IQD',
+        unit: product.unit || 'pcs',
+        warehouse: product.warehouses || 'Main Warehouse',
+        availableStock: product.stock
       }
       setSelectedProducts(prev => [...prev, newProduct])
     }
@@ -636,24 +565,22 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
                         />
                       </div>
                     </div>
-                        <div className="w-48">
-                          <Label htmlFor="warehouseFilter">Filter by Warehouse</Label>
-                          <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse} disabled={isLoadingWarehouses}>
-                            <SelectTrigger>
-                              <SelectValue placeholder={isLoadingWarehouses ? "Loading..." : "All Warehouses"} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Warehouses</SelectItem>
-                              {warehouses
-                                .filter(warehouse => warehouse.status === 'ACTIVE')
-                                .map((warehouse) => (
-                                <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
-                                  {warehouse.warehouse_name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                    <div className="w-48">
+                      <Label htmlFor="warehouseFilter">Filter by Warehouse</Label>
+                      <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse} disabled={isLoadingWarehouses}>
+                        <SelectTrigger>
+                          <SelectValue placeholder={isLoadingWarehouses ? "Loading..." : "All Warehouses"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Warehouses</SelectItem>
+                          {warehouses.map((warehouse) => (
+                            <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
+                              {warehouse.warehouse_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -728,7 +655,9 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
                   <CardTitle className="text-lg">Available Products</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {filteredProducts.length === 0 ? (
+                  {isLoadingProducts ? (
+                    <div className="text-center py-8 text-gray-500">Loading products...</div>
+                  ) : filteredProducts.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">No products found</div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -738,21 +667,21 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
                             <div className="flex-1">
                               <h3 className="font-medium text-sm">{product.product_name}</h3>
                               <p className="text-xs text-gray-500">{product.product_code}</p>
-                              <p className="text-xs text-gray-500">{product.main_group?.group_name}</p>
+                              <p className="text-xs text-gray-500">{product.main_group}</p>
                             </div>
-                            <Badge variant={product.currentStock > 0 ? "default" : "destructive"}>
-                              {product.currentStock} {product.unit_of_measurement?.unit_name || 'pcs'}
+                            <Badge variant={product.stock > 0 ? "default" : "destructive"}>
+                              {product.stock} {product.unit || 'pcs'}
                             </Badge>
                           </div>
                           <div className="flex justify-between items-center">
                             <div>
-                              <div className="font-medium text-sm">{product.currentPrice.toLocaleString()} {product.currency}</div>
-                              <div className="text-xs text-gray-500">per {product.unit_of_measurement?.unit_name || 'pcs'}</div>
+                              <div className="font-medium text-sm">{product.selling_price?.toLocaleString() || product.cost_price?.toLocaleString() || '0'} IQD</div>
+                              <div className="text-xs text-gray-500">per {product.unit || 'pcs'}</div>
                             </div>
                             <Button
                               size="sm"
                               onClick={() => handleAddProduct(product)}
-                              disabled={product.currentStock <= 0}
+                              disabled={product.stock <= 0}
                             >
                               <Plus className="h-3 w-3 mr-1" />
                               Add
