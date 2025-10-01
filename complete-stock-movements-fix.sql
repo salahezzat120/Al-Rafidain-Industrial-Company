@@ -1,32 +1,39 @@
--- Complete Fix for Stock Movements
--- This script creates the stock_movements table with all required columns and proper structure
+-- Complete Stock Movements Fix
+-- This script fixes all issues with stock movements functionality
 
--- Step 1: Drop the table if it exists (to recreate with correct structure)
+-- ===========================================
+-- STEP 1: CREATE STOCK MOVEMENTS TABLE
+-- ===========================================
+
+-- Drop the table if it exists (to recreate with correct structure)
 DROP TABLE IF EXISTS stock_movements CASCADE;
 
--- Step 2: Create stock_movements table with complete structure (Arabic & English support)
+-- Create stock_movements table with complete structure
 CREATE TABLE stock_movements (
     id SERIAL PRIMARY KEY,
     product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     warehouse_id INTEGER NOT NULL REFERENCES warehouses(id) ON DELETE CASCADE,
     movement_type VARCHAR(20) NOT NULL CHECK (movement_type IN ('IN', 'OUT', 'TRANSFER', 'ADJUSTMENT', 'RECEIPT', 'ISSUE', 'RETURN')),
-    movement_type_ar VARCHAR(20) NOT NULL, -- Arabic version of movement type
+    movement_type_ar VARCHAR(20) NOT NULL,
     quantity INTEGER NOT NULL,
     unit_price DECIMAL(10,2) DEFAULT 0,
     total_value DECIMAL(10,2) GENERATED ALWAYS AS (quantity * unit_price) STORED,
     reference_number VARCHAR(100),
-    reference_number_ar VARCHAR(100), -- Arabic reference number
+    reference_number_ar VARCHAR(100),
     notes TEXT,
-    notes_ar TEXT, -- Arabic notes
+    notes_ar TEXT,
     created_by VARCHAR(255) DEFAULT 'System',
-    created_by_ar VARCHAR(255) DEFAULT 'النظام', -- Arabic version of created_by
+    created_by_ar VARCHAR(255) DEFAULT 'النظام',
     approved_by VARCHAR(255),
     status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Step 3: Create indexes for better performance
+-- ===========================================
+-- STEP 2: CREATE INDEXES
+-- ===========================================
+
 CREATE INDEX idx_stock_movements_product_id ON stock_movements (product_id);
 CREATE INDEX idx_stock_movements_warehouse_id ON stock_movements (warehouse_id);
 CREATE INDEX idx_stock_movements_type ON stock_movements (movement_type);
@@ -34,31 +41,49 @@ CREATE INDEX idx_stock_movements_created_at ON stock_movements (created_at);
 CREATE INDEX idx_stock_movements_reference ON stock_movements (reference_number);
 CREATE INDEX idx_stock_movements_status ON stock_movements (status);
 
--- Step 4: Enable RLS (Row Level Security)
+-- ===========================================
+-- STEP 3: SET UP RLS POLICIES
+-- ===========================================
+
+-- Enable RLS
 ALTER TABLE stock_movements ENABLE ROW LEVEL SECURITY;
 
--- Step 5: Create RLS policies
-CREATE POLICY "Allow authenticated users to read stock movements" 
+-- Create comprehensive RLS policies
+CREATE POLICY "Enable read access for authenticated users" 
 ON stock_movements FOR SELECT 
-TO authenticated;
+TO authenticated 
+USING (true);
 
-CREATE POLICY "Allow authenticated users to insert stock movements" 
+CREATE POLICY "Enable insert access for authenticated users" 
 ON stock_movements FOR INSERT 
-TO authenticated;
+TO authenticated 
+WITH CHECK (true);
 
-CREATE POLICY "Allow authenticated users to update stock movements" 
+CREATE POLICY "Enable update access for authenticated users" 
 ON stock_movements FOR UPDATE 
-TO authenticated;
+TO authenticated 
+USING (true) 
+WITH CHECK (true);
 
-CREATE POLICY "Allow authenticated users to delete stock movements" 
+CREATE POLICY "Enable delete access for authenticated users" 
 ON stock_movements FOR DELETE 
-TO authenticated;
+TO authenticated 
+USING (true);
 
--- Step 6: Grant permissions
+-- ===========================================
+-- STEP 4: GRANT PERMISSIONS
+-- ===========================================
+
 GRANT ALL ON stock_movements TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE stock_movements_id_seq TO authenticated;
+GRANT SELECT ON products TO authenticated;
+GRANT SELECT ON warehouses TO authenticated;
 
--- Step 7: Insert sample data for testing
+-- ===========================================
+-- STEP 5: INSERT SAMPLE DATA
+-- ===========================================
+
+-- Insert sample stock movements for testing
 INSERT INTO stock_movements (
     product_id, 
     warehouse_id, 
@@ -78,12 +103,15 @@ INSERT INTO stock_movements (
 (1, 1, 'OUT', 'خروج', 10, 25.50, 'REF-002', 'مرجع-002', 'Stock issue for production', 'صرف مخزون للإنتاج', 'System', 'النظام', 'APPROVED'),
 (1, 1, 'TRANSFER', 'نقل', 20, 25.50, 'REF-003', 'مرجع-003', 'Transfer to other warehouse', 'نقل إلى مستودع آخر', 'System', 'النظام', 'PENDING');
 
--- Step 8: Create a function to update inventory after stock movement
+-- ===========================================
+-- STEP 6: CREATE HELPER FUNCTIONS
+-- ===========================================
+
+-- Function to update inventory after stock movement
 CREATE OR REPLACE FUNCTION update_inventory_after_movement()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- This function will be called after a stock movement is created
-    -- For now, we'll just log the movement
+    -- Log the movement
     RAISE NOTICE 'Stock movement created: Product % in Warehouse % with quantity %', 
         NEW.product_id, NEW.warehouse_id, NEW.quantity;
     
@@ -91,14 +119,20 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Step 9: Create trigger to call the function
+-- Trigger to call the function
 CREATE TRIGGER trigger_update_inventory_after_movement
     AFTER INSERT ON stock_movements
     FOR EACH ROW
     EXECUTE FUNCTION update_inventory_after_movement();
 
--- Step 10: Verify the table structure
+-- ===========================================
+-- STEP 7: VERIFICATION
+-- ===========================================
+
+-- Verify table structure
 SELECT 'Stock Movements Table Created Successfully!' as status;
+
+-- Show table structure
 SELECT 
     column_name,
     data_type,
@@ -107,3 +141,26 @@ SELECT
 FROM information_schema.columns 
 WHERE table_name = 'stock_movements' 
 ORDER BY ordinal_position;
+
+-- Show RLS policies
+SELECT 
+    schemaname,
+    tablename,
+    policyname,
+    permissive,
+    roles,
+    cmd
+FROM pg_policies 
+WHERE tablename = 'stock_movements';
+
+-- Show sample data
+SELECT 
+    id,
+    movement_type,
+    movement_type_ar,
+    quantity,
+    reference_number,
+    status,
+    created_at
+FROM stock_movements 
+ORDER BY created_at DESC;
