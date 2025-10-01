@@ -98,11 +98,11 @@ export function WarehouseTab() {
   const [productForm, setProductForm] = useState<CreateProductData>({
     product_name: '',
     product_code: '',
-    main_group: '',
-    sub_group: '',
-    color: '',
-    material: '',
-    unit: '',
+    main_group_id: 0,
+    sub_group_id: undefined,
+    color_id: undefined,
+    material_id: undefined,
+    unit_of_measurement_id: 0,
     description: '',
     cost_price: undefined,
     selling_price: undefined,
@@ -296,11 +296,11 @@ export function WarehouseTab() {
       setProductForm({
         product_name: '',
         product_code: '',
-        main_group: '',
-        sub_group: '',
-        color: '',
-        material: '',
-        unit: '',
+        main_group_id: 0,
+        sub_group_id: undefined,
+        color_id: undefined,
+        material_id: undefined,
+        unit_of_measurement_id: 0,
         description: '',
         cost_price: undefined,
         selling_price: undefined,
@@ -330,11 +330,11 @@ export function WarehouseTab() {
       setProductForm({
         product_name: '',
         product_code: '',
-        main_group: '',
-        sub_group: '',
-        color: '',
-        material: '',
-        unit: '',
+        main_group_id: 0,
+        sub_group_id: undefined,
+        color_id: undefined,
+        material_id: undefined,
+        unit_of_measurement_id: 0,
         description: '',
         cost_price: undefined,
         selling_price: undefined,
@@ -569,11 +569,11 @@ export function WarehouseTab() {
       setProductForm({
         product_name: '',
         product_code: '',
-        main_group: '',
-        sub_group: '',
-        color: '',
-        material: '',
-        unit: '',
+        main_group_id: 0,
+        sub_group_id: undefined,
+        color_id: undefined,
+        material_id: undefined,
+        unit_of_measurement_id: 0,
         description: '',
         cost_price: undefined,
         selling_price: undefined,
@@ -959,51 +959,112 @@ export function WarehouseTab() {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <Label htmlFor="main_group">Main Group</Label>
-                          <Input
-                            id="main_group"
-                            value={productForm.main_group}
-                            onChange={(e) => setProductForm(prev => ({ ...prev, main_group: e.target.value }))}
-                            placeholder="Enter main group"
-                          />
+                          <Select
+                            value={productForm.main_group_id.toString()}
+                            onValueChange={(value) => setProductForm(prev => ({ 
+                              ...prev, 
+                              main_group_id: parseInt(value),
+                              sub_group_id: undefined
+                            }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select main group" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {mainGroups.map((group) => (
+                                <SelectItem key={group.id} value={group.id.toString()}>
+                                  {group.group_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div>
                           <Label htmlFor="sub_group">Sub Group</Label>
-                          <Input
-                            id="sub_group"
-                            value={productForm.sub_group}
-                            onChange={(e) => setProductForm(prev => ({ ...prev, sub_group: e.target.value }))}
-                            placeholder="Enter sub group"
-                          />
+                          <Select
+                            value={productForm.sub_group_id?.toString() || ''}
+                            onValueChange={(value) => setProductForm(prev => ({ 
+                              ...prev, 
+                              sub_group_id: value ? parseInt(value) : undefined
+                            }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select sub group" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {subGroups.map((subGroup) => (
+                                <SelectItem key={subGroup.id} value={subGroup.id.toString()}>
+                                  {subGroup.sub_group_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-3 gap-4">
                         <div>
                           <Label htmlFor="color">Color</Label>
-                          <Input
-                            id="color"
-                            value={productForm.color}
-                            onChange={(e) => setProductForm(prev => ({ ...prev, color: e.target.value }))}
-                            placeholder="Enter color"
-                          />
+                          <Select
+                            value={productForm.color_id?.toString() || ''}
+                            onValueChange={(value) => setProductForm(prev => ({ 
+                              ...prev, 
+                              color_id: value ? parseInt(value) : undefined
+                            }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select color" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {colors.map((color) => (
+                                <SelectItem key={color.id} value={color.id.toString()}>
+                                  {color.color_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div>
                           <Label htmlFor="material">Material</Label>
-                          <Input
-                            id="material"
-                            value={productForm.material}
-                            onChange={(e) => setProductForm(prev => ({ ...prev, material: e.target.value }))}
-                            placeholder="Enter material"
-                          />
+                          <Select
+                            value={productForm.material_id?.toString() || ''}
+                            onValueChange={(value) => setProductForm(prev => ({ 
+                              ...prev, 
+                              material_id: value ? parseInt(value) : undefined
+                            }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select material" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {materials.map((material) => (
+                                <SelectItem key={material.id} value={material.id.toString()}>
+                                  {material.material_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div>
                           <Label htmlFor="unit">Unit of Measurement</Label>
-                          <Input
-                            id="unit"
-                            value={productForm.unit}
-                            onChange={(e) => setProductForm(prev => ({ ...prev, unit: e.target.value }))}
-                            placeholder="Enter unit (e.g., pcs, kg, m)"
-                          />
+                          <Select
+                            value={productForm.unit_of_measurement_id.toString()}
+                            onValueChange={(value) => setProductForm(prev => ({ 
+                              ...prev, 
+                              unit_of_measurement_id: parseInt(value)
+                            }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select unit" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {units.map((unit) => (
+                                <SelectItem key={unit.id} value={unit.id.toString()}>
+                                  {unit.unit_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
 
