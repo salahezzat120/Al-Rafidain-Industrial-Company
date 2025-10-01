@@ -352,17 +352,35 @@ export async function deleteUnitOfMeasurement(id: number): Promise<void> {
 // ==================== MAIN GROUPS ====================
 
 export async function getMainGroups(): Promise<MainGroup[]> {
-  const { data, error } = await supabase
-    .from('main_groups')
-    .select('*')
-    .order('group_name');
+  try {
+    console.log('🔄 Fetching main groups from database...');
+    
+    const { data, error } = await supabase
+      .from('main_groups')
+      .select('*')
+      .order('group_name');
 
-  if (error) {
-    console.error('Error fetching main groups:', error);
-    throw new Error('Failed to fetch main groups');
+    if (error) {
+      console.error('❌ Error fetching main groups:', error);
+      console.error('Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
+      throw new Error(`Failed to fetch main groups: ${error.message}`);
+    }
+
+    console.log('✅ Main groups fetched successfully:', data?.length || 0, 'records');
+    if (data && data.length > 0) {
+      console.log('📋 Sample main group:', data[0]);
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error('❌ getMainGroups error:', err);
+    throw err;
   }
-
-  return data || [];
 }
 
 export async function createMainGroup(groupData: CreateMainGroupData): Promise<MainGroup> {
@@ -383,26 +401,41 @@ export async function createMainGroup(groupData: CreateMainGroupData): Promise<M
 // ==================== SUB GROUPS ====================
 
 export async function getSubGroups(mainGroupId?: number): Promise<SubGroup[]> {
-  let query = supabase
-    .from('sub_groups')
-    .select(`
-      *,
-      main_group:main_groups(*)
-    `)
-    .order('sub_group_name');
+  try {
+    console.log(`🔄 Fetching sub groups for main group ID: ${mainGroupId || 'all'}...`);
+    
+    let query = supabase
+      .from('sub_groups')
+      .select('*')
+      .order('sub_group_name');
 
-  if (mainGroupId) {
-    query = query.eq('main_group_id', mainGroupId);
+    if (mainGroupId) {
+      query = query.eq('main_group_id', mainGroupId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('❌ Error fetching sub groups:', error);
+      console.error('Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
+      throw new Error(`Failed to fetch sub groups: ${error.message}`);
+    }
+
+    console.log(`✅ Sub groups fetched successfully: ${data?.length || 0} records`);
+    if (data && data.length > 0) {
+      console.log('📋 Sample sub group:', data[0]);
+    }
+
+    return data || [];
+  } catch (err) {
+    console.error('❌ getSubGroups error:', err);
+    throw err;
   }
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error('Error fetching sub groups:', error);
-    throw new Error('Failed to fetch sub groups');
-  }
-
-  return data || [];
 }
 
 export async function createSubGroup(subGroupData: CreateSubGroupData): Promise<SubGroup> {

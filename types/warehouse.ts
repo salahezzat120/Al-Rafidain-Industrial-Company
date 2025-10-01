@@ -181,11 +181,12 @@ export interface CreateProductData {
   product_code?: string;
   stock_number?: string;
   stock_number_ar?: string;
-  main_group: string;
-  sub_group?: string;
-  color: string;
-  material: string;
-  unit: string;
+  barcode?: string;
+  main_group_id: number;
+  sub_group_id?: number;
+  color_id?: number;
+  material_id?: number;
+  unit_of_measurement_id: number;
   description?: string;
   description_ar?: string;
   cost_price?: number;

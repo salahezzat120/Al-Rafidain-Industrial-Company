@@ -98,6 +98,8 @@ export function WarehouseTab() {
   const [productForm, setProductForm] = useState<CreateProductData>({
     product_name: '',
     product_code: '',
+    stock_number: '',
+    barcode: '',
     main_group_id: 0,
     sub_group_id: undefined,
     color_id: undefined,
@@ -118,7 +120,6 @@ export function WarehouseTab() {
   
   // Warehouse selection for new products
   const [selectedWarehouses, setSelectedWarehouses] = useState<number[]>([]);
-  const [warehouseQuantities, setWarehouseQuantities] = useState<Record<number, number>>({});
 
   // Measurement unit form state (bilingual)
   const [unitForm, setUnitForm] = useState<CreateUnitOfMeasurementData>({
@@ -175,19 +176,44 @@ export function WarehouseTab() {
         statsData,
         alertsData
       ] = await Promise.all([
-        getProducts(),
-        getInventorySummary(),
-        getMainGroups(),
-        getColors(),
-        getMaterials(),
-        getUnitsOfMeasurement(),
-        getWarehouseStats(),
-        getStockAlerts()
+        getProducts().catch(err => {
+          console.error('Error loading products:', err);
+          return [];
+        }),
+        getInventorySummary().catch(err => {
+          console.error('Error loading inventory:', err);
+          return [];
+        }),
+        getMainGroups().catch(err => {
+          console.error('Error loading main groups:', err);
+          return [];
+        }),
+        getColors().catch(err => {
+          console.error('Error loading colors:', err);
+          return [];
+        }),
+        getMaterials().catch(err => {
+          console.error('Error loading materials:', err);
+          return [];
+        }),
+        getUnitsOfMeasurement().catch(err => {
+          console.error('Error loading units:', err);
+          return [];
+        }),
+        getWarehouseStats().catch(err => {
+          console.error('Error loading stats:', err);
+          return null;
+        }),
+        getStockAlerts().catch(err => {
+          console.error('Error loading alerts:', err);
+          return [];
+        })
       ]);
 
       console.log('Products loaded:', productsData.length);
       console.log('Sample product:', productsData[0]);
       console.log('Main groups loaded:', mainGroupsData.length);
+      console.log('Sample main group:', mainGroupsData[0]);
       console.log('Units loaded:', unitsData.length);
 
       console.log('Warehouses loaded:', warehousesData.length);
@@ -227,10 +253,16 @@ export function WarehouseTab() {
 
   const loadSubGroups = async (mainGroupId: number) => {
     try {
+      console.log(`🔄 Loading sub groups for main group ID: ${mainGroupId}...`);
       const subGroupsData = await getSubGroups(mainGroupId);
+      console.log(`✅ Sub groups loaded: ${subGroupsData.length} records`);
+      if (subGroupsData.length > 0) {
+        console.log('📋 Sample sub group:', subGroupsData[0]);
+      }
       setSubGroups(subGroupsData);
     } catch (error) {
-      console.error('Error loading sub groups:', error);
+      console.error('❌ Error loading sub groups:', error);
+      setSubGroups([]); // Clear sub groups on error
     }
   };
 
@@ -279,11 +311,11 @@ export function WarehouseTab() {
       if (selectedWarehouses.length > 0) {
         console.log('Creating inventory records for warehouses:', selectedWarehouses);
         const inventoryPromises = selectedWarehouses.map(warehouseId => {
-          console.log(`Creating inventory for warehouse ${warehouseId} with quantity ${warehouseQuantities[warehouseId] || 0}`);
+          console.log(`Creating inventory for warehouse ${warehouseId} with default quantity 0`);
           return createInventory({
             product_id: newProduct.id,
             warehouse_id: warehouseId,
-            available_quantity: warehouseQuantities[warehouseId] || 0,
+            available_quantity: 0, // Default quantity
             minimum_stock_level: 0,
             maximum_stock_level: undefined,
             reorder_point: 0
@@ -296,6 +328,8 @@ export function WarehouseTab() {
       setProductForm({
         product_name: '',
         product_code: '',
+        stock_number: '',
+        barcode: '',
         main_group_id: 0,
         sub_group_id: undefined,
         color_id: undefined,
@@ -312,7 +346,6 @@ export function WarehouseTab() {
         specifications: {}
       });
       setSelectedWarehouses([]);
-      setWarehouseQuantities({});
       setProductDialogOpen(false);
       await loadData(); // Reload all data including stats
       await refreshStats(); // Also refresh stats specifically
@@ -330,6 +363,8 @@ export function WarehouseTab() {
       setProductForm({
         product_name: '',
         product_code: '',
+        stock_number: '',
+        barcode: '',
         main_group_id: 0,
         sub_group_id: undefined,
         color_id: undefined,
@@ -556,6 +591,8 @@ export function WarehouseTab() {
       setProductForm({
         product_name: product.product_name,
         product_code: product.product_code || '',
+        stock_number: product.stock_number || '',
+        barcode: product.barcode || '',
         main_group_id: product.main_group_id,
         sub_group_id: product.sub_group_id,
         color_id: product.color_id,
@@ -569,6 +606,8 @@ export function WarehouseTab() {
       setProductForm({
         product_name: '',
         product_code: '',
+        stock_number: '',
+        barcode: '',
         main_group_id: 0,
         sub_group_id: undefined,
         color_id: undefined,
@@ -586,7 +625,6 @@ export function WarehouseTab() {
       });
     }
     setSelectedWarehouses([]);
-    setWarehouseQuantities({});
     setProductDialogOpen(true);
   };
 
@@ -958,6 +996,27 @@ export function WarehouseTab() {
                       
                       <div className="grid grid-cols-2 gap-4">
                         <div>
+                          <Label htmlFor="stock_number">Stock Number</Label>
+                          <Input
+                            id="stock_number"
+                            value={productForm.stock_number || ''}
+                            onChange={(e) => setProductForm(prev => ({ ...prev, stock_number: e.target.value }))}
+                            placeholder="Enter stock number"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="barcode">Barcode</Label>
+                          <Input
+                            id="barcode"
+                            value={productForm.barcode || ''}
+                            onChange={(e) => setProductForm(prev => ({ ...prev, barcode: e.target.value }))}
+                            placeholder="Enter barcode"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
                           <Label htmlFor="main_group">Main Group</Label>
                           <Select
                             value={productForm.main_group_id.toString()}
@@ -971,11 +1030,17 @@ export function WarehouseTab() {
                               <SelectValue placeholder="Select main group" />
                             </SelectTrigger>
                             <SelectContent>
-                              {mainGroups.map((group) => (
-                                <SelectItem key={group.id} value={group.id.toString()}>
-                                  {group.group_name}
+                              {mainGroups.length > 0 ? (
+                                mainGroups.map((group) => (
+                                  <SelectItem key={group.id} value={group.id.toString()}>
+                                    {group.group_name}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <SelectItem value="no-data" disabled>
+                                  No main groups found - check database
                                 </SelectItem>
-                              ))}
+                              )}
                             </SelectContent>
                           </Select>
                         </div>
@@ -992,11 +1057,20 @@ export function WarehouseTab() {
                               <SelectValue placeholder="Select sub group" />
                             </SelectTrigger>
                             <SelectContent>
-                              {subGroups.map((subGroup) => (
-                                <SelectItem key={subGroup.id} value={subGroup.id.toString()}>
-                                  {subGroup.sub_group_name}
+                              {subGroups.length > 0 ? (
+                                subGroups.map((subGroup) => (
+                                  <SelectItem key={subGroup.id} value={subGroup.id.toString()}>
+                                    {subGroup.sub_group_name}
+                                  </SelectItem>
+                                ))
+                              ) : (
+                                <SelectItem value="no-data" disabled>
+                                  {productForm.main_group_id > 0 
+                                    ? "No sub groups found for selected main group" 
+                                    : "Select a main group first"
+                                  }
                                 </SelectItem>
-                              ))}
+                              )}
                             </SelectContent>
                           </Select>
                         </div>
@@ -1198,11 +1272,6 @@ export function WarehouseTab() {
                                         setSelectedWarehouses(prev => [...prev, warehouse.id]);
                                       } else {
                                         setSelectedWarehouses(prev => prev.filter(id => id !== warehouse.id));
-                                        setWarehouseQuantities(prev => {
-                                          const newQuantities = { ...prev };
-                                          delete newQuantities[warehouse.id];
-                                          return newQuantities;
-                                        });
                                       }
                                     }}
                                     className="rounded"
@@ -1211,25 +1280,6 @@ export function WarehouseTab() {
                                     <div className="font-medium">{warehouse.warehouse_name}</div>
                                     <div className="text-sm text-muted-foreground">{warehouse.location}</div>
                                   </label>
-                                  {selectedWarehouses.includes(warehouse.id) && (
-                                    <div className="flex items-center space-x-2">
-                                      <Label htmlFor={`quantity-${warehouse.id}`} className="text-sm">
-                                        Quantity:
-                                      </Label>
-                                      <Input
-                                        id={`quantity-${warehouse.id}`}
-                                        type="number"
-                                        min="0"
-                                        value={warehouseQuantities[warehouse.id] || 0}
-                                        onChange={(e) => setWarehouseQuantities(prev => ({
-                                          ...prev,
-                                          [warehouse.id]: parseInt(e.target.value) || 0
-                                        }))}
-                                        className="w-20"
-                                        placeholder="0"
-                                      />
-                                    </div>
-                                  )}
                                 </div>
                               ))
                             ) : (
