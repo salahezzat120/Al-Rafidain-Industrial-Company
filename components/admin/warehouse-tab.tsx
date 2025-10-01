@@ -36,7 +36,6 @@ import {
 } from '@/lib/warehouse';
 import { supabase } from '@/lib/supabase';
 import { StockMovements } from '@/components/warehouse/stock-movements';
-import { BarcodeManager } from '@/components/warehouse/barcode-manager';
 import { ReportsEngine } from '@/components/warehouse/reports-engine';
 import { StocktakingModule } from '@/components/warehouse/stocktaking-module';
 import { BulkUpload } from '@/components/warehouse/bulk-upload';
@@ -60,7 +59,7 @@ import type {
 
 export function WarehouseTab() {
   const { t, isRTL } = useLanguage();
-  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'warehouses' | 'products' | 'movements' | 'barcodes' | 'reports' | 'stocktaking' | 'bulk-upload' | 'workflow'>('dashboard');
+  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'warehouses' | 'products' | 'movements' | 'reports' | 'stocktaking' | 'bulk-upload' | 'workflow'>('dashboard');
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [inventory, setInventory] = useState<InventorySummary[]>([]);
@@ -717,7 +716,7 @@ export function WarehouseTab() {
       </div>
 
       <Tabs value={activeSubTab} onValueChange={(value) => setActiveSubTab(value as any)}>
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-9 gap-1 p-1">
+         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-8 gap-1 p-1">
           <TabsTrigger value="dashboard" className="text-xs sm:text-sm px-2 py-2">
             {t('warehouse.dashboard')}
           </TabsTrigger>
@@ -730,13 +729,10 @@ export function WarehouseTab() {
           <TabsTrigger value="measurement-units" className="text-xs sm:text-sm px-2 py-2">
             {isRTL ? 'وحدات القياس' : 'Measurement Units'}
           </TabsTrigger>
-          <TabsTrigger value="movements" className="text-xs sm:text-sm px-2 py-2">
-            {t('warehouse.stockMovements')}
-          </TabsTrigger>
-          <TabsTrigger value="barcodes" className="text-xs sm:text-sm px-2 py-2">
-            {t('warehouse.barcodes')}
-          </TabsTrigger>
-          <TabsTrigger value="reports" className="text-xs sm:text-sm px-2 py-2">
+           <TabsTrigger value="movements" className="text-xs sm:text-sm px-2 py-2">
+             {t('warehouse.stockMovements')}
+           </TabsTrigger>
+           <TabsTrigger value="reports" className="text-xs sm:text-sm px-2 py-2">
             {t('warehouse.reports')}
           </TabsTrigger>
           <TabsTrigger value="stocktaking" className="text-xs sm:text-sm px-2 py-2">
@@ -1606,10 +1602,6 @@ export function WarehouseTab() {
           <StockMovements />
         </TabsContent>
 
-        {/* Barcodes Tab */}
-        <TabsContent value="barcodes" className="space-y-6">
-          <BarcodeManager />
-        </TabsContent>
 
         {/* Reports Tab */}
         <TabsContent value="reports" className="space-y-6">
