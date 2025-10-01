@@ -43,31 +43,42 @@ import type {
 // ==================== WAREHOUSES ====================
 
 export async function getWarehouses(filters?: WarehouseFilters): Promise<Warehouse[]> {
-  let query = supabase
-    .from('warehouses')
-    .select('*')
-    .order('warehouse_name');
+  try {
+    console.log('🔍 getWarehouses called with filters:', filters);
+    
+    let query = supabase
+      .from('warehouses')
+      .select('*')
+      .order('warehouse_name');
 
-  if (filters?.search) {
-    query = query.or(`warehouse_name.ilike.%${filters.search}%,location.ilike.%${filters.search}%`);
+    if (filters?.search) {
+      query = query.or(`warehouse_name.ilike.%${filters.search}%,location.ilike.%${filters.search}%`);
+    }
+
+    if (filters?.location) {
+      query = query.eq('location', filters.location);
+    }
+
+    if (filters?.responsible_person) {
+      query = query.eq('responsible_person', filters.responsible_person);
+    }
+
+    console.log('📡 Executing warehouse query...');
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('❌ Error fetching warehouses:', error);
+      throw new Error('Failed to fetch warehouses');
+    }
+
+    console.log('✅ Warehouses query successful:', data?.length || 0, 'warehouses found');
+    console.log('📋 Warehouse data:', data);
+    
+    return data || [];
+  } catch (error) {
+    console.error('❌ getWarehouses error:', error);
+    throw error;
   }
-
-  if (filters?.location) {
-    query = query.eq('location', filters.location);
-  }
-
-  if (filters?.responsible_person) {
-    query = query.eq('responsible_person', filters.responsible_person);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error('Error fetching warehouses:', error);
-    throw new Error('Failed to fetch warehouses');
-  }
-
-  return data || [];
 }
 
 export async function getWarehouseById(id: number): Promise<Warehouse | null> {

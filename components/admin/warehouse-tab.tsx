@@ -43,6 +43,7 @@ import { StocktakingModule } from '@/components/warehouse/stocktaking-module';
 import { BulkUpload } from '@/components/warehouse/bulk-upload';
 import { WorkflowIntegration } from '@/components/warehouse/workflow-integration';
 import { TestJoins } from '@/components/warehouse/test-joins';
+import { WarehouseFormWithMap } from '@/components/warehouse/warehouse-form-with-map';
 import { useLanguage } from '@/contexts/language-context';
 import type { 
   Warehouse, 
@@ -78,7 +79,18 @@ export function WarehouseTab() {
   // Warehouse form state
   const [warehouseForm, setWarehouseForm] = useState<CreateWarehouseData>({
     warehouse_name: '',
-    location: ''
+    warehouse_name_ar: '',
+    location: '',
+    location_ar: '',
+    address: '',
+    latitude: undefined,
+    longitude: undefined,
+    responsible_person: '',
+    responsible_person_ar: '',
+    warehouse_type: 'DISTRIBUTION',
+    capacity: 0,
+    contact_phone: '',
+    contact_email: ''
   });
   const [editingWarehouse, setEditingWarehouse] = useState<Warehouse | null>(null);
   const [warehouseDialogOpen, setWarehouseDialogOpen] = useState(false);
@@ -137,9 +149,19 @@ export function WarehouseTab() {
   const loadData = async () => {
     try {
       setLoading(true);
-      console.log('Loading warehouse data...');
+      console.log('🔄 Loading warehouse data...');
+      
+      // Load warehouses first to debug
+      console.log('📦 Loading warehouses...');
+      const warehousesData = await getWarehouses();
+      console.log('✅ Warehouses loaded:', warehousesData.length);
+      console.log('📋 Warehouse data:', warehousesData);
+      
+      if (warehousesData.length === 0) {
+        console.warn('⚠️ No warehouses found in database');
+      }
+      
       const [
-        warehousesData,
         productsData,
         inventoryData,
         mainGroupsData,
@@ -149,7 +171,6 @@ export function WarehouseTab() {
         statsData,
         alertsData
       ] = await Promise.all([
-        getWarehouses(),
         getProducts(),
         getInventorySummary(),
         getMainGroups(),
@@ -165,6 +186,10 @@ export function WarehouseTab() {
       console.log('Main groups loaded:', mainGroupsData.length);
       console.log('Units loaded:', unitsData.length);
 
+      console.log('Warehouses loaded:', warehousesData.length);
+      console.log('Sample warehouse:', warehousesData[0]);
+      console.log('All warehouses data:', warehousesData);
+      
       setWarehouses(warehousesData);
       setProducts(productsData);
       setInventory(inventoryData);
@@ -174,8 +199,10 @@ export function WarehouseTab() {
       setUnits(unitsData);
       setStats(statsData);
       setAlerts(alertsData);
+      
+      console.log('✅ All data loaded successfully');
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('❌ Error loading data:', error);
     } finally {
       setLoading(false);
     }
@@ -203,29 +230,29 @@ export function WarehouseTab() {
     }
   };
 
-  const handleCreateWarehouse = async () => {
+  const handleCreateWarehouse = async (formData: CreateWarehouseData) => {
     try {
-      await createWarehouse(warehouseForm);
-      setWarehouseForm({ warehouse_name: '', location: '' });
+      await createWarehouse(formData);
       setWarehouseDialogOpen(false);
       await loadData(); // Reload all data including stats
       await refreshStats(); // Also refresh stats specifically
     } catch (error) {
       console.error('Error creating warehouse:', error);
+      throw error; // Re-throw to let the form handle the error
     }
   };
 
-  const handleUpdateWarehouse = async () => {
+  const handleUpdateWarehouse = async (formData: CreateWarehouseData) => {
     if (!editingWarehouse) return;
     
     try {
-      await updateWarehouse({ id: editingWarehouse.id, ...warehouseForm });
+      await updateWarehouse({ id: editingWarehouse.id, ...formData });
       setEditingWarehouse(null);
-      setWarehouseForm({ warehouse_name: '', location: '' });
       setWarehouseDialogOpen(false);
       loadData();
     } catch (error) {
       console.error('Error updating warehouse:', error);
+      throw error; // Re-throw to let the form handle the error
     }
   };
 
@@ -761,58 +788,24 @@ export function WarehouseTab() {
                     Manage warehouse locations and responsible persons
                   </CardDescription>
                 </div>
-                <Dialog open={warehouseDialogOpen} onOpenChange={setWarehouseDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button onClick={() => openWarehouseDialog()}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Warehouse
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>
-                        {editingWarehouse ? 'Edit Warehouse' : 'Add New Warehouse'}
-                      </DialogTitle>
-                      <DialogDescription>
-                        {editingWarehouse 
-                          ? 'Update warehouse information' 
-                          : 'Add a new warehouse to the system'
-                        }
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="warehouse_name">Warehouse Name</Label>
-                        <Input
-                          id="warehouse_name"
-                          value={warehouseForm.warehouse_name}
-                          onChange={(e) => setWarehouseForm(prev => ({ ...prev, warehouse_name: e.target.value }))}
-                          placeholder="Enter warehouse name"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="location">Location</Label>
-                        <Input
-                          id="location"
-                          value={warehouseForm.location}
-                          onChange={(e) => setWarehouseForm(prev => ({ ...prev, location: e.target.value }))}
-                          placeholder="Enter warehouse location"
-                        />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setWarehouseDialogOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button onClick={editingWarehouse ? handleUpdateWarehouse : handleCreateWarehouse}>
-                        {editingWarehouse ? 'Update' : 'Create'}
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+                <Button onClick={() => openWarehouseDialog()}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Warehouse
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
+              {/* Debug Information */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="mb-4 p-3 bg-gray-100 rounded-lg text-sm">
+                  <p><strong>Debug Info:</strong></p>
+                  <p>Total warehouses: {warehouses.length}</p>
+                  <p>Filtered warehouses: {filteredWarehouses.length}</p>
+                  <p>Loading: {loading ? 'Yes' : 'No'}</p>
+                  <p>Search term: "{searchTerm}"</p>
+                </div>
+              )}
+              
               <div className="flex items-center gap-4 mb-4">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -823,6 +816,13 @@ export function WarehouseTab() {
                     className="pl-10"
                   />
                 </div>
+                <Button variant="outline" onClick={() => {
+                  console.log('🔄 Manual refresh clicked');
+                  loadData();
+                }}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh
+                </Button>
                 <Button variant="outline">
                   <Filter className="h-4 w-4 mr-2" />
                   Filter
@@ -838,31 +838,57 @@ export function WarehouseTab() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredWarehouses.map((warehouse) => (
-                    <TableRow key={warehouse.id}>
-                      <TableCell className="font-medium">{warehouse.warehouse_name}</TableCell>
-                      <TableCell>{warehouse.location}</TableCell>
-                      <TableCell>{new Date(warehouse.created_at).toLocaleDateString()}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openWarehouseDialog(warehouse)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteWarehouse(warehouse.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                  {warehouses.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8">
+                        <div className="flex flex-col items-center gap-2">
+                          <Warehouse className="h-12 w-12 text-muted-foreground" />
+                          <p className="text-muted-foreground">No warehouses found</p>
+                          <p className="text-sm text-muted-foreground">
+                            {loading ? 'Loading warehouses...' : 'Create your first warehouse to get started'}
+                          </p>
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : filteredWarehouses.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8">
+                        <div className="flex flex-col items-center gap-2">
+                          <Search className="h-12 w-12 text-muted-foreground" />
+                          <p className="text-muted-foreground">No warehouses match your search</p>
+                          <p className="text-sm text-muted-foreground">
+                            Try adjusting your search terms
+                          </p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredWarehouses.map((warehouse) => (
+                      <TableRow key={warehouse.id}>
+                        <TableCell className="font-medium">{warehouse.warehouse_name}</TableCell>
+                        <TableCell>{warehouse.location}</TableCell>
+                        <TableCell>{new Date(warehouse.created_at).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openWarehouseDialog(warehouse)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteWarehouse(warehouse.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -1515,6 +1541,17 @@ export function WarehouseTab() {
           <TestJoins />
         </TabsContent>
       </Tabs>
+
+      {/* Warehouse Form with Map */}
+      <WarehouseFormWithMap
+        isOpen={warehouseDialogOpen}
+        onClose={() => {
+          setWarehouseDialogOpen(false);
+          setEditingWarehouse(null);
+        }}
+        onSave={editingWarehouse ? handleUpdateWarehouse : handleCreateWarehouse}
+        editingWarehouse={editingWarehouse}
+      />
     </div>
   );
 }
