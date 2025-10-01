@@ -101,6 +101,8 @@ async function setupDatabase() {
       product_name VARCHAR(255) NOT NULL,
       product_name_ar VARCHAR(255),
       product_code VARCHAR(100) UNIQUE,
+      stock_number VARCHAR(100) UNIQUE,
+      stock_number_ar VARCHAR(100),
       main_group_id INTEGER NOT NULL REFERENCES main_groups(id),
       sub_group_id INTEGER REFERENCES sub_groups(id),
       color_id INTEGER REFERENCES colors(id),

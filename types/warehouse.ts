@@ -63,6 +63,8 @@ export interface Product {
   product_name_ar: string;
   product_code: string;
   barcode?: string;
+  stock_number?: string;
+  stock_number_ar?: string;
   main_group_id: number;
   sub_group_id?: number;
   color_id?: number;
@@ -168,6 +170,8 @@ export interface CreateProductData {
   product_name: string;
   product_name_ar?: string;
   product_code?: string;
+  stock_number?: string;
+  stock_number_ar?: string;
   main_group_id: number;
   sub_group_id?: number;
   color_id?: number;
