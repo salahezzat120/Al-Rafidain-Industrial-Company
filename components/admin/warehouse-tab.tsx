@@ -32,8 +32,7 @@ import {
   deleteUnitOfMeasurement,
   getWarehouseStats,
   getStockAlerts,
-  getInventorySummary,
-  createInventory
+  getInventorySummary
 } from '@/lib/warehouse';
 import { supabase } from '@/lib/supabase';
 import { StockMovements } from '@/components/warehouse/stock-movements';
@@ -240,14 +239,29 @@ export function WarehouseTab() {
 
   const refreshStats = async () => {
     try {
-      const [statsData, alertsData] = await Promise.all([
-        getWarehouseStats(),
-        getStockAlerts()
-      ]);
+      // Get stats data
+      const statsData = await getWarehouseStats();
       setStats(statsData);
-      setAlerts(alertsData);
+      
+      // Try to get alerts, but don't fail if it doesn't work
+      try {
+        const alertsData = await getStockAlerts();
+        setAlerts(alertsData);
+      } catch (alertsError) {
+        console.log('Stock alerts disabled - inventory table removed');
+        setAlerts([]);
+      }
     } catch (error) {
       console.error('Error refreshing stats:', error);
+      // Set default values on error
+      setStats({
+        total_warehouses: 0,
+        total_products: 0,
+        total_inventory_value: 0,
+        low_stock_items: 0,
+        out_of_stock_items: 0
+      });
+      setAlerts([]);
     }
   };
 
@@ -305,24 +319,62 @@ export function WarehouseTab() {
 
   const handleCreateProduct = async () => {
     try {
-      const newProduct = await createProduct(productForm);
+      // Validate required fields
+      if (!productForm.product_name || productForm.product_name.trim() === '') {
+        alert('Product name is required');
+        return;
+      }
       
-      // Create inventory records for selected warehouses
+      // Generate unique product code if not provided
+      let finalProductCode = productForm.product_code;
+      if (!finalProductCode || finalProductCode.trim() === '') {
+        const existingProducts = await getProducts();
+        const existingCodes = existingProducts.map(p => p.product_code).filter(Boolean);
+        let counter = 1;
+        do {
+          finalProductCode = `PROD-${String(counter).padStart(4, '0')}`;
+          counter++;
+        } while (existingCodes.includes(finalProductCode));
+        
+        console.log(`Generated unique product code: ${finalProductCode}`);
+      } else {
+        // Check for duplicate product code if provided
+        const existingProducts = await getProducts();
+        const duplicateProduct = existingProducts.find(p => 
+          p.product_code && p.product_code.toLowerCase() === finalProductCode.toLowerCase()
+        );
+        
+        if (duplicateProduct) {
+          alert(`Product code "${finalProductCode}" already exists. Please use a different product code.`);
+          return;
+        }
+      }
+      
+      // Update the form with the final product code
+      const finalProductForm = {
+        ...productForm,
+        product_code: finalProductCode
+      };
+      
+      const newProduct = await createProduct(finalProductForm);
+      
+      // Update product with warehouse information if warehouses were selected
       if (selectedWarehouses.length > 0) {
-        console.log('Creating inventory records for warehouses:', selectedWarehouses);
-        const inventoryPromises = selectedWarehouses.map(warehouseId => {
-          console.log(`Creating inventory for warehouse ${warehouseId} with default quantity 0`);
-          return createInventory({
-            product_id: newProduct.id,
-            warehouse_id: warehouseId,
-            available_quantity: 0, // Default quantity
-            minimum_stock_level: 0,
-            maximum_stock_level: undefined,
-            reorder_point: 0
-          });
+        console.log('Selected warehouses:', selectedWarehouses);
+        console.log('Available warehouses:', warehouses);
+        
+        const warehouseNames = warehouses
+          .filter(w => selectedWarehouses.includes(w.id))
+          .map(w => w.warehouse_name)
+          .join(', ');
+        
+        console.log('Warehouse names to update:', warehouseNames);
+        
+        // Update the product with warehouse information
+        await updateProduct({
+          id: newProduct.id,
+          warehouses: warehouseNames
         });
-        await Promise.all(inventoryPromises);
-        console.log('Inventory records created successfully');
       }
       
       setProductForm({
@@ -1236,15 +1288,6 @@ export function WarehouseTab() {
                         </div>
                       </div>
 
-                      <div>
-                        <Label htmlFor="warehouses">Warehouses</Label>
-                        <Input
-                          id="warehouses"
-                          value={productForm.warehouses}
-                          onChange={(e) => setProductForm(prev => ({ ...prev, warehouses: e.target.value }))}
-                          placeholder="Enter warehouse names (comma-separated)"
-                        />
-                      </div>
 
                       {/* Warehouse Selection - Only for new products */}
                       {!editingProduct && (

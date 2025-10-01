@@ -68,16 +68,17 @@ export interface Material {
 export interface Product {
   id: number;
   product_name: string;
-  product_name_ar: string;
-  product_code: string;
+  product_name_ar?: string;
+  product_code?: string;
   barcode?: string;
   stock_number?: string;
   stock_number_ar?: string;
-  main_group: string; // Changed from ID to direct string
-  sub_group?: string; // Changed from ID to direct string
-  color: string; // Changed from ID to direct string
-  material: string; // Changed from ID to direct string
-  unit: string; // Changed from ID to direct string
+  stock?: number; // Current stock quantity
+  main_group: string; // Main group name
+  sub_group?: string; // Sub group name
+  color?: string; // Color name
+  material?: string; // Material name
+  unit: string; // Unit of measurement name
   description?: string;
   description_ar?: string;
   specifications?: Record<string, any>;

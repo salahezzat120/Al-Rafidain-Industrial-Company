@@ -362,13 +362,8 @@ export async function getMainGroups(): Promise<MainGroup[]> {
 
     if (error) {
       console.error('❌ Error fetching main groups:', error);
-      console.error('Error details:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint
-      });
-      throw new Error(`Failed to fetch main groups: ${error.message}`);
+      console.log('⚠️  Main groups table may not exist, returning empty array');
+      return [];
     }
 
     console.log('✅ Main groups fetched successfully:', data?.length || 0, 'records');
@@ -417,13 +412,8 @@ export async function getSubGroups(mainGroupId?: number): Promise<SubGroup[]> {
 
     if (error) {
       console.error('❌ Error fetching sub groups:', error);
-      console.error('Error details:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint
-      });
-      throw new Error(`Failed to fetch sub groups: ${error.message}`);
+      console.log('⚠️  Sub groups table may not exist, returning empty array');
+      return [];
     }
 
     console.log(`✅ Sub groups fetched successfully: ${data?.length || 0} records`);
@@ -466,7 +456,8 @@ export async function getColors(): Promise<Color[]> {
 
   if (error) {
     console.error('Error fetching colors:', error);
-    throw new Error('Failed to fetch colors');
+    console.log('⚠️  Colors table may not exist, returning empty array');
+    return [];
   }
 
   return data || [];
@@ -497,7 +488,8 @@ export async function getMaterials(): Promise<Material[]> {
 
   if (error) {
     console.error('Error fetching materials:', error);
-    throw new Error('Failed to fetch materials');
+    console.log('⚠️  Materials table may not exist, returning empty array');
+    return [];
   }
 
   return data || [];
@@ -618,18 +610,112 @@ export async function getProductById(id: number): Promise<Product | null> {
 
 export async function createProduct(productData: CreateProductData): Promise<Product> {
   try {
+    // Validate required fields
+    if (!productData.product_name || productData.product_name.trim() === '') {
+      throw new Error('Product name is required');
+    }
+
+    // Get the actual names for the IDs from reference tables
+    let mainGroupName = 'General';
+    let subGroupName = '';
+    let colorName = '';
+    let materialName = '';
+    let unitName = 'pcs';
+
+    // Fetch main group name if ID is provided
+    if (productData.main_group_id && productData.main_group_id > 0) {
+      try {
+        const { data: mainGroup } = await supabase
+          .from('main_groups')
+          .select('group_name')
+          .eq('id', productData.main_group_id)
+          .single();
+        if (mainGroup) {
+          mainGroupName = mainGroup.group_name;
+        }
+      } catch (error) {
+        console.log('Main group not found, using default');
+      }
+    }
+
+    // Fetch sub group name if ID is provided
+    if (productData.sub_group_id && productData.sub_group_id > 0) {
+      try {
+        const { data: subGroup } = await supabase
+          .from('sub_groups')
+          .select('sub_group_name')
+          .eq('id', productData.sub_group_id)
+          .single();
+        if (subGroup) {
+          subGroupName = subGroup.sub_group_name;
+        }
+      } catch (error) {
+        console.log('Sub group not found, using empty');
+      }
+    }
+
+    // Fetch color name if ID is provided
+    if (productData.color_id && productData.color_id > 0) {
+      try {
+        const { data: color } = await supabase
+          .from('colors')
+          .select('color_name')
+          .eq('id', productData.color_id)
+          .single();
+        if (color) {
+          colorName = color.color_name;
+        }
+      } catch (error) {
+        console.log('Color not found, using empty');
+      }
+    }
+
+    // Fetch material name if ID is provided
+    if (productData.material_id && productData.material_id > 0) {
+      try {
+        const { data: material } = await supabase
+          .from('materials')
+          .select('material_name')
+          .eq('id', productData.material_id)
+          .single();
+        if (material) {
+          materialName = material.material_name;
+        }
+      } catch (error) {
+        console.log('Material not found, using empty');
+      }
+    }
+
+    // Fetch unit name if ID is provided
+    if (productData.unit_of_measurement_id && productData.unit_of_measurement_id > 0) {
+      try {
+        const { data: unit } = await supabase
+          .from('units_of_measurement')
+          .select('unit_name')
+          .eq('id', productData.unit_of_measurement_id)
+          .single();
+        if (unit) {
+          unitName = unit.unit_name;
+        }
+      } catch (error) {
+        console.log('Unit not found, using default');
+      }
+    }
+
     // Prepare complete product data with all fields
     const fullProductData = {
-      product_name: productData.product_name,
-      product_name_ar: productData.product_name_ar || productData.product_name,
+      product_name: productData.product_name.trim(),
+      product_name_ar: productData.product_name_ar || productData.product_name.trim(),
       product_code: productData.product_code || '',
+      barcode: productData.barcode || '',
       stock_number: productData.stock_number || '',
       stock_number_ar: productData.stock_number_ar || productData.stock_number || '',
-      main_group: productData.main_group,
-      sub_group: productData.sub_group || '',
-      color: productData.color,
-      material: productData.material,
-      unit: productData.unit,
+      stock: 0, // Default stock
+      main_group: mainGroupName,
+      sub_group: subGroupName,
+      color: colorName,
+      material: materialName,
+      unit: unitName,
       description: productData.description || '',
       description_ar: productData.description_ar || productData.description || '',
       cost_price: productData.cost_price || 0,
@@ -645,23 +731,59 @@ export async function createProduct(productData: CreateProductData): Promise<Pro
 
     console.log('Creating product with data:', fullProductData);
 
-    const { data, error } = await supabase
+    // Try to insert with the current data structure
+    let { data, error } = await supabase
       .from('products')
       .insert([fullProductData])
       .select('*')
       .single();
 
+    // If unit column doesn't exist, try with unit_of_measurement
+    if (error && error.message.includes('unit')) {
+      console.log('Trying with unit_of_measurement column name...');
+      const alternativeData = {
+        ...fullProductData,
+        unit_of_measurement: fullProductData.unit,
+        unit: undefined
+      };
+      delete alternativeData.unit;
+      
+      const result = await supabase
+        .from('products')
+        .insert([alternativeData])
+        .select('*')
+        .single();
+      
+      data = result.data;
+      error = result.error;
+    }
+
     if (error) {
       console.error('Error creating product:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('Error details:', error.details);
+      console.error('Error hint:', error.hint);
+      console.error('Full error object:', JSON.stringify(error, null, 2));
+      
+      // Handle duplicate product code error
+      if (error.code === '23505' && error.message.includes('product_code')) {
+        throw new Error(`Product code "${fullProductData.product_code}" already exists. Please use a different product code.`);
+      }
+      
+      // Handle duplicate barcode error
+      if (error.code === '23505' && error.message.includes('barcode')) {
+        throw new Error(`Barcode "${fullProductData.barcode}" already exists. Please use a different barcode.`);
+      }
       
       // If specific columns don't exist, provide helpful error message
       if (error.message.includes('column') || error.message.includes('does not exist')) {
         console.log('⚠️  Database table structure mismatch. Please check your products table columns.');
+        console.log('Available columns might be different. Please run the check-products-table-structure.sql script.');
         throw new Error('Database table structure mismatch. Please check your products table columns.');
       }
       
-      throw new Error('Failed to create product');
+      throw new Error(`Failed to create product: ${error.message}`);
     }
 
     console.log('Product created successfully:', data);
@@ -675,25 +797,22 @@ export async function createProduct(productData: CreateProductData): Promise<Pro
 export async function updateProduct(productData: UpdateProductData): Promise<Product> {
   const { id, ...updateData } = productData;
   
+  console.log('Updating product with data:', { id, updateData });
+  
   const { data, error } = await supabase
     .from('products')
     .update(updateData)
     .eq('id', id)
-    .select(`
-      *,
-      main_group:main_groups(*),
-      sub_group:sub_groups(*),
-      color:colors(*),
-      material:materials(*),
-      unit_of_measurement:units_of_measurement(*)
-    `)
+    .select('*')
     .single();
 
   if (error) {
     console.error('Error updating product:', error);
-    throw new Error('Failed to update product');
+    console.error('Error details:', JSON.stringify(error, null, 2));
+    throw new Error(`Failed to update product: ${error.message}`);
   }
 
+  console.log('Product updated successfully:', data);
   return data;
 }
 
@@ -712,128 +831,33 @@ export async function deleteProduct(id: number): Promise<void> {
 // ==================== INVENTORY ====================
 
 export async function getInventorySummary(filters?: InventoryFilters): Promise<InventorySummary[]> {
-  let query = supabase
-    .from('inventory_summary')
-    .select('*')
-    .order('product_name');
-
-  if (filters?.product_id) {
-    query = query.eq('product_id', filters.product_id);
-  }
-
-  if (filters?.warehouse_id) {
-    query = query.eq('warehouse_id', filters.warehouse_id);
-  }
-
-  if (filters?.stock_status) {
-    query = query.eq('stock_status', filters.stock_status);
-  }
-
-  if (filters?.min_quantity) {
-    query = query.gte('available_quantity', filters.min_quantity);
-  }
-
-  if (filters?.max_quantity) {
-    query = query.lte('available_quantity', filters.max_quantity);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error('Error fetching inventory summary:', error);
-    throw new Error('Failed to fetch inventory summary');
-  }
-
-  return data || [];
+  // Inventory table removed - return empty array
+  console.log('Inventory summary disabled - inventory table removed');
+  return [];
 }
 
 export async function getInventoryByProduct(productId: number): Promise<Inventory[]> {
-  const { data, error } = await supabase
-    .from('inventory')
-    .select(`
-      *,
-      product:products(*),
-      warehouse:warehouses(*)
-    `)
-    .eq('product_id', productId);
-
-  if (error) {
-    console.error('Error fetching inventory:', error);
-    throw new Error('Failed to fetch inventory');
-  }
-
-  return data || [];
+  // Inventory table removed - return empty array
+  console.log('Inventory by product disabled - inventory table removed');
+  return [];
 }
 
 export async function getInventoryByWarehouse(warehouseId: number): Promise<Inventory[]> {
-  const { data, error } = await supabase
-    .from('inventory')
-    .select(`
-      *,
-      product:products(*),
-      warehouse:warehouses(*)
-    `)
-    .eq('warehouse_id', warehouseId);
-
-  if (error) {
-    console.error('Error fetching inventory:', error);
-    throw new Error('Failed to fetch inventory');
-  }
-
-  return data || [];
+  // Inventory table removed - return empty array
+  console.log('Inventory by warehouse disabled - inventory table removed');
+  return [];
 }
 
 export async function createInventory(inventoryData: CreateInventoryData): Promise<Inventory> {
-  try {
-    const { data, error } = await supabase
-      .from('inventory')
-      .insert([inventoryData])
-      .select(`
-        *,
-        product:products(*),
-        warehouse:warehouses(*)
-      `)
-      .single();
-
-    if (error) {
-      console.error('Error creating inventory:', error);
-      
-      // If tables don't exist, provide helpful error message
-      if (error.message.includes('relation') || error.message.includes('does not exist')) {
-        console.log('⚠️  Database tables not found. Please run the database setup script first.');
-        throw new Error('Database tables not found. Please run: node scripts/setup-database-simple.js');
-      }
-      
-      throw new Error('Failed to create inventory');
-    }
-
-    return data;
-  } catch (err) {
-    console.error('Error in createInventory:', err);
-    throw err;
-  }
+  // Inventory table removed - throw error
+  console.log('Create inventory disabled - inventory table removed');
+  throw new Error('Inventory functionality disabled - inventory table removed');
 }
 
 export async function updateInventory(inventoryData: UpdateInventoryData): Promise<Inventory> {
-  const { id, ...updateData } = inventoryData;
-  
-  const { data, error } = await supabase
-    .from('inventory')
-    .update(updateData)
-    .eq('id', id)
-    .select(`
-      *,
-      product:products(*),
-      warehouse:warehouses(*)
-    `)
-    .single();
-
-  if (error) {
-    console.error('Error updating inventory:', error);
-    throw new Error('Failed to update inventory');
-  }
-
-  return data;
+  // Inventory table removed - throw error
+  console.log('Update inventory disabled - inventory table removed');
+  throw new Error('Inventory functionality disabled - inventory table removed');
 }
 
 // ==================== STOCK MOVEMENTS ====================
@@ -1253,21 +1277,21 @@ export async function getWarehouseStats(): Promise<WarehouseStats> {
       .from('products')
       .select('*', { count: 'exact', head: true });
 
-    // Get inventory data
-    const { data: inventoryData } = await supabase
-      .from('inventory')
-      .select('available_quantity');
+    // Get products with stock data (using products table stock field)
+    const { data: productsData } = await supabase
+      .from('products')
+      .select('stock, cost_price, selling_price')
+      .not('stock', 'is', null);
 
-    // Calculate total inventory value
-    const totalInventoryValue = inventoryData?.reduce((sum, item) => sum + (item.available_quantity || 0), 0) || 0;
+    // Calculate total inventory value using products table
+    const totalInventoryValue = productsData?.reduce((sum, product) => {
+      const stock = product.stock || 0;
+      const costPrice = product.cost_price || 0;
+      return sum + (stock * costPrice);
+    }, 0) || 0;
 
-    // Get low stock items (items with quantity <= 10)
-    const { data: lowStockData } = await supabase
-      .from('inventory')
-      .select('*')
-      .lte('available_quantity', 10);
-
-    const lowStockItems = lowStockData?.length || 0;
+    // Get low stock items (items with stock <= 10)
+    const lowStockItems = productsData?.filter(product => (product.stock || 0) <= 10).length || 0;
 
     console.log('Warehouse Stats:', {
       totalWarehouses: totalWarehouses || 0,
@@ -1297,39 +1321,10 @@ export async function getWarehouseStats(): Promise<WarehouseStats> {
 
 export async function getStockAlerts(): Promise<StockAlert[]> {
   try {
-    const { data, error } = await supabase
-      .from('inventory')
-      .select(`
-        *,
-        product:products(*),
-        warehouse:warehouses(*)
-      `)
-      .lte('available_quantity', 10)
-      .order('available_quantity');
-
-    if (error) {
-      console.error('Error fetching stock alerts:', error);
-      return [];
-    }
-
-    // Transform inventory data to stock alerts format
-    const alerts: StockAlert[] = (data || []).map(item => ({
-      id: item.id,
-      product_id: item.product_id,
-      warehouse_id: item.warehouse_id,
-      product_name: item.product?.product_name || 'Unknown Product',
-      warehouse_name: item.warehouse?.warehouse_name || 'Unknown Warehouse',
-      current_stock: item.available_quantity,
-      minimum_stock: item.minimum_stock_level || 0,
-      reorder_point: item.reorder_point || 0,
-      stock_status: item.available_quantity <= 0 ? 'OUT_OF_STOCK' : 'LOW_STOCK',
-      alert_type: item.available_quantity <= 0 ? 'OUT_OF_STOCK' : 'LOW_STOCK',
-      priority: item.available_quantity <= 0 ? 'HIGH' : 'MEDIUM',
-      notes: `Stock level: ${item.available_quantity}, Minimum: ${item.minimum_stock_level || 0}`,
-      created_at: new Date().toISOString()
-    }));
-
-    return alerts;
+    // Since inventory table is removed, return empty array
+    // You can implement stock alerts based on products table stock field if needed
+    console.log('Stock alerts disabled - inventory table removed');
+    return [];
   } catch (error) {
     console.error('Error in getStockAlerts:', error);
     return [];
