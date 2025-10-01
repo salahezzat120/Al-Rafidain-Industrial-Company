@@ -62,7 +62,7 @@ import type {
 
 export function WarehouseTab() {
   const { t, isRTL } = useLanguage();
-  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'warehouses' | 'products' | 'inventory' | 'movements' | 'barcodes' | 'reports' | 'stocktaking' | 'bulk-upload' | 'workflow'>('dashboard');
+  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'warehouses' | 'products' | 'movements' | 'barcodes' | 'reports' | 'stocktaking' | 'bulk-upload' | 'workflow'>('dashboard');
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [inventory, setInventory] = useState<InventorySummary[]>([]);
@@ -582,10 +582,6 @@ export function WarehouseTab() {
     product.main_group?.group_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredInventory = inventory.filter(item =>
-    item.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.warehouse_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   if (loading) {
     return (
@@ -612,7 +608,7 @@ export function WarehouseTab() {
       </div>
 
       <Tabs value={activeSubTab} onValueChange={(value) => setActiveSubTab(value as any)}>
-        <TabsList className="grid w-full grid-cols-11">
+        <TabsList className="grid w-full grid-cols-10">
           <TabsTrigger value="dashboard">
             {t('warehouse.dashboard')}
           </TabsTrigger>
@@ -624,9 +620,6 @@ export function WarehouseTab() {
           </TabsTrigger>
           <TabsTrigger value="measurement-units">
             {isRTL ? 'وحدات القياس' : 'Measurement Units'}
-          </TabsTrigger>
-          <TabsTrigger value="inventory">
-            {t('warehouse.inventory')}
           </TabsTrigger>
           <TabsTrigger value="movements">
             {t('warehouse.stockMovements')}
@@ -1439,72 +1432,6 @@ export function WarehouseTab() {
           </Dialog>
         </TabsContent>
 
-        {/* Inventory Tab */}
-        <TabsContent value="inventory" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Inventory Overview</CardTitle>
-                  <CardDescription>
-                    View current stock levels across all warehouses
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-4 mb-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search inventory..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <Button variant="outline">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filter
-                </Button>
-              </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Warehouse</TableHead>
-                    <TableHead>Available</TableHead>
-                    <TableHead>Min Stock</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredInventory.map((item) => (
-                    <TableRow key={`${item.product_id}-${item.warehouse_name}`}>
-                      <TableCell className="font-medium">{item.product_name}</TableCell>
-                      <TableCell>{item.warehouse_name}</TableCell>
-                      <TableCell>{item.available_quantity}</TableCell>
-                      <TableCell>{item.minimum_stock_level}</TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant={
-                            item.stock_status === 'LOW_STOCK' ? 'destructive' : 
-                            item.stock_status === 'REORDER' ? 'secondary' : 
-                            'default'
-                          }
-                        >
-                          {item.stock_status === 'LOW_STOCK' ? 'Low Stock' : 
-                           item.stock_status === 'REORDER' ? 'Reorder' : 
-                           'In Stock'}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         {/* Stock Movements Tab */}
         <TabsContent value="movements" className="space-y-6">
