@@ -8,6 +8,10 @@
 /.next-dev/
 /out/
 
+# Build directories
+.next/
+.next-dev/
+
 # production
 /build
 
