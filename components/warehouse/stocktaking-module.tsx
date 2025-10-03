@@ -20,6 +20,7 @@ import {
   getProductsWithWarehouseInfo,
   getInventorySummary
 } from '@/lib/warehouse';
+import { supabase } from '@/lib/supabase';
 import type { 
   Stocktaking,
   StocktakingItem,
@@ -39,10 +40,11 @@ export function StocktakingModule() {
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedStocktaking, setSelectedStocktaking] = useState<Stocktaking | null>(null);
+  const [creating, setCreating] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
-    warehouse_id: 0,
+    warehouse_id: '',
     stocktaking_date: '',
     notes: ''
   });
@@ -77,8 +79,23 @@ export function StocktakingModule() {
 
   const handleCreateStocktaking = async () => {
     try {
+      setCreating(true);
+      
+      // Validate form data
+      if (!formData.warehouse_id) {
+        alert(isRTL ? 'يرجى اختيار المستودع' : 'Please select a warehouse');
+        return;
+      }
+      
+      if (!formData.stocktaking_date) {
+        alert(isRTL ? 'يرجى اختيار تاريخ الجرد' : 'Please select a stocktaking date');
+        return;
+      }
+
       const stocktakingData = {
-        ...formData,
+        warehouse_id: parseInt(formData.warehouse_id),
+        stocktaking_date: formData.stocktaking_date,
+        notes: formData.notes,
         reference_number: `ST-${Date.now()}`,
         status: 'PLANNED',
         total_items: 0,
@@ -87,29 +104,161 @@ export function StocktakingModule() {
         created_by: 'current_user' // This should come from auth context
       };
 
-      await createStocktaking(stocktakingData);
-      setFormData({ warehouse_id: 0, stocktaking_date: '', notes: '' });
+      console.log('Creating stocktaking with data:', stocktakingData);
+      const result = await createStocktaking(stocktakingData);
+      console.log('Stocktaking created successfully:', result);
+      
+      // Reset form
+      setFormData({ warehouse_id: '', stocktaking_date: '', notes: '' });
       setDialogOpen(false);
-      loadData();
-    } catch (error) {
+      
+      // Reload data
+      await loadData();
+      
+      // Show success message
+      alert(isRTL ? 'تم إنشاء الجرد بنجاح' : 'Stocktaking created successfully');
+    } catch (error: any) {
       console.error('Error creating stocktaking:', error);
+      const errorMessage = error?.message || (isRTL ? 'حدث خطأ أثناء إنشاء الجرد' : 'Error creating stocktaking');
+      alert(errorMessage);
+    } finally {
+      setCreating(false);
     }
   };
 
-  const handleStartStocktaking = (stocktaking: Stocktaking) => {
+  const handleStartStocktaking = async (stocktaking: Stocktaking) => {
+    try {
+      setSelectedStocktaking(stocktaking);
+      
+      console.log('Starting stocktaking for warehouse:', stocktaking.warehouse_id);
+      
+      // Get inventory items for the specific warehouse - separate queries to avoid relationship issues
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from('inventory')
+        .select('*')
+        .eq('warehouse_id', stocktaking.warehouse_id)
+        .not('available_quantity', 'is', null);
+
+      if (inventoryError) {
+        console.error('Error loading inventory:', inventoryError);
+        alert(isRTL ? 'حدث خطأ أثناء تحميل المخزون' : 'Error loading inventory');
+        return;
+      }
+
+      console.log('Inventory data loaded:', inventoryData?.length || 0, 'items');
+
+      if (!inventoryData || inventoryData.length === 0) {
+        alert(isRTL ? 'لا توجد عناصر في هذا المستودع' : 'No items found in this warehouse');
+        setStocktakingItems([]);
+        return;
+      }
+
+      // Get products data separately
+      const productIds = inventoryData.map(inv => inv.product_id);
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('*')
+        .in('id', productIds);
+
+      if (productsError) {
+        console.error('Error loading products:', productsError);
+        alert(isRTL ? 'حدث خطأ أثناء تحميل المنتجات' : 'Error loading products');
+        return;
+      }
+
+      console.log('Products data loaded:', productsData?.length || 0, 'products');
+
+      // Create stocktaking items from inventory
+      const items: StocktakingItem[] = inventoryData.map(inv => {
+        const product = productsData?.find(p => p.id === inv.product_id);
+        return {
+          id: 0,
+          stocktaking_id: stocktaking.id,
+          product_id: inv.product_id,
+          system_quantity: inv.available_quantity || 0,
+          counted_quantity: 0,
+          difference: 0,
+          product: product || null
+        };
+      });
+
+      setStocktakingItems(items);
+      console.log('Stocktaking items created:', items.length);
+      
+      // Update the stocktaking record to show it has items
+      await supabase
+        .from('stocktaking')
+        .update({ 
+          total_items: items.length,
+          status: 'IN_PROGRESS'
+        })
+        .eq('id', stocktaking.id);
+
+    } catch (error) {
+      console.error('Error starting stocktaking:', error);
+      alert(isRTL ? 'حدث خطأ أثناء بدء الجرد' : 'Error starting stocktaking');
+    }
+  };
+
+  const handleEditStocktaking = (stocktaking: Stocktaking) => {
+    // Set form data for editing
+    setFormData({
+      warehouse_id: stocktaking.warehouse_id.toString(),
+      stocktaking_date: stocktaking.stocktaking_date,
+      notes: stocktaking.notes || ''
+    });
     setSelectedStocktaking(stocktaking);
-    // Load inventory items for the warehouse
-    const warehouseInventory = inventory.filter(item => item.warehouse_name === stocktaking.warehouse?.warehouse_name);
-    const items: StocktakingItem[] = warehouseInventory.map(item => ({
-      id: 0,
-      stocktaking_id: stocktaking.id,
-      product_id: item.product_id,
-      system_quantity: item.available_quantity,
-      counted_quantity: 0,
-      difference: 0,
-      product: products.find(p => p.id === item.product_id)
-    }));
-    setStocktakingItems(items);
+    setDialogOpen(true);
+  };
+
+  const handleUpdateStocktaking = async () => {
+    if (!selectedStocktaking) return;
+
+    try {
+      setCreating(true);
+      
+      // Validate form data
+      if (!formData.warehouse_id) {
+        alert(isRTL ? 'يرجى اختيار المستودع' : 'Please select a warehouse');
+        return;
+      }
+      
+      if (!formData.stocktaking_date) {
+        alert(isRTL ? 'يرجى اختيار تاريخ الجرد' : 'Please select a stocktaking date');
+        return;
+      }
+
+      // Update stocktaking data
+      const { error } = await supabase
+        .from('stocktaking')
+        .update({
+          warehouse_id: parseInt(formData.warehouse_id),
+          stocktaking_date: formData.stocktaking_date,
+          notes: formData.notes
+        })
+        .eq('id', selectedStocktaking.id);
+
+      if (error) {
+        console.error('Error updating stocktaking:', error);
+        alert(isRTL ? 'حدث خطأ أثناء تحديث الجرد' : 'Error updating stocktaking');
+        return;
+      }
+
+      // Reset form and close dialog
+      setFormData({ warehouse_id: '', stocktaking_date: '', notes: '' });
+      setSelectedStocktaking(null);
+      setDialogOpen(false);
+      
+      // Reload data
+      await loadData();
+      
+      alert(isRTL ? 'تم تحديث الجرد بنجاح' : 'Stocktaking updated successfully');
+    } catch (error: any) {
+      console.error('Error updating stocktaking:', error);
+      alert(isRTL ? 'حدث خطأ أثناء تحديث الجرد' : 'Error updating stocktaking');
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleUpdateCountedQuantity = (productId: number, countedQuantity: number) => {
@@ -120,6 +269,114 @@ export function StocktakingModule() {
       }
       return item;
     }));
+  };
+
+  const handleSaveStocktaking = async () => {
+    if (!selectedStocktaking) return;
+
+    try {
+      // Calculate totals
+      const totalItems = stocktakingItems.length;
+      const countedItems = stocktakingItems.filter(item => item.counted_quantity > 0).length;
+      const discrepancies = stocktakingItems.filter(item => item.difference !== 0).length;
+
+      // Update stocktaking record
+      const { error: updateError } = await supabase
+        .from('stocktaking')
+        .update({
+          total_items: totalItems,
+          counted_items: countedItems,
+          discrepancies: discrepancies,
+          status: 'COMPLETED',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedStocktaking.id);
+
+      if (updateError) {
+        console.error('Error updating stocktaking:', updateError);
+        alert(isRTL ? 'حدث خطأ أثناء حفظ الجرد' : 'Error saving stocktaking');
+        return;
+      }
+
+      // Save stocktaking items
+      const itemsToSave = stocktakingItems.map(item => ({
+        stocktaking_id: selectedStocktaking.id,
+        product_id: item.product_id,
+        system_quantity: item.system_quantity,
+        counted_quantity: item.counted_quantity,
+        difference: item.difference
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('stocktaking_items')
+        .upsert(itemsToSave);
+
+      if (itemsError) {
+        console.error('Error saving stocktaking items:', itemsError);
+        alert(isRTL ? 'حدث خطأ أثناء حفظ عناصر الجرد' : 'Error saving stocktaking items');
+        return;
+      }
+
+      alert(isRTL ? 'تم حفظ الجرد بنجاح' : 'Stocktaking saved successfully');
+      setSelectedStocktaking(null);
+      setStocktakingItems([]);
+      loadStocktakings(); // Refresh the list
+    } catch (error) {
+      console.error('Error saving stocktaking:', error);
+      alert(isRTL ? 'حدث خطأ أثناء حفظ الجرد' : 'Error saving stocktaking');
+    }
+  };
+
+  const loadStocktakings = async () => {
+    try {
+      const data = await getStocktakings();
+      setStocktakings(data);
+    } catch (error) {
+      console.error('Error loading stocktakings:', error);
+    }
+  };
+
+  const createSampleInventory = async () => {
+    try {
+      // Get some products and warehouses
+      const { data: products } = await supabase.from('products').select('*').limit(5);
+      const { data: warehouses } = await supabase.from('warehouses').select('*').limit(2);
+
+      if (!products || products.length === 0 || !warehouses || warehouses.length === 0) {
+        alert(isRTL ? 'لا توجد منتجات أو مستودعات لإنشاء مخزون تجريبي' : 'No products or warehouses found to create sample inventory');
+        return;
+      }
+
+      // Create sample inventory records
+      const inventoryRecords = [];
+      for (const warehouse of warehouses) {
+        for (const product of products) {
+          inventoryRecords.push({
+            product_id: product.id,
+            warehouse_id: warehouse.id,
+            available_quantity: Math.floor(Math.random() * 100) + 10, // Random quantity between 10-110
+            minimum_stock_level: 5,
+            last_updated: new Date().toISOString()
+          });
+        }
+      }
+
+      const { error } = await supabase
+        .from('inventory')
+        .upsert(inventoryRecords);
+
+      if (error) {
+        console.error('Error creating sample inventory:', error);
+        alert(isRTL ? 'حدث خطأ أثناء إنشاء المخزون التجريبي' : 'Error creating sample inventory');
+      } else {
+        alert(isRTL ? 'تم إنشاء المخزون التجريبي بنجاح' : 'Sample inventory created successfully');
+        // Refresh the page to show updated data
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Error creating sample inventory:', error);
+      alert(isRTL ? 'حدث خطأ أثناء إنشاء المخزون التجريبي' : 'Error creating sample inventory');
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -169,10 +426,16 @@ export function StocktakingModule() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                {isRTL ? 'إنشاء جرد جديد' : 'Create New Stocktaking'}
+                {selectedStocktaking ? 
+                  (isRTL ? 'تعديل الجرد' : 'Edit Stocktaking') : 
+                  (isRTL ? 'إنشاء جرد جديد' : 'Create New Stocktaking')
+                }
               </DialogTitle>
               <DialogDescription>
-                {isRTL ? 'إنشاء عملية جرد جديدة للمستودع' : 'Create a new stocktaking operation for the warehouse'}
+                {selectedStocktaking ? 
+                  (isRTL ? 'تعديل عملية الجرد المحددة' : 'Edit the selected stocktaking operation') : 
+                  (isRTL ? 'إنشاء عملية جرد جديدة للمستودع' : 'Create a new stocktaking operation for the warehouse')
+                }
               </DialogDescription>
             </DialogHeader>
             
@@ -180,18 +443,24 @@ export function StocktakingModule() {
               <div>
                 <Label htmlFor="warehouse">{isRTL ? 'المستودع' : 'Warehouse'}</Label>
                 <Select
-                  value={formData.warehouse_id.toString()}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, warehouse_id: parseInt(value) }))}
+                  value={formData.warehouse_id}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, warehouse_id: value }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder={isRTL ? 'اختر المستودع' : 'Select warehouse'} />
                   </SelectTrigger>
                   <SelectContent>
-                    {warehouses.map((warehouse) => (
-                      <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
-                        {isRTL ? warehouse.warehouse_name_ar : warehouse.warehouse_name}
+                    {warehouses.length > 0 ? (
+                      warehouses.map((warehouse) => (
+                        <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
+                          {isRTL ? warehouse.warehouse_name_ar : warehouse.warehouse_name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-warehouses" disabled>
+                        {isRTL ? 'لا توجد مستودعات متاحة' : 'No warehouses available'}
                       </SelectItem>
-                    ))}
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -219,11 +488,44 @@ export function StocktakingModule() {
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setDialogOpen(false);
+                  setSelectedStocktaking(null);
+                  setFormData({ warehouse_id: '', stocktaking_date: '', notes: '' });
+                }} 
+                disabled={creating}
+              >
                 {t('common.cancel')}
               </Button>
-              <Button onClick={handleCreateStocktaking}>
-                {isRTL ? 'إنشاء الجرد' : 'Create Stocktaking'}
+              <Button 
+                onClick={selectedStocktaking ? handleUpdateStocktaking : handleCreateStocktaking} 
+                disabled={creating}
+              >
+                {creating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    {selectedStocktaking ? 
+                      (isRTL ? 'جاري التحديث...' : 'Updating...') : 
+                      (isRTL ? 'جاري الإنشاء...' : 'Creating...')
+                    }
+                  </>
+                ) : (
+                  <>
+                    {selectedStocktaking ? (
+                      <>
+                        <Edit className="h-4 w-4 mr-2" />
+                        {isRTL ? 'تحديث الجرد' : 'Update Stocktaking'}
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        {isRTL ? 'إنشاء الجرد' : 'Create Stocktaking'}
+                      </>
+                    )}
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -250,10 +552,23 @@ export function StocktakingModule() {
       {/* Stocktakings Table */}
       <Card>
         <CardHeader>
-          <CardTitle>{isRTL ? 'عمليات الجرد' : 'Stocktaking Operations'}</CardTitle>
-          <CardDescription>
-            {isRTL ? 'جميع عمليات الجرد المسجلة في النظام' : 'All stocktaking operations recorded in the system'}
-          </CardDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>{isRTL ? 'عمليات الجرد' : 'Stocktaking Operations'}</CardTitle>
+              <CardDescription>
+                {isRTL ? 'جميع عمليات الجرد المسجلة في النظام' : 'All stocktaking operations recorded in the system'}
+              </CardDescription>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={createSampleInventory}
+              title={isRTL ? 'إنشاء مخزون تجريبي للاختبار' : 'Create sample inventory for testing'}
+            >
+              <Package className="h-4 w-4 mr-2" />
+              {isRTL ? 'مخزون تجريبي' : 'Sample Inventory'}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -299,6 +614,8 @@ export function StocktakingModule() {
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => handleEditStocktaking(stocktaking)}
+                        title={isRTL ? 'تعديل الجرد' : 'Edit Stocktaking'}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -324,6 +641,28 @@ export function StocktakingModule() {
               </DialogDescription>
             </DialogHeader>
             
+            {/* Summary Section */}
+            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <div className="text-sm text-gray-600">{isRTL ? 'إجمالي العناصر' : 'Total Items'}</div>
+                  <div className="text-2xl font-bold text-blue-600">{stocktakingItems.length}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600">{isRTL ? 'المعدود' : 'Counted'}</div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {stocktakingItems.filter(item => item.counted_quantity > 0).length}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600">{isRTL ? 'الاختلافات' : 'Discrepancies'}</div>
+                  <div className="text-2xl font-bold text-red-600">
+                    {stocktakingItems.filter(item => item.difference !== 0).length}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="max-h-96 overflow-y-auto">
               <Table>
                 <TableHeader>
@@ -371,7 +710,7 @@ export function StocktakingModule() {
               <Button variant="outline" onClick={() => setSelectedStocktaking(null)}>
                 {t('common.cancel')}
               </Button>
-              <Button>
+              <Button onClick={handleSaveStocktaking}>
                 {isRTL ? 'حفظ الجرد' : 'Save Stocktaking'}
               </Button>
             </DialogFooter>

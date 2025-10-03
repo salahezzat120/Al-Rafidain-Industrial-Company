@@ -1264,38 +1264,106 @@ export async function createStockMovement(movementData: CreateStockMovementData)
 // ==================== STOCKTAKING ====================
 
 export async function createStocktaking(stocktakingData: any): Promise<Stocktaking> {
-  const { data, error } = await supabase
-    .from('stocktakings')
-    .insert([stocktakingData])
-    .select(`
-      *,
-      warehouse:warehouses(*)
-    `)
-    .single();
+  try {
+    // First, check if the stocktaking table exists
+    const { data: tableCheck, error: tableCheckError } = await supabase
+      .from('stocktaking')
+      .select('id')
+      .limit(1);
 
-  if (error) {
-    console.error('Error creating stocktaking:', error);
-    throw new Error('Failed to create stocktaking');
+    if (tableCheckError && tableCheckError.message.includes('Could not find the table')) {
+      console.error('Stocktaking table does not exist. Please create it first.');
+      throw new Error('Stocktaking table does not exist. Please run the SQL script to create the table first.');
+    }
+
+    // Prepare the data for insertion, ensuring all required fields are present
+    const insertData = {
+      warehouse_id: stocktakingData.warehouse_id,
+      stocktaking_date: stocktakingData.stocktaking_date,
+      reference_number: stocktakingData.reference_number,
+      status: stocktakingData.status || 'PLANNED',
+      total_items: stocktakingData.total_items || 0,
+      counted_items: stocktakingData.counted_items || 0,
+      discrepancies: stocktakingData.discrepancies || 0,
+      notes: stocktakingData.notes || null,
+      created_by: stocktakingData.created_by || 'system'
+    };
+
+    console.log('Inserting stocktaking data:', insertData);
+
+    // Insert stocktaking data
+    const { data: stocktaking, error: stocktakingError } = await supabase
+      .from('stocktaking')
+      .insert([insertData])
+      .select('*')
+      .single();
+
+    if (stocktakingError) {
+      console.error('Error creating stocktaking:', stocktakingError);
+      console.error('Error details:', stocktakingError.message, stocktakingError.details, stocktakingError.hint);
+      throw new Error(`Failed to create stocktaking: ${stocktakingError.message}`);
+    }
+
+    // Get warehouse data separately
+    const { data: warehouse, error: warehouseError } = await supabase
+      .from('warehouses')
+      .select('*')
+      .eq('id', stocktaking.warehouse_id)
+      .single();
+
+    if (warehouseError) {
+      console.warn('Error fetching warehouse for stocktaking:', warehouseError);
+    }
+
+    // Return enriched stocktaking data
+    return {
+      ...stocktaking,
+      warehouse: warehouse || null
+    };
+  } catch (error) {
+    console.error('Error in createStocktaking:', error);
+    throw error;
   }
-
-  return data;
 }
 
 export async function getStocktakings(): Promise<Stocktaking[]> {
-  const { data, error } = await supabase
-    .from('stocktakings')
-    .select(`
-      *,
-      warehouse:warehouses(*)
-    `)
-    .order('created_at', { ascending: false });
+  try {
+    // First try to get stocktaking data
+    const { data: stocktakings, error: stocktakingsError } = await supabase
+      .from('stocktaking')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching stocktakings:', error);
-    throw new Error('Failed to fetch stocktakings');
+    if (stocktakingsError) {
+      console.error('Error fetching stocktaking data:', stocktakingsError);
+      // If stocktaking table doesn't exist, return empty array
+      return [];
+    }
+
+    if (!stocktakings || stocktakings.length === 0) {
+      return [];
+    }
+
+    // Get warehouses separately
+    const { data: warehouses, error: warehousesError } = await supabase
+      .from('warehouses')
+      .select('*');
+
+    if (warehousesError) {
+      console.warn('Error fetching warehouses for stocktaking:', warehousesError);
+    }
+
+    // Manually join the data
+    const enrichedStocktakings = stocktakings.map(stocktaking => ({
+      ...stocktaking,
+      warehouse: warehouses?.find(w => w.id === stocktaking.warehouse_id) || null
+    }));
+
+    return enrichedStocktakings;
+  } catch (error) {
+    console.error('Error in getStocktakings:', error);
+    return [];
   }
-
-  return data || [];
 }
 
 // ==================== BARCODE MANAGEMENT ====================
@@ -1332,21 +1400,6 @@ export async function generateBarcode(productId: number, barcodeType: string = '
 
 
 // ==================== BULK OPERATIONS ====================
-
-export async function bulkUploadProducts(products: any[]): Promise<{ success: number; errors: any[] }> {
-  const results = { success: 0, errors: [] as any[] };
-
-  for (const product of products) {
-    try {
-      await createProduct(product);
-      results.success++;
-    } catch (error) {
-      results.errors.push({ product, error: error.message });
-    }
-  }
-
-  return results;
-}
 
 export async function bulkStockMovement(movements: any[]): Promise<{ success: number; errors: any[] }> {
   const results = { success: 0, errors: [] as any[] };
@@ -2300,4 +2353,104 @@ async function generateCustomReport(config: any): Promise<ReportData> {
     console.error('Error generating custom report:', error);
     throw new Error(`Failed to generate custom report: ${error.message}`);
   }
+}
+
+// ==================== BULK UPLOAD FUNCTIONS ====================
+
+export async function bulkUploadProducts(products: any[]): Promise<{ success: number; errors: any[] }> {
+  const results = { success: 0, errors: [] as any[] };
+
+  for (const product of products) {
+    try {
+      // Validate required fields
+      if (!product.product_name || !product.product_code) {
+        results.errors.push({ 
+          error: `Missing required fields: product_name and product_code are required`,
+          row: product
+        });
+        continue;
+      }
+
+      // Check if product already exists
+      const { data: existingProduct } = await supabase
+        .from('products')
+        .select('id')
+        .eq('product_code', product.product_code)
+        .single();
+
+      if (existingProduct) {
+        // Update existing product
+        const updateData = {
+          product_name: product.product_name,
+          product_name_ar: product.product_name_ar || product.product_name,
+          main_group_id: parseInt(product.main_group_id) || null,
+          sub_group_id: parseInt(product.sub_group_id) || null,
+          color_id: parseInt(product.color_id) || null,
+          material_id: parseInt(product.material_id) || null,
+          unit_of_measurement_id: parseInt(product.unit_of_measurement_id) || null,
+          description: product.description || '',
+          cost_price: parseFloat(product.cost_price) || 0,
+          selling_price: parseFloat(product.selling_price) || 0,
+          weight: parseFloat(product.weight) || 0,
+          dimensions: product.dimensions || '',
+          updated_at: new Date().toISOString()
+        };
+
+        const { error: updateError } = await supabase
+          .from('products')
+          .update(updateData)
+          .eq('id', existingProduct.id);
+
+        if (updateError) {
+          results.errors.push({ 
+            error: `Failed to update product: ${updateError.message}`,
+            row: product
+          });
+        } else {
+          results.success++;
+        }
+      } else {
+        // Create new product
+        const insertData = {
+          product_name: product.product_name,
+          product_name_ar: product.product_name_ar || product.product_name,
+          product_code: product.product_code,
+          main_group_id: parseInt(product.main_group_id) || null,
+          sub_group_id: parseInt(product.sub_group_id) || null,
+          color_id: parseInt(product.color_id) || null,
+          material_id: parseInt(product.material_id) || null,
+          unit_of_measurement_id: parseInt(product.unit_of_measurement_id) || null,
+          description: product.description || '',
+          cost_price: parseFloat(product.cost_price) || 0,
+          selling_price: parseFloat(product.selling_price) || 0,
+          weight: parseFloat(product.weight) || 0,
+          dimensions: product.dimensions || '',
+          stock: 0,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        const { error: insertError } = await supabase
+          .from('products')
+          .insert([insertData]);
+
+        if (insertError) {
+          results.errors.push({ 
+            error: `Failed to create product: ${insertError.message}`,
+            row: product
+          });
+        } else {
+          results.success++;
+        }
+      }
+    } catch (error: any) {
+      results.errors.push({ 
+        error: `Unexpected error: ${error?.message || 'Unknown error'}`,
+        row: product
+      });
+    }
+  }
+
+  return results;
 }
