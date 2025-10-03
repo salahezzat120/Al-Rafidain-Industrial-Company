@@ -1296,7 +1296,7 @@ export async function createStocktaking(stocktakingData: any): Promise<Stocktaki
       .from('stocktaking')
       .insert([insertData])
       .select('*')
-      .single();
+    .single();
 
     if (stocktakingError) {
       console.error('Error creating stocktaking:', stocktakingError);
@@ -1332,7 +1332,7 @@ export async function getStocktakings(): Promise<Stocktaking[]> {
     const { data: stocktakings, error: stocktakingsError } = await supabase
       .from('stocktaking')
       .select('*')
-      .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false });
 
     if (stocktakingsError) {
       console.error('Error fetching stocktaking data:', stocktakingsError);
@@ -1482,15 +1482,15 @@ export async function getProductsWithWarehouseInfo(): Promise<any[]> {
   try {
     // Start with a basic products query
     const { data: products, error: productsError } = await supabase
-      .from('products')
-      .select('*')
-      .order('product_name');
-
+          .from('products')
+          .select('*')
+          .order('product_name');
+        
     if (productsError) {
       console.error('Error fetching products:', productsError);
-      return [];
-    }
-
+          return [];
+        }
+        
     if (!products || products.length === 0) {
       console.log('No products found');
       return [];
@@ -1772,9 +1772,9 @@ async function generateCostSalesReport(filters: any): Promise<ReportData> {
   try {
     // Get products data
     const { data: products, error: productsError } = await supabase
-      .from('products')
+    .from('products')
       .select('*')
-      .order('product_name');
+    .order('product_name');
 
     if (productsError) throw productsError;
 
@@ -1797,7 +1797,7 @@ async function generateCostSalesReport(filters: any): Promise<ReportData> {
     }
 
     // Manually join the data
-    const headers = ['Product Code', 'Product Name', 'Cost Price', 'Sales Price', 'Margin %', 'Stock Level'];
+  const headers = ['Product Code', 'Product Name', 'Cost Price', 'Sales Price', 'Margin %', 'Stock Level'];
     const rows = products.map(product => {
       const productInventory = inventory?.find(inv => inv.product_id === product.id);
       const stockLevel = productInventory?.available_quantity || '0';
@@ -1807,8 +1807,8 @@ async function generateCostSalesReport(filters: any): Promise<ReportData> {
       const margin = costPrice > 0 ? (((salesPrice - costPrice) / costPrice) * 100).toFixed(2) + '%' : '0.00%';
       
       return [
-        product.product_code || '',
-        product.product_name || '',
+    product.product_code || '',
+    product.product_name || '',
         costPrice.toFixed(2),
         salesPrice.toFixed(2),
         margin,
@@ -1826,15 +1826,15 @@ async function generateCostSalesReport(filters: any): Promise<ReportData> {
         }, 0) / validMargins.length).toFixed(2) + '%'
       : '0.00%';
 
-    return {
-      title: 'Cost & Sales Price Report',
-      headers,
-      rows,
-      summary: {
+  return {
+    title: 'Cost & Sales Price Report',
+    headers,
+    rows,
+    summary: {
         totalProducts: products.length,
         averageMargin
-      }
-    };
+    }
+  };
   } catch (error) {
     console.error('Error generating cost & sales report:', error);
     throw error;
@@ -1846,7 +1846,7 @@ async function generateConsignmentReport(filters: any): Promise<ReportData> {
   try {
     // Get inventory data
     const { data: inventory, error: inventoryError } = await supabase
-      .from('inventory')
+    .from('inventory')
       .select('*')
       .not('available_quantity', 'is', null);
 
@@ -1854,10 +1854,10 @@ async function generateConsignmentReport(filters: any): Promise<ReportData> {
 
     if (!inventory || inventory.length === 0) {
       return {
-        title: 'Stock Availability Report',
-        headers: ['Product', 'Warehouse', 'Available Quantity', 'Minimum Stock', 'Status'],
+        title: 'تقرير توفر المخزون',
+        headers: ['المنتج', 'المستودع', 'الكمية المتاحة', 'الحد الأدنى للمخزون', 'الحالة'],
         rows: [],
-        summary: { totalItems: 0, inStockItems: 0 }
+        summary: { 'إجمالي الأصناف': 0, 'الأصناف المتوفرة في المخزون': 0 }
       };
     }
 
@@ -1871,29 +1871,29 @@ async function generateConsignmentReport(filters: any): Promise<ReportData> {
     const warehouses = warehousesResult.data || [];
 
     // Manually join the data
-    const headers = ['Product', 'Warehouse', 'Available Quantity', 'Minimum Stock', 'Status'];
+    const headers = ['المنتج', 'المستودع', 'الكمية المتاحة', 'الحد الأدنى للمخزون', 'الحالة'];
     const rows = inventory.map(item => {
       const product = products.find(p => p.id === item.product_id);
       const warehouse = warehouses.find(w => w.id === item.warehouse_id);
       
       return [
-        product?.product_name || 'Unknown Product',
-        warehouse?.warehouse_name || 'Unknown Warehouse',
+        product?.product_name || 'منتج غير معروف',
+        warehouse?.warehouse_name || 'مستودع غير معروف',
         item.available_quantity || '0',
         item.minimum_stock_level || '0',
-        item.available_quantity > 0 ? 'In Stock' : 'Out of Stock'
+        item.available_quantity > 0 ? 'متوفر في المخزون' : 'نفد من المخزون'
       ];
     });
 
-    return {
-      title: 'Stock Availability Report',
-      headers,
-      rows,
-      summary: {
-        totalItems: inventory.length,
-        inStockItems: inventory.filter(item => item.available_quantity > 0).length
-      }
-    };
+  return {
+      title: 'تقرير توفر المخزون',
+    headers,
+    rows,
+    summary: {
+        'إجمالي الأصناف': inventory.length,
+        'الأصناف المتوفرة في المخزون': inventory.filter(item => item.available_quantity > 0).length
+    }
+  };
   } catch (error) {
     console.error('Error generating stock availability report:', error);
     throw error;
@@ -1905,10 +1905,10 @@ async function generateDamagedGoodsReport(filters: any): Promise<ReportData> {
   try {
     // Get stock movements data
     const { data: movements, error: movementsError } = await supabase
-      .from('stock_movements')
+    .from('stock_movements')
       .select('*')
-      .eq('movement_type', 'DAMAGE')
-      .order('created_at', { ascending: false });
+    .eq('movement_type', 'DAMAGE')
+    .order('created_at', { ascending: false });
 
     if (movementsError) throw movementsError;
 
@@ -1931,26 +1931,26 @@ async function generateDamagedGoodsReport(filters: any): Promise<ReportData> {
     const warehouses = warehousesResult.data || [];
 
     // Manually join the data
-    const headers = ['Date', 'Product', 'Warehouse', 'Damaged Quantity', 'Reason', 'Value'];
+  const headers = ['Date', 'Product', 'Warehouse', 'Damaged Quantity', 'Reason', 'Value'];
     const rows = movements.map(movement => {
       const product = products.find(p => p.id === movement.product_id);
       const warehouse = warehouses.find(w => w.id === movement.warehouse_id);
       
       return [
-        new Date(movement.created_at).toLocaleDateString(),
+    new Date(movement.created_at).toLocaleDateString(),
         product?.product_name || 'Unknown Product',
         warehouse?.warehouse_name || 'Unknown Warehouse',
-        movement.quantity || '0',
-        movement.notes || '',
+    movement.quantity || '0',
+    movement.notes || '',
         ((movement.quantity || 0) * (movement.unit_price || 0)).toFixed(2)
       ];
     });
 
-    return {
-      title: 'Damaged Goods Report',
-      headers,
-      rows,
-      summary: {
+  return {
+    title: 'Damaged Goods Report',
+    headers,
+    rows,
+    summary: {
         totalDamaged: movements.length,
         totalValue: movements.reduce((sum, movement) => 
           sum + ((movement.quantity || 0) * (movement.unit_price || 0)), 0

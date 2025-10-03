@@ -45,10 +45,11 @@ export function ReportsEngine() {
   const [selectedReport, setSelectedReport] = useState<string>('');
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState<any>({});
+  const [filters, setFilters] = useState<any>({ warehouse_id: '', date_range: '' });
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -78,11 +79,16 @@ export function ReportsEngine() {
         generated_at: new Date().toISOString()
       });
       setDialogOpen(false);
+      setConfirmDialogOpen(false);
     } catch (error) {
       console.error('Error generating report:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleConfirmGenerate = () => {
+    setConfirmDialogOpen(true);
   };
 
   const handleExportReport = (format: 'pdf' | 'excel') => {
@@ -120,12 +126,12 @@ export function ReportsEngine() {
         <head>
           <title>${reportData.title}</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
+            body { font-family: 'Arial', 'Tahoma', sans-serif; margin: 20px; direction: rtl; }
             .header { text-align: center; margin-bottom: 30px; }
             .title { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
             .date { color: #666; font-size: 14px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; direction: rtl; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
             th { background-color: #f2f2f2; font-weight: bold; }
             .summary { margin-top: 30px; padding: 15px; background-color: #f9f9f9; }
             .summary h3 { margin-top: 0; }
@@ -139,7 +145,7 @@ export function ReportsEngine() {
         <body>
           <div class="header">
             <div class="title">${reportData.title}</div>
-            <div class="date">Generated on: ${new Date().toLocaleString()}</div>
+            <div class="date">تم الإنشاء في: ${new Date().toLocaleString()}</div>
           </div>
           
           <table>
@@ -157,7 +163,7 @@ export function ReportsEngine() {
           
           ${reportData.summary ? `
             <div class="summary">
-              <h3>Summary</h3>
+              <h3>الملخص</h3>
               ${Object.entries(reportData.summary).map(([key, value]) => 
                 `<p><strong>${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:</strong> ${value}</p>`
               ).join('')}
@@ -205,13 +211,13 @@ export function ReportsEngine() {
           <DialogTrigger asChild>
             <Button onClick={() => setDialogOpen(true)}>
               <FileText className="h-4 w-4 mr-2" />
-              {isRTL ? 'إنشاء تقرير' : 'Generate Report'}
+              {isRTL ? 'توليد تقرير' : 'Generate Report'}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-4xl">
             <DialogHeader>
               <DialogTitle>
-                {isRTL ? 'إنشاء تقرير جديد' : 'Generate New Report'}
+                {isRTL ? 'توليد تقرير جديد' : 'Generate New Report'}
               </DialogTitle>
               <DialogDescription>
                 {isRTL ? 'اختر نوع التقرير وحدد المعايير' : 'Select report type and specify criteria'}
@@ -256,15 +262,32 @@ export function ReportsEngine() {
 
                 {selectedReport && (
                   <div className="space-y-4">
+                    {/* Validation Messages */}
+                    {(!filters.warehouse_id || !filters.date_range) && (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                          <p className="text-sm text-yellow-800">
+                            {isRTL 
+                              ? 'يجب اختيار المستودع ونطاق التاريخ قبل توليد التقرير'
+                              : 'Please select both warehouse and date range before generating the report'
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="warehouse">{isRTL ? 'المستودع' : 'Warehouse'}</Label>
+                        <Label htmlFor="warehouse" className={!filters.warehouse_id ? 'text-red-600' : ''}>
+                          {isRTL ? 'المستودع' : 'Warehouse'} <span className="text-red-500">*</span>
+                        </Label>
                         <Select
                           value={filters.warehouse_id || ''}
                           onValueChange={(value) => setFilters(prev => ({ ...prev, warehouse_id: value }))}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder={isRTL ? 'جميع المستودعات' : 'All Warehouses'} />
+                            <SelectValue placeholder={isRTL ? 'اختر المستودع' : 'Select Warehouse'} />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">{isRTL ? 'جميع المستودعات' : 'All Warehouses'}</SelectItem>
@@ -277,13 +300,15 @@ export function ReportsEngine() {
                         </Select>
                       </div>
                       <div>
-                        <Label htmlFor="date_range">{isRTL ? 'نطاق التاريخ' : 'Date Range'}</Label>
+                        <Label htmlFor="date_range" className={!filters.date_range ? 'text-red-600' : ''}>
+                          {isRTL ? 'نطاق التاريخ' : 'Date Range'} <span className="text-red-500">*</span>
+                        </Label>
                         <Select
                           value={filters.date_range || ''}
                           onValueChange={(value) => setFilters(prev => ({ ...prev, date_range: value }))}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder={isRTL ? 'اختر النطاق' : 'Select range'} />
+                            <SelectValue placeholder={isRTL ? 'اختر نطاق التاريخ' : 'Select Date Range'} />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="today">{isRTL ? 'اليوم' : 'Today'}</SelectItem>
@@ -336,18 +361,94 @@ export function ReportsEngine() {
                 {t('common.cancel')}
               </Button>
               <Button 
-                onClick={handleGenerateReport}
-                disabled={!selectedReport || loading}
+                onClick={handleConfirmGenerate}
+                disabled={!selectedReport || !filters.warehouse_id || !filters.date_range || loading}
               >
                 {loading ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    {isRTL ? 'جاري الإنشاء...' : 'Generating...'}
+                    {isRTL ? 'جاري التوليد...' : 'Generating...'}
                   </>
                 ) : (
                   <>
                     <FileText className="h-4 w-4 mr-2" />
-                    {isRTL ? 'إنشاء التقرير' : 'Generate Report'}
+                    {isRTL ? 'توليد التقرير' : 'Generate Report'}
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Confirmation Dialog */}
+        <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {isRTL ? 'تأكيد توليد التقرير' : 'Confirm Report Generation'}
+              </DialogTitle>
+              <DialogDescription>
+                {isRTL 
+                  ? 'هل أنت متأكد من أنك تريد توليد هذا التقرير؟'
+                  : 'Are you sure you want to generate this report?'
+                }
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="font-medium mb-2">
+                  {isRTL ? 'تفاصيل التقرير:' : 'Report Details:'}
+                </h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">
+                      {isRTL ? 'نوع التقرير:' : 'Report Type:'}
+                    </span>
+                    <span className="font-medium">
+                      {getReportName(selectedReport)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">
+                      {isRTL ? 'المستودع:' : 'Warehouse:'}
+                    </span>
+                    <span className="font-medium">
+                      {filters.warehouse_id === 'all' || !filters.warehouse_id 
+                        ? (isRTL ? 'جميع المستودعات' : 'All Warehouses')
+                        : warehouses.find(w => w.id.toString() === filters.warehouse_id)?.warehouse_name || (isRTL ? 'غير محدد' : 'Not specified')
+                      }
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">
+                      {isRTL ? 'نطاق التاريخ:' : 'Date Range:'}
+                    </span>
+                    <span className="font-medium">
+                      {filters.date_range === 'custom' 
+                        ? `${filters.start_date || ''} - ${filters.end_date || ''}`
+                        : filters.date_range || (isRTL ? 'غير محدد' : 'Not specified')
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfirmDialogOpen(false)}>
+                {isRTL ? 'إلغاء' : 'Cancel'}
+              </Button>
+              <Button onClick={handleGenerateReport} disabled={loading || !filters.warehouse_id || !filters.date_range}>
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    {isRTL ? 'جاري التوليد...' : 'Generating...'}
+                  </>
+                ) : (
+                  <>
+                    <FileText className="h-4 w-4 mr-2" />
+                    {isRTL ? 'تأكيد التوليد' : 'Confirm Generate'}
                   </>
                 )}
               </Button>
@@ -385,7 +486,7 @@ export function ReportsEngine() {
                   }}
                 >
                   <FileText className="h-4 w-4 mr-2" />
-                  {isRTL ? 'إنشاء' : 'Generate'}
+                  {isRTL ? 'توليد' : 'Generate'}
                 </Button>
               </CardContent>
             </Card>
