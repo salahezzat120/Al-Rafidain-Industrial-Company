@@ -86,17 +86,17 @@ export const AddCustomerModal = React.memo(function AddCustomerModal({ isOpen, o
 
   const totalSteps = 4
   const steps = [
-    { id: 1, title: isRTL ? "المعلومات الشخصية" : "Personal Info", icon: User },
-    { id: 2, title: isRTL ? "التوصيل" : "Delivery", icon: MapPin },
-    { id: 3, title: isRTL ? "الموقع" : "Location", icon: Navigation },
-    { id: 4, title: isRTL ? "المراجعة" : "Review", icon: CheckCircle }
+    { id: 1, title: t("customer.personalInfo"), icon: User },
+    { id: 2, title: t("customer.deliveryInfo"), icon: MapPin },
+    { id: 3, title: t("customer.locationTitle"), icon: Navigation },
+    { id: 4, title: t("customer.reviewInformation"), icon: CheckCircle }
   ]
 
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
       toast({
         title: "Error",
-        description: isRTL ? "الموقع الجغرافي غير مدعوم في هذا المتصفح" : "Geolocation is not supported by this browser.",
+        description: t("customer.geolocationNotSupported"),
         variant: "destructive",
       })
       return
@@ -117,28 +117,28 @@ export const AddCustomerModal = React.memo(function AddCustomerModal({ isOpen, o
         }))
         setIsGettingLocation(false)
         toast({
-          title: "Success",
-          description: isRTL ? "تم الحصول على موقعك بنجاح" : "Location obtained successfully!",
+        title: t("common.success"),
+        description: t("customer.locationObtained"),
         })
       },
       (error) => {
         console.error("Error getting location:", error)
-        let errorMessage = isRTL ? "تعذر الحصول على موقعك. يرجى تحديد الموقع يدوياً." : "Unable to retrieve your location. Please select location manually."
+        let errorMessage = t("customer.locationError")
         
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            errorMessage = isRTL ? "تم رفض إذن الموقع. يرجى السماح بالوصول إلى الموقع." : "Location access denied. Please allow location access."
+            errorMessage = t("customer.locationAccessDenied")
             break
           case error.POSITION_UNAVAILABLE:
-            errorMessage = isRTL ? "معلومات الموقع غير متاحة." : "Location information unavailable."
+            errorMessage = t("customer.locationUnavailable")
             break
           case error.TIMEOUT:
-            errorMessage = isRTL ? "انتهت مهلة طلب الموقع." : "Location request timed out."
+            errorMessage = t("customer.locationTimeout")
             break
         }
         
         toast({
-          title: "Error",
+          title: t("common.error"),
           description: errorMessage,
           variant: "destructive",
         })
@@ -162,8 +162,8 @@ export const AddCustomerModal = React.memo(function AddCustomerModal({ isOpen, o
     }))
     setShowLocationPicker(false)
     toast({
-      title: "Success",
-      description: isRTL ? "تم تحديد الموقع بنجاح" : "Location selected successfully!",
+      title: t("common.success"),
+      description: t("customer.locationSelected"),
     })
   }
 
@@ -223,19 +223,19 @@ export const AddCustomerModal = React.memo(function AddCustomerModal({ isOpen, o
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
 
-    if (!formData.name.trim()) newErrors.name = isRTL ? "الاسم مطلوب" : "Name is required"
-    else if (formData.name.trim().length < 2) newErrors.name = isRTL ? "الاسم يجب أن يكون أكثر من حرفين" : "Name must be at least 2 characters"
+    if (!formData.name.trim()) newErrors.name = t("customer.nameRequired")
+    else if (formData.name.trim().length < 2) newErrors.name = t("customer.nameMinLength")
     
-    if (!formData.email.trim()) newErrors.email = isRTL ? "البريد الإلكتروني مطلوب" : "Email is required"
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = isRTL ? "تنسيق البريد الإلكتروني غير صحيح" : "Invalid email format"
+    if (!formData.email.trim()) newErrors.email = t("customer.emailRequired")
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = t("customer.invalidEmail")
     
-    if (!formData.phone.trim()) newErrors.phone = isRTL ? "رقم الهاتف مطلوب" : "Phone is required"
+    if (!formData.phone.trim()) newErrors.phone = t("customer.phoneRequired")
     else if (!/^[\+]?[1-9][\d]{0,15}$/.test(formData.phone.replace(/[\s\-\(\)]/g, ''))) {
-      newErrors.phone = isRTL ? "رقم الهاتف غير صحيح" : "Invalid phone number format"
+      newErrors.phone = t("customer.invalidPhone")
     }
     
-    if (!formData.address.trim()) newErrors.address = isRTL ? "العنوان مطلوب" : "Address is required"
-    else if (formData.address.trim().length < 10) newErrors.address = isRTL ? "العنوان يجب أن يكون أكثر تفصيلاً" : "Address must be more detailed"
+    if (!formData.address.trim()) newErrors.address = t("customer.addressRequired")
+    else if (formData.address.trim().length < 10) newErrors.address = t("customer.addressMinLength")
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -246,17 +246,17 @@ export const AddCustomerModal = React.memo(function AddCustomerModal({ isOpen, o
     
     switch (step) {
       case 1: // Personal Info
-        if (!formData.name.trim()) newErrors.name = isRTL ? "الاسم مطلوب" : "Name is required"
-        if (!formData.email.trim()) newErrors.email = isRTL ? "البريد الإلكتروني مطلوب" : "Email is required"
-        else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = isRTL ? "تنسيق البريد الإلكتروني غير صحيح" : "Invalid email format"
-        if (!formData.phone.trim()) newErrors.phone = isRTL ? "رقم الهاتف مطلوب" : "Phone is required"
+        if (!formData.name.trim()) newErrors.name = t("customer.nameRequired")
+        if (!formData.email.trim()) newErrors.email = t("customer.emailRequired")
+        else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = t("customer.invalidEmail")
+        if (!formData.phone.trim()) newErrors.phone = t("customer.phoneRequired")
         break
       case 2: // Delivery
-        if (!formData.address.trim()) newErrors.address = isRTL ? "العنوان مطلوب" : "Address is required"
+        if (!formData.address.trim()) newErrors.address = t("customer.addressRequired")
         break
       case 3: // Location
         if (!formData.latitude || !formData.longitude) {
-          newErrors.location = isRTL ? "الموقع مطلوب للتوصيل الدقيق" : "Location is required for accurate delivery"
+          newErrors.location = t("customer.locationRequired")
         }
         break
     }
@@ -295,8 +295,8 @@ export const AddCustomerModal = React.memo(function AddCustomerModal({ isOpen, o
 
       if (error) {
         toast({
-          title: "Error",
-          description: `Failed to create customer: ${error}`,
+          title: t("common.error"),
+          description: `${t("customer.createFailed")}: ${error}`,
           variant: "destructive",
         })
         return
@@ -329,8 +329,8 @@ export const AddCustomerModal = React.memo(function AddCustomerModal({ isOpen, o
         onAdd(formattedCustomer)
         
         toast({
-          title: "Success",
-          description: "Customer created successfully!",
+          title: t("common.success"),
+          description: t("customer.createdSuccessfully"),
         })
 
         // Reset form
@@ -355,8 +355,8 @@ export const AddCustomerModal = React.memo(function AddCustomerModal({ isOpen, o
     } catch (err) {
       console.error('Unexpected error:', err)
       toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
+        title: t("common.error"),
+        description: t("customer.unexpectedError"),
         variant: "destructive",
       })
     } finally {
@@ -409,8 +409,8 @@ export const AddCustomerModal = React.memo(function AddCustomerModal({ isOpen, o
     setCurrentStep(1)
     setErrors({})
     toast({
-      title: "Cleared",
-      description: isRTL ? "تم مسح المسودة" : "Draft cleared",
+      title: t("common.cleared"),
+      description: t("customer.draftCleared"),
     })
   }
 
@@ -418,8 +418,8 @@ export const AddCustomerModal = React.memo(function AddCustomerModal({ isOpen, o
     const newAvatar = generateRandomAvatar()
     setAvatarUrl(newAvatar)
     toast({
-      title: "Avatar Updated",
-      description: isRTL ? "تم تحديث الصورة الشخصية" : "Avatar regenerated successfully!",
+      title: t("customer.avatarUpdated"),
+      description: t("customer.avatarUpdated"),
     })
   }
 
@@ -437,8 +437,8 @@ Notes: ${formData.notes}
     
     navigator.clipboard.writeText(formText)
     toast({
-      title: "Copied",
-      description: isRTL ? "تم نسخ بيانات النموذج" : "Form data copied to clipboard",
+      title: t("common.copied"),
+      description: t("customer.copyFormData"),
     })
   }
 
@@ -453,10 +453,10 @@ Notes: ${formData.notes}
             </div>
               <div>
                 <DialogTitle className="text-3xl font-bold text-gray-900">
-                  {isRTL ? "إضافة عميل جديد" : "Add New Customer"}
+                  {t("customer.addNew")}
           </DialogTitle>
                 <p className="text-gray-600 mt-1">
-                  {isRTL ? "املأ النموذج لإضافة عميل جديد إلى النظام" : "Fill out the form to add a new customer to your system"}
+                  {t("customer.infoNote")}
                 </p>
               </div>
             </div>
@@ -469,7 +469,7 @@ Notes: ${formData.notes}
                 className="h-9"
               >
                 <Copy className="h-4 w-4 mr-2" />
-                {isRTL ? "نسخ" : "Copy"}
+                {t("common.copy")}
               </Button>
               
               <Button
@@ -479,7 +479,7 @@ Notes: ${formData.notes}
                 className="h-9"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
-                {isRTL ? "مسح" : "Clear"}
+                {t("common.clear")}
               </Button>
             </div>
             </div>
@@ -491,10 +491,10 @@ Notes: ${formData.notes}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-gray-600">
-                  {isRTL ? "التقدم" : "Progress"}: {formProgress}%
+                  {t("customer.progress")}: {formProgress}%
                 </span>
                 <Badge variant="outline" className="text-xs">
-                  {isRTL ? "الخطوة" : "Step"} {currentStep} {isRTL ? "من" : "of"} {totalSteps}
+                  {t("customer.step")} {currentStep} {t("customer.of")} {totalSteps}
                 </Badge>
             </div>
               <div className="flex items-center gap-2">
@@ -506,7 +506,7 @@ Notes: ${formData.notes}
                   className={`h-8 ${autoSave ? 'bg-green-50 text-green-700 border-green-200' : ''}`}
                 >
                   <Save className="h-3 w-3 mr-1" />
-                  {isRTL ? "حفظ تلقائي" : "Auto-save"}
+                  {t("customer.autoSave")}
                 </Button>
             </div>
           </div>
@@ -566,10 +566,10 @@ Notes: ${formData.notes}
                 <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
                   <CardTitle className="flex items-center gap-3 text-xl">
                     <User className="h-6 w-6" />
-                    {isRTL ? "المعلومات الشخصية" : "Personal Information"}
+                    {t("customer.personalInfo")}
                 </CardTitle>
                   <p className="text-blue-100">
-                    {isRTL ? "أدخل المعلومات الأساسية للعميل" : "Enter basic customer information"}
+                    {t("customer.personalInfoDescription")}
                   </p>
               </CardHeader>
                 <CardContent className="p-8 space-y-6">
@@ -586,10 +586,10 @@ Notes: ${formData.notes}
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                          {isRTL ? "الصورة الشخصية" : "Customer Avatar"}
+                          {t("customer.avatarPreview")}
                         </h3>
                         <p className="text-sm text-gray-600 mb-4">
-                          {isRTL ? "سيتم إنشاء صورة شخصية عشوائية تلقائياً" : "A random avatar will be automatically generated"}
+                          {t("customer.avatarDescription")}
                         </p>
                         <Button
                           type="button"
@@ -598,7 +598,7 @@ Notes: ${formData.notes}
                           className="bg-white hover:bg-blue-50 border-blue-200 text-blue-700 hover:text-blue-800"
                         >
                           <RotateCcw className="h-4 w-4 mr-2" />
-                          {isRTL ? "توليد صورة جديدة" : "Generate New Avatar"}
+                          {t("customer.generateNewAvatar")}
                         </Button>
                       </div>
                     </div>
@@ -608,13 +608,13 @@ Notes: ${formData.notes}
                 <div className="space-y-2">
                       <Label htmlFor="name" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                         <User className="h-4 w-4" />
-                        {isRTL ? "الاسم الكامل" : "Full Name"} *
+                        {t("customer.fullName")} *
                   </Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => handleInputChange("name", e.target.value)}
-                        placeholder={isRTL ? "أدخل الاسم الكامل للعميل" : "Enter customer's full name"}
+                        placeholder={t("customer.enterFullName")}
                         className={`h-12 text-lg ${errors.name ? "border-red-500 focus:border-red-500" : "border-gray-300 focus:border-blue-500"}`}
                   />
                   {errors.name && (
@@ -628,7 +628,7 @@ Notes: ${formData.notes}
                 <div className="space-y-2">
                       <Label htmlFor="email" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                         <Mail className="h-4 w-4" />
-                        {isRTL ? "البريد الإلكتروني" : "Email Address"} *
+                        {t("customer.emailAddress")} *
                   </Label>
                   <div className="relative">
                         <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -652,7 +652,7 @@ Notes: ${formData.notes}
                 <div className="space-y-2">
                       <Label htmlFor="phone" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                         <Phone className="h-4 w-4" />
-                        {isRTL ? "رقم الهاتف" : "Phone Number"} *
+                        {t("customer.phoneNumber")} *
                   </Label>
                   <div className="relative">
                         <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -675,7 +675,7 @@ Notes: ${formData.notes}
                     <div className="space-y-2">
                       <Label htmlFor="status" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                         <Shield className="h-4 w-4" />
-                        {isRTL ? "حالة العميل" : "Customer Status"}
+                        {t("customer.customerStatus")}
                       </Label>
                   <Select value={formData.status} onValueChange={(value) => handleInputChange("status", value)}>
                         <SelectTrigger className="h-12 text-lg">
@@ -685,19 +685,19 @@ Notes: ${formData.notes}
                           <SelectItem value="active">
                             <div className="flex items-center gap-2">
                               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                              {isRTL ? "نشط" : "Active"}
+                              {t("customer.status.active")}
                             </div>
                           </SelectItem>
                           <SelectItem value="vip">
                             <div className="flex items-center gap-2">
                               <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                              {isRTL ? "مميز" : "VIP"}
+                              {t("customer.status.vip")}
                             </div>
                           </SelectItem>
                           <SelectItem value="inactive">
                             <div className="flex items-center gap-2">
                               <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
-                              {isRTL ? "غير نشط" : "Inactive"}
+                              {t("customer.status.inactive")}
                             </div>
                           </SelectItem>
                     </SelectContent>
@@ -713,10 +713,10 @@ Notes: ${formData.notes}
                 <CardHeader className="bg-gradient-to-r from-green-500 to-emerald-500 text-white">
                   <CardTitle className="flex items-center gap-3 text-xl">
                     <MapPin className="h-6 w-6" />
-                    {isRTL ? "معلومات التوصيل" : "Delivery Information"}
+                    {t("customer.deliveryInfo")}
                 </CardTitle>
                   <p className="text-green-100">
-                    {isRTL ? "أدخل تفاصيل التوصيل والتفضيلات" : "Enter delivery details and preferences"}
+                    {t("customer.deliveryInfoDescription")}
                   </p>
               </CardHeader>
                 <CardContent className="p-8 space-y-6">
@@ -724,13 +724,13 @@ Notes: ${formData.notes}
                     <div className="space-y-2">
                       <Label htmlFor="address" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                         <Building className="h-4 w-4" />
-                        {isRTL ? "عنوان التوصيل" : "Delivery Address"} *
+                        {t("customer.deliveryAddress")} *
                       </Label>
                   <Textarea
                     id="address"
                     value={formData.address}
                     onChange={(e) => handleInputChange("address", e.target.value)}
-                        placeholder={isRTL ? "أدخل عنوان التوصيل الكامل" : "Enter complete delivery address"}
+                        placeholder={t("customer.enterAddress")}
                         rows={4}
                         className={`text-lg ${errors.address ? "border-red-500 focus:border-red-500" : "border-gray-300 focus:border-green-500"}`}
                       />
@@ -746,7 +746,7 @@ Notes: ${formData.notes}
                       <div className="space-y-2">
                         <Label htmlFor="deliveryTime" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                           <Clock className="h-4 w-4" />
-                          {isRTL ? "وقت التوصيل المفضل" : "Preferred Delivery Time"}
+                          {t("customer.preferredTime")}
                         </Label>
                   <Select
                     value={formData.preferredDeliveryTime}
@@ -759,25 +759,25 @@ Notes: ${formData.notes}
                             <SelectItem value="Morning (9-12 PM)">
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                                {isRTL ? "صباحاً (9-12)" : "Morning (9-12 PM)"}
+                                {t("customer.morning")}
                               </div>
                             </SelectItem>
                             <SelectItem value="Afternoon (1-5 PM)">
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                                {isRTL ? "بعد الظهر (1-5)" : "Afternoon (1-5 PM)"}
+                                {t("customer.afternoon")}
                               </div>
                             </SelectItem>
                             <SelectItem value="Evening (5-8 PM)">
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                                {isRTL ? "مساءً (5-8)" : "Evening (5-8 PM)"}
+                                {t("customer.evening")}
                               </div>
                             </SelectItem>
                             <SelectItem value="Flexible">
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                {isRTL ? "مرن" : "Flexible"}
+                                {t("customer.flexible")}
                               </div>
                             </SelectItem>
                     </SelectContent>
@@ -787,13 +787,13 @@ Notes: ${formData.notes}
                       <div className="space-y-2">
                         <Label htmlFor="notes" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                           <FileText className="h-4 w-4" />
-                          {isRTL ? "ملاحظات" : "Notes"}
+                          {t("customer.notes")}
                         </Label>
                   <Textarea
                     id="notes"
                     value={formData.notes}
                     onChange={(e) => handleInputChange("notes", e.target.value)}
-                          placeholder={isRTL ? "تعليمات التوصيل الخاصة أو ملاحظات العميل" : "Special delivery instructions or customer notes"}
+                          placeholder={t("customer.notesPlaceholder")}
                           rows={4}
                           className="text-lg border-gray-300 focus:border-green-500"
                   />
@@ -809,10 +809,10 @@ Notes: ${formData.notes}
                 <CardHeader className="bg-gradient-to-r from-purple-500 to-violet-500 text-white">
                   <CardTitle className="flex items-center gap-3 text-xl">
                     <Navigation className="h-6 w-6" />
-                    {isRTL ? "الموقع الجغرافي" : "GPS Location"}
+                    {t("customer.locationTitle")}
               </CardTitle>
                   <p className="text-purple-100">
-                    {isRTL ? "حدد الموقع الدقيق للتوصيل" : "Set precise location for delivery"}
+                    {t("customer.locationDescription")}
                   </p>
             </CardHeader>
                 <CardContent className="p-8 space-y-6">
@@ -825,7 +825,7 @@ Notes: ${formData.notes}
                       className="h-16 bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0 hover:from-blue-600 hover:to-blue-700 text-lg font-semibold"
                     >
                       <Globe className="h-6 w-6 mr-3" />
-                      {isRTL ? "تحديد على الخريطة" : "Select on Map"}
+                      {t("customer.selectOnMap")}
                     </Button>
                     
                     <Button
@@ -838,12 +838,12 @@ Notes: ${formData.notes}
                       {isGettingLocation ? (
                         <>
                           <Loader2 className="h-6 w-6 mr-3 animate-spin" />
-                          {isRTL ? "جاري الحصول..." : "Getting..."}
+                          {t("customer.gettingLocation")}
                         </>
                       ) : (
                         <>
                           <Navigation className="h-6 w-6 mr-3" />
-                          {isRTL ? "موقعي الحالي" : "My Location"}
+                          {t("customer.myLocation")}
                         </>
                       )}
                     </Button>
@@ -853,7 +853,7 @@ Notes: ${formData.notes}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="latitude" className="text-sm font-semibold text-gray-700">
-                        {isRTL ? "خط العرض" : "Latitude"}
+                        {t("customer.latitude")}
                       </Label>
                   <Input
                     id="latitude"
@@ -867,7 +867,7 @@ Notes: ${formData.notes}
                 </div>
                     <div className="space-y-2">
                       <Label htmlFor="longitude" className="text-sm font-semibold text-gray-700">
-                        {isRTL ? "خط الطول" : "Longitude"}
+                        {t("customer.longitude")}
                       </Label>
                   <Input
                     id="longitude"
@@ -891,7 +891,7 @@ Notes: ${formData.notes}
                           </div>
                           <div>
                             <p className="text-lg font-semibold text-green-800">
-                              {isRTL ? "الموقع المحدد" : "Selected Location"}
+                              {t("customer.selectedLocation")}
                             </p>
                             <p className="text-sm text-green-600 font-mono">
                               {selectedLocation.latitude.toFixed(6)}, {selectedLocation.longitude.toFixed(6)}
@@ -931,10 +931,10 @@ Notes: ${formData.notes}
                 <CardHeader className="bg-gradient-to-r from-orange-500 to-amber-500 text-white">
                   <CardTitle className="flex items-center gap-3 text-xl">
                     <CheckCircle className="h-6 w-6" />
-                    {isRTL ? "مراجعة البيانات" : "Review Information"}
+                    {t("customer.reviewInformation")}
                   </CardTitle>
                   <p className="text-orange-100">
-                    {isRTL ? "راجع البيانات قبل الحفظ" : "Review information before saving"}
+                    {t("customer.reviewDescription")}
                   </p>
                 </CardHeader>
                 <CardContent className="p-8">
@@ -948,7 +948,7 @@ Notes: ${formData.notes}
                         </AvatarFallback>
                       </Avatar>
                       <p className="text-sm text-gray-600">
-                        {isRTL ? "الصورة الشخصية المحددة" : "Selected Avatar"}
+                        {t("customer.selectedAvatar")}
                       </p>
                     </div>
                   </div>
@@ -958,31 +958,31 @@ Notes: ${formData.notes}
                     <div className="space-y-4">
                       <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                         <User className="h-5 w-5 text-blue-600" />
-                        {isRTL ? "المعلومات الشخصية" : "Personal Information"}
+                        {t("customer.personalInfoReview")}
                       </h3>
                       <div className="space-y-3">
                         <div>
-                          <span className="text-sm font-medium text-gray-600">{isRTL ? "الاسم:" : "Name:"}</span>
-                          <p className="text-lg font-semibold">{formData.name || (isRTL ? "غير محدد" : "Not specified")}</p>
+                          <span className="text-sm font-medium text-gray-600">{t("customer.name")}:</span>
+                          <p className="text-lg font-semibold">{formData.name || t("customer.notSpecified")}</p>
                         </div>
                         <div>
-                          <span className="text-sm font-medium text-gray-600">{isRTL ? "البريد الإلكتروني:" : "Email:"}</span>
-                          <p className="text-lg">{formData.email || (isRTL ? "غير محدد" : "Not specified")}</p>
+                          <span className="text-sm font-medium text-gray-600">{t("customer.email")}:</span>
+                          <p className="text-lg">{formData.email || t("customer.notSpecified")}</p>
                         </div>
                         <div>
-                          <span className="text-sm font-medium text-gray-600">{isRTL ? "الهاتف:" : "Phone:"}</span>
-                          <p className="text-lg">{formData.phone || (isRTL ? "غير محدد" : "Not specified")}</p>
+                          <span className="text-sm font-medium text-gray-600">{t("customer.phone")}:</span>
+                          <p className="text-lg">{formData.phone || t("customer.notSpecified")}</p>
                         </div>
                         <div>
-                          <span className="text-sm font-medium text-gray-600">{isRTL ? "الحالة:" : "Status:"}</span>
+                          <span className="text-sm font-medium text-gray-600">{t("customer.status")}:</span>
                           <Badge className={`ml-2 ${
                             formData.status === 'active' ? 'bg-green-100 text-green-800' :
                             formData.status === 'vip' ? 'bg-yellow-100 text-yellow-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
-                            {formData.status === 'active' ? (isRTL ? 'نشط' : 'Active') :
-                             formData.status === 'vip' ? (isRTL ? 'مميز' : 'VIP') :
-                             (isRTL ? 'غير نشط' : 'Inactive')}
+                            {formData.status === 'active' ? t("customer.status.active") :
+                             formData.status === 'vip' ? t("customer.status.vip") :
+                             t("customer.status.inactive")}
                           </Badge>
                         </div>
                       </div>
@@ -992,29 +992,29 @@ Notes: ${formData.notes}
                     <div className="space-y-4">
                       <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                         <MapPin className="h-5 w-5 text-green-600" />
-                        {isRTL ? "معلومات التوصيل" : "Delivery Information"}
+                        {t("customer.deliveryInfoReview")}
                       </h3>
                       <div className="space-y-3">
                         <div>
-                          <span className="text-sm font-medium text-gray-600">{isRTL ? "العنوان:" : "Address:"}</span>
-                          <p className="text-lg">{formData.address || (isRTL ? "غير محدد" : "Not specified")}</p>
+                          <span className="text-sm font-medium text-gray-600">{t("customer.address")}:</span>
+                          <p className="text-lg">{formData.address || t("customer.notSpecified")}</p>
                         </div>
                         <div>
-                          <span className="text-sm font-medium text-gray-600">{isRTL ? "وقت التوصيل:" : "Delivery Time:"}</span>
+                          <span className="text-sm font-medium text-gray-600">{t("customer.deliveryTime")}:</span>
                           <p className="text-lg">{formData.preferredDeliveryTime}</p>
                         </div>
                         <div>
-                          <span className="text-sm font-medium text-gray-600">{isRTL ? "الموقع:" : "Location:"}</span>
+                          <span className="text-sm font-medium text-gray-600">{t("customer.location")}:</span>
                           <p className="text-lg font-mono text-sm">
                             {formData.latitude && formData.longitude 
                               ? `${formData.latitude}, ${formData.longitude}`
-                              : (isRTL ? "غير محدد" : "Not specified")
+                              : t("customer.notSpecified")
                             }
                           </p>
                         </div>
                         {formData.notes && (
                           <div>
-                            <span className="text-sm font-medium text-gray-600">{isRTL ? "ملاحظات:" : "Notes:"}</span>
+                            <span className="text-sm font-medium text-gray-600">{t("customer.notes")}:</span>
                             <p className="text-lg">{formData.notes}</p>
                           </div>
                         )}
@@ -1038,14 +1038,14 @@ Notes: ${formData.notes}
                   className="h-12 px-6"
                 >
                   <ArrowLeft className="h-4 w-4 mr-2" />
-                  {isRTL ? "السابق" : "Previous"}
+                  {t("customer.previous")}
                 </Button>
               )}
               
               {isDirty && (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-                  {isRTL ? "تغييرات غير محفوظة" : "Unsaved changes"}
+                  {t("customer.unsavedChanges")}
             </div>
               )}
             </div>
@@ -1057,7 +1057,7 @@ Notes: ${formData.notes}
                 onClick={onClose}
                 className="h-12 px-6"
               >
-                {isRTL ? "إلغاء" : "Cancel"}
+                {t("customer.cancel")}
             </Button>
               
               {currentStep < totalSteps ? (
@@ -1066,7 +1066,7 @@ Notes: ${formData.notes}
                   onClick={nextStep}
                   className="h-12 px-8 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white"
                 >
-                  {isRTL ? "التالي" : "Next"}
+                  {t("customer.next")}
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
               ) : (
@@ -1078,12 +1078,12 @@ Notes: ${formData.notes}
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      {isRTL ? "جاري الإضافة..." : "Adding Customer..."}
+                      {t("customer.adding")}
                   </>
                 ) : (
                   <>
                       <CheckCircle className="h-4 w-4 mr-2" />
-                      {isRTL ? "إضافة العميل" : "Add Customer"}
+                      {t("customer.add")}
                   </>
                 )}
             </Button>
@@ -1099,7 +1099,7 @@ Notes: ${formData.notes}
         onClose={() => setShowLocationPicker(false)}
         onLocationSelect={handleLocationSelect}
         initialLocation={selectedLocation || undefined}
-        title={isRTL ? "تحديد موقع العميل" : "Select Customer Location"}
+        title={t("customer.selectLocation")}
       />
     </Dialog>
   )

@@ -31,3 +31,4 @@ SELECT status, COUNT(*) as count
 FROM representatives 
 GROUP BY status;
 
+

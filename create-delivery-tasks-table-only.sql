@@ -83,3 +83,4 @@ FROM information_schema.columns
 WHERE table_name IN ('delivery_tasks', 'task_items')
 ORDER BY table_name, ordinal_position;
 
+

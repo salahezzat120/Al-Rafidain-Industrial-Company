@@ -52,3 +52,4 @@ FROM delivery_tasks
 WHERE proof_photos IS NOT NULL 
 AND jsonb_array_length(proof_photos) > 0
 ORDER BY created_at DESC;
+
