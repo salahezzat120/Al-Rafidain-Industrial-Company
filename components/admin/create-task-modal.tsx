@@ -167,11 +167,22 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
       console.log('🔄 Loading representatives...')
       setIsLoadingRepresentatives(true)
       const representativesData = await getRepresentatives()
-      console.log('👨‍💼 Representatives loaded:', representativesData?.length || 0)
-      console.log('📋 Representatives data:', representativesData)
-      setRepresentatives(representativesData)
+      console.log('📋 Raw representatives data:', representativesData)
+      console.log('📋 Data type:', typeof representativesData)
+      console.log('📋 Is array:', Array.isArray(representativesData))
+      
+      // Handle direct array format from warehouse.ts
+      if (Array.isArray(representativesData)) {
+        console.log('👨‍💼 Representatives loaded:', representativesData.length)
+        console.log('📋 Representatives data:', representativesData)
+        setRepresentatives(representativesData)
+      } else {
+        console.error('❌ Representatives data is not an array:', representativesData)
+        setRepresentatives([])
+      }
     } catch (error) {
       console.error('❌ Error loading representatives:', error)
+      setRepresentatives([])
       toast({
         title: "Error",
         description: "Failed to load representatives",
@@ -418,10 +429,12 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
   
   // Debug logging for representatives
   console.log('🔍 Representatives debug:', {
+    isLoadingRepresentatives,
     totalRepresentatives: representatives.length,
     availableRepresentatives: availableRepresentatives.length,
     representatives: representatives,
-    availableRepresentatives: availableRepresentatives
+    availableRepresentatives: availableRepresentatives,
+    shouldShowNoRepsMessage: !isLoadingRepresentatives && availableRepresentatives.length === 0
   })
 
   return (
@@ -578,7 +591,7 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
                         )}
                       </SelectContent>
                     </Select>
-                    {availableRepresentatives.length === 0 && (
+                    {!isLoadingRepresentatives && availableRepresentatives.length === 0 && (
                       <p className="text-sm text-yellow-600 mt-1">{t("task.noRepresentativesAvailable")}</p>
                     )}
                   </div>

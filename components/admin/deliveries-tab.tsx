@@ -10,6 +10,7 @@ import { Search, Plus, MoreHorizontal, MapPin, Clock, Package, Filter, Download,
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { CreateTaskModal } from "./create-task-modal"
 import { TaskDetailsModal } from "./task-details-modal"
+import { ProofPhotosInline } from "@/components/ui/proof-photos-display"
 import { useLanguage } from "@/contexts/language-context"
 import { getDeliveryTasks, getDeliveryTaskStats } from "@/lib/delivery-tasks"
 import { useToast } from "@/hooks/use-toast"
@@ -378,6 +379,12 @@ export function DeliveriesTab() {
                     <p className="text-sm text-gray-600 mt-1">
                       {task.scheduled_for ? new Date(task.scheduled_for).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : 'Not scheduled'}
                     </p>
+                    {/* Show proof photos inline for completed tasks */}
+                    {task.status === 'completed' && task.proof_photos && task.proof_photos.length > 0 && (
+                      <div className="mt-2">
+                        <ProofPhotosInline photos={task.proof_photos} />
+                      </div>
+                    )}
                   </div>
 
                   <div>

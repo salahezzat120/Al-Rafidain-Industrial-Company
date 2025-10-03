@@ -30,3 +30,4 @@ SELECT * FROM representatives LIMIT 5;
 SELECT status, COUNT(*) as count 
 FROM representatives 
 GROUP BY status;
+

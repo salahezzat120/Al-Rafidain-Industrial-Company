@@ -21,6 +21,13 @@ export interface DeliveryTask {
   notes?: string;
   total_value: number;
   currency: string;
+  proof_photos?: (string | {
+    url: string;
+    latitude?: number;
+    longitude?: number;
+    description?: string;
+    uploaded_at?: string;
+  })[]; // Array of image URLs or photo objects
   
   // Related data
   items?: TaskItem[];

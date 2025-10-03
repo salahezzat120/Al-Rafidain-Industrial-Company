@@ -15,6 +15,7 @@ import { useLanguage } from "@/contexts/language-context"
 import { useToast } from "@/hooks/use-toast"
 import { updateDeliveryTask, deleteDeliveryTask } from "@/lib/delivery-tasks"
 import { getRepresentatives } from "@/lib/supabase-utils"
+import { ProofPhotosDisplay } from "@/components/ui/proof-photos-display"
 import type { DeliveryTask, UpdateDeliveryTaskData } from "@/types/delivery-tasks"
 
 interface TaskDetailsModalProps {
@@ -46,44 +47,40 @@ export function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: TaskDetail
       setIsLoadingRepresentatives(true)
       console.log('🔄 Loading representatives...')
       
-      const representativesData = await getRepresentatives()
-      console.log('📋 Raw representatives data:', representativesData)
+      const result = await getRepresentatives()
+      console.log('📋 Raw representatives result:', result)
+      console.log('📋 Result type:', typeof result)
+      
+      // Handle the result format from supabase-utils
+      if (result.error) {
+        console.error('❌ Error from getRepresentatives:', result.error)
+        setRepresentatives([])
+        return
+      }
+      
+      const representativesData = result.data
+      console.log('📋 Representatives data:', representativesData)
       console.log('📋 Data type:', typeof representativesData)
       console.log('📋 Is array:', Array.isArray(representativesData))
-      console.log('📋 Constructor:', representativesData?.constructor?.name)
       
       // Ensure representativesData is an array
       if (!Array.isArray(representativesData)) {
         console.error('❌ Representatives data is not an array:', representativesData)
-        console.error('❌ Data type:', typeof representativesData)
-        console.error('❌ Data value:', JSON.stringify(representativesData, null, 2))
-        console.error('❌ Constructor:', representativesData?.constructor?.name)
-        
-        // Try to convert to array if it's an object with array-like properties
-        if (representativesData && typeof representativesData === 'object') {
-          console.log('🔄 Attempting to convert object to array...')
-          const convertedArray = Object.values(representativesData)
-          if (Array.isArray(convertedArray)) {
-            console.log('✅ Successfully converted to array:', convertedArray)
-            setRepresentatives(convertedArray.map(rep => ({
-              id: rep.id?.toString() || '',
-              name: rep.name || '',
-              status: rep.status || 'available'
-            })))
-            return
-          }
-        }
-        
+        setRepresentatives([])
+        return
+      }
+      
+      if (representativesData.length === 0) {
+        console.log('📋 No representatives found')
         setRepresentatives([])
         return
       }
       
       console.log('📋 Representatives data length:', representativesData.length)
-      console.log('📋 Representatives data:', representativesData)
       
       const mappedRepresentatives = representativesData.map(rep => ({
-        id: rep.id.toString(),
-        name: rep.name,
+        id: rep.id?.toString() || '',
+        name: rep.name || '',
         status: rep.status || 'available'
       }))
       
@@ -440,11 +437,21 @@ export function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: TaskDetail
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="unassigned">Unassigned</SelectItem>
-                          {representatives.map((rep) => (
-                            <SelectItem key={rep.id} value={rep.id}>
-                              {rep.name}
+                          {isLoadingRepresentatives ? (
+                            <SelectItem value="loading" disabled>
+                              Loading representatives...
                             </SelectItem>
-                          ))}
+                          ) : representatives.length === 0 ? (
+                            <SelectItem value="no-representatives" disabled>
+                              No representatives available
+                            </SelectItem>
+                          ) : (
+                            representatives.map((rep) => (
+                              <SelectItem key={rep.id} value={rep.id}>
+                                {rep.name} ({rep.status === 'active' ? 'Available' : rep.status})
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     ) : (
@@ -517,6 +524,16 @@ export function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: TaskDetail
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {/* Proof Photos - Only show for completed tasks */}
+          {task.status === 'completed' && task.proof_photos && task.proof_photos.length > 0 && (
+            <ProofPhotosDisplay
+              photos={task.proof_photos}
+              taskId={task.task_id}
+              taskTitle={task.title}
+              className="mb-6"
+            />
           )}
 
           {/* Task History */}

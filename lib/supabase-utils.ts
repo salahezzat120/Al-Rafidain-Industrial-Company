@@ -84,22 +84,42 @@ export const safeSupabaseQuery = async <T>(
   }
 }
 
-export const getRepresentatives = async (): Promise<{ data: any[] | null; error: string | null }> => {
-  return safeSupabaseQuery(async () => {
+export const getRepresentatives = async (): Promise<{ data: any[]; error: string | null }> => {
+  try {
+    console.log('🔍 Fetching representatives from supabase-utils...')
+    
     const { data, error } = await supabase
       .from('representatives')
       .select('*')
-      .order('created_at', { ascending: false })
+      .in('status', ['active', 'on-route'])
+      .order('name', { ascending: true })
 
     if (error) {
-      console.error('Error fetching representatives:', error)
-      console.error('Error details:', JSON.stringify(error, null, 2))
-      return { data: null, error: error.message || 'Unknown error occurred' }
+      console.error('❌ Error fetching representatives:', error)
+      console.error('❌ Error details:', JSON.stringify(error, null, 2))
+      
+      // Try a simpler query as fallback
+      console.log('🔄 Trying fallback query...')
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('representatives')
+        .select('*')
+        .limit(10)
+      
+      if (fallbackError) {
+        console.error('❌ Fallback query also failed:', fallbackError)
+        return { data: [], error: fallbackError.message || 'Failed to fetch representatives' }
+      }
+      
+      console.log('✅ Fallback query successful:', fallbackData?.length || 0)
+      return { data: fallbackData || [], error: null }
     }
 
-    console.log('Successfully fetched representatives:', data)
-    return { data, error: null }
-  })
+    console.log('✅ Successfully fetched representatives:', data?.length || 0)
+    return { data: data || [], error: null }
+  } catch (err) {
+    console.error('❌ Exception in getRepresentatives:', err)
+    return { data: [], error: 'Failed to fetch representatives' }
+  }
 }
 
 // Test function to check if representatives table exists and is accessible
