@@ -1264,38 +1264,106 @@ export async function createStockMovement(movementData: CreateStockMovementData)
 // ==================== STOCKTAKING ====================
 
 export async function createStocktaking(stocktakingData: any): Promise<Stocktaking> {
-  const { data, error } = await supabase
-    .from('stocktakings')
-    .insert([stocktakingData])
-    .select(`
-      *,
-      warehouse:warehouses(*)
-    `)
+  try {
+    // First, check if the stocktaking table exists
+    const { data: tableCheck, error: tableCheckError } = await supabase
+      .from('stocktaking')
+      .select('id')
+      .limit(1);
+
+    if (tableCheckError && tableCheckError.message.includes('Could not find the table')) {
+      console.error('Stocktaking table does not exist. Please create it first.');
+      throw new Error('Stocktaking table does not exist. Please run the SQL script to create the table first.');
+    }
+
+    // Prepare the data for insertion, ensuring all required fields are present
+    const insertData = {
+      warehouse_id: stocktakingData.warehouse_id,
+      stocktaking_date: stocktakingData.stocktaking_date,
+      reference_number: stocktakingData.reference_number,
+      status: stocktakingData.status || 'PLANNED',
+      total_items: stocktakingData.total_items || 0,
+      counted_items: stocktakingData.counted_items || 0,
+      discrepancies: stocktakingData.discrepancies || 0,
+      notes: stocktakingData.notes || null,
+      created_by: stocktakingData.created_by || 'system'
+    };
+
+    console.log('Inserting stocktaking data:', insertData);
+
+    // Insert stocktaking data
+    const { data: stocktaking, error: stocktakingError } = await supabase
+      .from('stocktaking')
+      .insert([insertData])
+      .select('*')
     .single();
 
-  if (error) {
-    console.error('Error creating stocktaking:', error);
-    throw new Error('Failed to create stocktaking');
-  }
+    if (stocktakingError) {
+      console.error('Error creating stocktaking:', stocktakingError);
+      console.error('Error details:', stocktakingError.message, stocktakingError.details, stocktakingError.hint);
+      throw new Error(`Failed to create stocktaking: ${stocktakingError.message}`);
+    }
 
-  return data;
+    // Get warehouse data separately
+    const { data: warehouse, error: warehouseError } = await supabase
+      .from('warehouses')
+      .select('*')
+      .eq('id', stocktaking.warehouse_id)
+      .single();
+
+    if (warehouseError) {
+      console.warn('Error fetching warehouse for stocktaking:', warehouseError);
+    }
+
+    // Return enriched stocktaking data
+    return {
+      ...stocktaking,
+      warehouse: warehouse || null
+    };
+  } catch (error) {
+    console.error('Error in createStocktaking:', error);
+    throw error;
+  }
 }
 
 export async function getStocktakings(): Promise<Stocktaking[]> {
-  const { data, error } = await supabase
-    .from('stocktakings')
-    .select(`
-      *,
-      warehouse:warehouses(*)
-    `)
+  try {
+    // First try to get stocktaking data
+    const { data: stocktakings, error: stocktakingsError } = await supabase
+      .from('stocktaking')
+      .select('*')
     .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching stocktakings:', error);
-    throw new Error('Failed to fetch stocktakings');
-  }
+    if (stocktakingsError) {
+      console.error('Error fetching stocktaking data:', stocktakingsError);
+      // If stocktaking table doesn't exist, return empty array
+      return [];
+    }
 
-  return data || [];
+    if (!stocktakings || stocktakings.length === 0) {
+      return [];
+    }
+
+    // Get warehouses separately
+    const { data: warehouses, error: warehousesError } = await supabase
+      .from('warehouses')
+      .select('*');
+
+    if (warehousesError) {
+      console.warn('Error fetching warehouses for stocktaking:', warehousesError);
+    }
+
+    // Manually join the data
+    const enrichedStocktakings = stocktakings.map(stocktaking => ({
+      ...stocktaking,
+      warehouse: warehouses?.find(w => w.id === stocktaking.warehouse_id) || null
+    }));
+
+    return enrichedStocktakings;
+  } catch (error) {
+    console.error('Error in getStocktakings:', error);
+    return [];
+  }
 }
 
 // ==================== BARCODE MANAGEMENT ====================
@@ -1332,21 +1400,6 @@ export async function generateBarcode(productId: number, barcodeType: string = '
 
 
 // ==================== BULK OPERATIONS ====================
-
-export async function bulkUploadProducts(products: any[]): Promise<{ success: number; errors: any[] }> {
-  const results = { success: 0, errors: [] as any[] };
-
-  for (const product of products) {
-    try {
-      await createProduct(product);
-      results.success++;
-    } catch (error) {
-      results.errors.push({ product, error: error.message });
-    }
-  }
-
-  return results;
-}
 
 export async function bulkStockMovement(movements: any[]): Promise<{ success: number; errors: any[] }> {
   const results = { success: 0, errors: [] as any[] };
@@ -1427,73 +1480,60 @@ async function updateInventoryAfterMovement(movementData: CreateStockMovementDat
 
 export async function getProductsWithWarehouseInfo(): Promise<any[]> {
   try {
-    // First try to get products with all relationships
-    const { data, error } = await supabase
-      .from('products')
-      .select(`
-        *,
-        main_group:main_groups(*),
-        sub_group:sub_groups(*),
-        color:colors(*),
-        material:materials(*),
-        unit_of_measurement:units_of_measurement(*),
-        inventory:inventory(
-          *,
-          warehouse:warehouses(*)
-        )
-      `)
-      .order('product_name');
-
-    if (error) {
-      console.error('Error fetching products with warehouse info:', error);
-      console.error('Error details:', error.message, error.details, error.hint);
-      
-      // If the complex query fails, try a simpler one
-      console.log('⚠️  Complex query failed, trying simpler query...');
-      const { data: simpleData, error: simpleError } = await supabase
-        .from('products')
-        .select(`
-          *,
-          main_group:main_groups(*),
-          sub_group:sub_groups(*),
-          color:colors(*),
-          material:materials(*),
-          unit_of_measurement:units_of_measurement(*)
-        `)
-        .order('product_name');
-      
-      if (simpleError) {
-        console.error('Simple query also failed:', simpleError);
-        
-        // If even the simple query fails, try the most basic one
-        console.log('⚠️  Simple query failed, trying basic query...');
-        const { data: basicData, error: basicError } = await supabase
+    // Start with a basic products query
+    const { data: products, error: productsError } = await supabase
           .from('products')
           .select('*')
           .order('product_name');
         
-        if (basicError) {
-          console.error('Basic query also failed:', basicError);
+    if (productsError) {
+      console.error('Error fetching products:', productsError);
           return [];
         }
         
-        return basicData || [];
-      }
-      
-      return simpleData || [];
+    if (!products || products.length === 0) {
+      console.log('No products found');
+      return [];
     }
 
-    console.log('Products with warehouse info loaded:', data?.length, 'items');
-    if (data && data.length > 0) {
-      console.log('Sample product data:', {
-        id: data[0].id,
-        name: data[0].product_name,
-        main_group: data[0].main_group,
-        color: data[0].color,
-        material: data[0].material
-      });
+    // Get inventory data separately
+    const { data: inventory, error: inventoryError } = await supabase
+      .from('inventory')
+      .select(`
+        *,
+        warehouse:warehouses(*)
+      `);
+
+    if (inventoryError) {
+      console.warn('Error fetching inventory data:', inventoryError);
     }
-    return data || [];
+
+    // Get dropdown data separately
+    const [mainGroups, subGroups, colors, materials, units] = await Promise.all([
+      supabase.from('main_groups').select('*').then(({ data, error }) => error ? [] : data),
+      supabase.from('sub_groups').select('*').then(({ data, error }) => error ? [] : data),
+      supabase.from('colors').select('*').then(({ data, error }) => error ? [] : data),
+      supabase.from('materials').select('*').then(({ data, error }) => error ? [] : data),
+      supabase.from('units_of_measurement').select('*').then(({ data, error }) => error ? [] : data)
+    ]);
+
+    // Manually join the data
+    const enrichedProducts = products.map(product => {
+      const productInventory = inventory?.filter(inv => inv.product_id === product.id) || [];
+      
+      return {
+        ...product,
+        main_group: mainGroups?.find(mg => mg.id === product.main_group_id) || null,
+        sub_group: subGroups?.find(sg => sg.id === product.sub_group_id) || null,
+        color: colors?.find(c => c.id === product.color_id) || null,
+        material: materials?.find(m => m.id === product.material_id) || null,
+        unit_of_measurement: units?.find(u => u.id === product.unit_of_measurement_id) || null,
+        inventory: productInventory
+      };
+    });
+
+    console.log('Products with warehouse info loaded:', enrichedProducts?.length, 'items');
+    return enrichedProducts || [];
   } catch (err) {
     console.error('Error in getProductsWithWarehouseInfo:', err);
     return [];
@@ -1729,105 +1769,198 @@ export async function generateReport(reportType: string, filters: any = {}): Pro
 
 // Cost & Sales Price Report
 async function generateCostSalesReport(filters: any): Promise<ReportData> {
-  const { data, error } = await supabase
+  try {
+    // Get products data
+    const { data: products, error: productsError } = await supabase
     .from('products')
-    .select(`
-      *,
-      inventory:inventory(*),
-      stock_movements:stock_movements(*)
-    `)
+      .select('*')
     .order('product_name');
 
-  if (error) throw error;
+    if (productsError) throw productsError;
 
+    if (!products || products.length === 0) {
+      return {
+        title: 'Cost & Sales Price Report',
+        headers: ['Product Code', 'Product Name', 'Cost Price', 'Sales Price', 'Margin %', 'Stock Level'],
+        rows: [],
+        summary: { totalProducts: 0, averageMargin: '0.00%' }
+      };
+    }
+
+    // Get inventory data separately
+    const { data: inventory, error: inventoryError } = await supabase
+      .from('inventory')
+      .select('*');
+
+    if (inventoryError) {
+      console.warn('Error fetching inventory data:', inventoryError);
+    }
+
+    // Manually join the data
   const headers = ['Product Code', 'Product Name', 'Cost Price', 'Sales Price', 'Margin %', 'Stock Level'];
-  const rows = data?.map(product => [
+    const rows = products.map(product => {
+      const productInventory = inventory?.find(inv => inv.product_id === product.id);
+      const stockLevel = productInventory?.available_quantity || '0';
+      
+      const costPrice = parseFloat(product.cost_price || '0');
+      const salesPrice = parseFloat(product.sales_price || '0');
+      const margin = costPrice > 0 ? (((salesPrice - costPrice) / costPrice) * 100).toFixed(2) + '%' : '0.00%';
+      
+      return [
     product.product_code || '',
     product.product_name || '',
-    product.cost_price || '0.00',
-    product.sales_price || '0.00',
-    product.sales_price && product.cost_price ? 
-      (((product.sales_price - product.cost_price) / product.cost_price) * 100).toFixed(2) + '%' : '0.00%',
-    product.inventory?.[0]?.available_quantity || '0'
-  ]) || [];
+        costPrice.toFixed(2),
+        salesPrice.toFixed(2),
+        margin,
+        stockLevel
+      ];
+    });
+
+    // Calculate average margin
+    const validMargins = products.filter(p => p.cost_price && p.sales_price && parseFloat(p.cost_price) > 0);
+    const averageMargin = validMargins.length > 0 
+      ? (validMargins.reduce((sum, p) => {
+          const cost = parseFloat(p.cost_price);
+          const sales = parseFloat(p.sales_price);
+          return sum + ((sales - cost) / cost) * 100;
+        }, 0) / validMargins.length).toFixed(2) + '%'
+      : '0.00%';
 
   return {
     title: 'Cost & Sales Price Report',
     headers,
     rows,
     summary: {
-      totalProducts: data?.length || 0,
-      averageMargin: '0.00%'
+        totalProducts: products.length,
+        averageMargin
     }
   };
+  } catch (error) {
+    console.error('Error generating cost & sales report:', error);
+    throw error;
+  }
 }
 
-// Consignment Stock Report
+// Stock Availability Report
 async function generateConsignmentReport(filters: any): Promise<ReportData> {
-  const { data, error } = await supabase
+  try {
+    // Get inventory data
+    const { data: inventory, error: inventoryError } = await supabase
     .from('inventory')
-    .select(`
-      *,
-      product:products(*),
-      warehouse:warehouses(*)
-    `)
-    .eq('consignment', true);
+      .select('*')
+      .not('available_quantity', 'is', null);
 
-  if (error) throw error;
+    if (inventoryError) throw inventoryError;
 
-  const headers = ['Product', 'Warehouse', 'Consignment Quantity', 'Consignment Value', 'Status'];
-  const rows = data?.map(item => [
-    item.product?.product_name || '',
-    item.warehouse?.warehouse_name || '',
-    item.consignment_quantity || '0',
-    item.consignment_value || '0.00',
-    item.consignment_status || 'Active'
-  ]) || [];
+    if (!inventory || inventory.length === 0) {
+      return {
+        title: 'تقرير توفر المخزون',
+        headers: ['المنتج', 'المستودع', 'الكمية المتاحة', 'الحد الأدنى للمخزون', 'الحالة'],
+        rows: [],
+        summary: { 'إجمالي الأصناف': 0, 'الأصناف المتوفرة في المخزون': 0 }
+      };
+    }
+
+    // Get products and warehouses separately
+    const [productsResult, warehousesResult] = await Promise.all([
+      supabase.from('products').select('*'),
+      supabase.from('warehouses').select('*')
+    ]);
+
+    const products = productsResult.data || [];
+    const warehouses = warehousesResult.data || [];
+
+    // Manually join the data
+    const headers = ['المنتج', 'المستودع', 'الكمية المتاحة', 'الحد الأدنى للمخزون', 'الحالة'];
+    const rows = inventory.map(item => {
+      const product = products.find(p => p.id === item.product_id);
+      const warehouse = warehouses.find(w => w.id === item.warehouse_id);
+      
+      return [
+        product?.product_name || 'منتج غير معروف',
+        warehouse?.warehouse_name || 'مستودع غير معروف',
+        item.available_quantity || '0',
+        item.minimum_stock_level || '0',
+        item.available_quantity > 0 ? 'متوفر في المخزون' : 'نفد من المخزون'
+      ];
+    });
 
   return {
-    title: 'Consignment Stock Report',
+      title: 'تقرير توفر المخزون',
     headers,
     rows,
     summary: {
-      totalItems: data?.length || 0,
-      totalValue: '0.00'
+        'إجمالي الأصناف': inventory.length,
+        'الأصناف المتوفرة في المخزون': inventory.filter(item => item.available_quantity > 0).length
     }
   };
+  } catch (error) {
+    console.error('Error generating stock availability report:', error);
+    throw error;
+  }
 }
 
 // Damaged Goods Report
 async function generateDamagedGoodsReport(filters: any): Promise<ReportData> {
-  const { data, error } = await supabase
+  try {
+    // Get stock movements data
+    const { data: movements, error: movementsError } = await supabase
     .from('stock_movements')
-    .select(`
-      *,
-      product:products(*),
-      warehouse:warehouses(*)
-    `)
+      .select('*')
     .eq('movement_type', 'DAMAGE')
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+    if (movementsError) throw movementsError;
 
+    if (!movements || movements.length === 0) {
+      return {
+        title: 'Damaged Goods Report',
+        headers: ['Date', 'Product', 'Warehouse', 'Damaged Quantity', 'Reason', 'Value'],
+        rows: [],
+        summary: { totalDamaged: 0, totalValue: '0.00' }
+      };
+    }
+
+    // Get products and warehouses separately
+    const [productsResult, warehousesResult] = await Promise.all([
+      supabase.from('products').select('*'),
+      supabase.from('warehouses').select('*')
+    ]);
+
+    const products = productsResult.data || [];
+    const warehouses = warehousesResult.data || [];
+
+    // Manually join the data
   const headers = ['Date', 'Product', 'Warehouse', 'Damaged Quantity', 'Reason', 'Value'];
-  const rows = data?.map(movement => [
+    const rows = movements.map(movement => {
+      const product = products.find(p => p.id === movement.product_id);
+      const warehouse = warehouses.find(w => w.id === movement.warehouse_id);
+      
+      return [
     new Date(movement.created_at).toLocaleDateString(),
-    movement.product?.product_name || '',
-    movement.warehouse?.warehouse_name || '',
+        product?.product_name || 'Unknown Product',
+        warehouse?.warehouse_name || 'Unknown Warehouse',
     movement.quantity || '0',
     movement.notes || '',
-    (movement.quantity * movement.unit_price).toFixed(2)
-  ]) || [];
+        ((movement.quantity || 0) * (movement.unit_price || 0)).toFixed(2)
+      ];
+    });
 
   return {
     title: 'Damaged Goods Report',
     headers,
     rows,
     summary: {
-      totalDamaged: data?.length || 0,
-      totalValue: '0.00'
-    }
-  };
+        totalDamaged: movements.length,
+        totalValue: movements.reduce((sum, movement) => 
+          sum + ((movement.quantity || 0) * (movement.unit_price || 0)), 0
+        ).toFixed(2)
+      }
+    };
+  } catch (error) {
+    console.error('Error generating damaged goods report:', error);
+    throw error;
+  }
 }
 
 // Expiry Report
@@ -1878,24 +2011,24 @@ async function generateExpiryReport(filters: any): Promise<ReportData> {
 // Serial Number Tracking Report
 async function generateSerialTrackingReport(filters: any): Promise<ReportData> {
   const { data, error } = await supabase
-    .from('serial_numbers')
+    .from('products')
     .select(`
       *,
-      product:products(*),
-      warehouse:warehouses(*)
+      inventory:inventory(*)
     `)
+    .not('serial_number', 'is', null)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
 
-  const headers = ['Serial Number', 'Product', 'Warehouse', 'Status', 'Date', 'Notes'];
-  const rows = data?.map(serial => [
-    serial.serial_number || '',
-    serial.product?.product_name || '',
-    serial.warehouse?.warehouse_name || '',
-    serial.status || 'Active',
-    new Date(serial.created_at).toLocaleDateString(),
-    serial.notes || ''
+  const headers = ['Product Code', 'Product Name', 'Serial Number', 'Status', 'Created Date', 'Description'];
+  const rows = data?.map(product => [
+    product.product_code || '',
+    product.product_name || '',
+    product.serial_number || '',
+    product.inventory?.[0]?.available_quantity > 0 ? 'In Stock' : 'Out of Stock',
+    new Date(product.created_at).toLocaleDateString(),
+    product.description || ''
   ]) || [];
 
   return {
@@ -1903,8 +2036,8 @@ async function generateSerialTrackingReport(filters: any): Promise<ReportData> {
     headers,
     rows,
     summary: {
-      totalSerials: data?.length || 0,
-      active: rows.filter(row => row[3] === 'Active').length
+      totalProducts: data?.length || 0,
+      inStockProducts: data?.filter(product => product.inventory?.[0]?.available_quantity > 0).length || 0
     }
   };
 }
@@ -2220,4 +2353,104 @@ async function generateCustomReport(config: any): Promise<ReportData> {
     console.error('Error generating custom report:', error);
     throw new Error(`Failed to generate custom report: ${error.message}`);
   }
+}
+
+// ==================== BULK UPLOAD FUNCTIONS ====================
+
+export async function bulkUploadProducts(products: any[]): Promise<{ success: number; errors: any[] }> {
+  const results = { success: 0, errors: [] as any[] };
+
+  for (const product of products) {
+    try {
+      // Validate required fields
+      if (!product.product_name || !product.product_code) {
+        results.errors.push({ 
+          error: `Missing required fields: product_name and product_code are required`,
+          row: product
+        });
+        continue;
+      }
+
+      // Check if product already exists
+      const { data: existingProduct } = await supabase
+        .from('products')
+        .select('id')
+        .eq('product_code', product.product_code)
+        .single();
+
+      if (existingProduct) {
+        // Update existing product
+        const updateData = {
+          product_name: product.product_name,
+          product_name_ar: product.product_name_ar || product.product_name,
+          main_group_id: parseInt(product.main_group_id) || null,
+          sub_group_id: parseInt(product.sub_group_id) || null,
+          color_id: parseInt(product.color_id) || null,
+          material_id: parseInt(product.material_id) || null,
+          unit_of_measurement_id: parseInt(product.unit_of_measurement_id) || null,
+          description: product.description || '',
+          cost_price: parseFloat(product.cost_price) || 0,
+          selling_price: parseFloat(product.selling_price) || 0,
+          weight: parseFloat(product.weight) || 0,
+          dimensions: product.dimensions || '',
+          updated_at: new Date().toISOString()
+        };
+
+        const { error: updateError } = await supabase
+          .from('products')
+          .update(updateData)
+          .eq('id', existingProduct.id);
+
+        if (updateError) {
+          results.errors.push({ 
+            error: `Failed to update product: ${updateError.message}`,
+            row: product
+          });
+        } else {
+          results.success++;
+        }
+      } else {
+        // Create new product
+        const insertData = {
+          product_name: product.product_name,
+          product_name_ar: product.product_name_ar || product.product_name,
+          product_code: product.product_code,
+          main_group_id: parseInt(product.main_group_id) || null,
+          sub_group_id: parseInt(product.sub_group_id) || null,
+          color_id: parseInt(product.color_id) || null,
+          material_id: parseInt(product.material_id) || null,
+          unit_of_measurement_id: parseInt(product.unit_of_measurement_id) || null,
+          description: product.description || '',
+          cost_price: parseFloat(product.cost_price) || 0,
+          selling_price: parseFloat(product.selling_price) || 0,
+          weight: parseFloat(product.weight) || 0,
+          dimensions: product.dimensions || '',
+          stock: 0,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        const { error: insertError } = await supabase
+          .from('products')
+          .insert([insertData]);
+
+        if (insertError) {
+          results.errors.push({ 
+            error: `Failed to create product: ${insertError.message}`,
+            row: product
+          });
+        } else {
+          results.success++;
+        }
+      }
+    } catch (error: any) {
+      results.errors.push({ 
+        error: `Unexpected error: ${error?.message || 'Unknown error'}`,
+        row: product
+      });
+    }
+  }
+
+  return results;
 }

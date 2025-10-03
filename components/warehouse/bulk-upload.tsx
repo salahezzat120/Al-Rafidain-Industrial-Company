@@ -51,16 +51,48 @@ export function BulkUpload() {
       reader.onload = (e) => {
         try {
           const text = e.target?.result as string;
-          const lines = text.split('\n');
-          const headers = lines[0].split(',').map(h => h.trim());
-          const data = lines.slice(1).map(line => {
-            const values = line.split(',').map(v => v.trim());
+          const lines = text.split('\n').filter(line => line.trim() !== '');
+          
+          if (lines.length < 2) {
+            reject(new Error('CSV file must contain at least a header row and one data row'));
+            return;
+          }
+
+          // Parse CSV with proper handling of quoted values
+          const parseCSVLine = (line: string): string[] => {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+              const char = line[i];
+              
+              if (char === '"') {
+                inQuotes = !inQuotes;
+              } else if (char === ',' && !inQuotes) {
+                result.push(current.trim());
+                current = '';
+              } else {
+                current += char;
+              }
+            }
+            
+            result.push(current.trim());
+            return result;
+          };
+
+          const headers = parseCSVLine(lines[0]);
+          const data = lines.slice(1).map((line, index) => {
+            const values = parseCSVLine(line);
             const obj: any = {};
-            headers.forEach((header, index) => {
-              obj[header] = values[index] || '';
+            headers.forEach((header, headerIndex) => {
+              obj[header] = values[headerIndex] || '';
             });
+            obj._rowNumber = index + 2; // Add row number for error reporting
             return obj;
-          }).filter(row => Object.values(row).some(value => value !== ''));
+          }).filter(row => Object.values(row).some(value => value !== '' && value !== '_rowNumber'));
+
+          console.log('Parsed CSV data:', data);
           resolve(data);
         } catch (error) {
           reject(error);
@@ -76,10 +108,14 @@ export function BulkUpload() {
     
     if (activeTab === 'products') {
       template = 'product_name,product_name_ar,product_code,main_group_id,sub_group_id,color_id,material_id,unit_of_measurement_id,description,cost_price,selling_price,weight,dimensions\n';
-      template += 'White Plastic Cup,كوب بلاستيك أبيض,CUP-WH-200,1,1,1,1,1,200ml white plastic cup,0.50,1.00,10,200ml\n';
+      template += 'White Plastic Cup,كوب بلاستيك أبيض,CUP-WH-200,1,1,1,1,1,"200ml white plastic cup",0.50,1.00,10,200ml\n';
+      template += 'Blue Plastic Bottle,زجاجة بلاستيك زرقاء,BOTTLE-BL-500,1,2,2,1,1,"500ml blue plastic bottle",1.20,2.50,25,500ml\n';
+      template += 'Red Plastic Plate,طبق بلاستيك أحمر,PLATE-RD-300,1,3,3,1,1,"300mm red plastic plate",0.80,1.80,15,300mm\n';
     } else {
       template = 'product_id,warehouse_id,movement_type,quantity,unit_price,reference_number,notes\n';
       template += '1,1,RECEIPT,100,0.50,PO-001,Initial stock\n';
+      template += '2,1,RECEIPT,50,1.20,PO-002,New product stock\n';
+      template += '3,2,ISSUE,25,0.80,SO-001,Sale to customer\n';
     }
 
     const blob = new Blob([template], { type: 'text/csv' });
@@ -288,8 +324,13 @@ export function BulkUpload() {
                       {uploadResults.errors.map((error: any, index: number) => (
                         <div key={index} className="p-2 bg-red-50 border border-red-200 rounded mb-2">
                           <p className="text-sm text-red-800">
-                            {isRTL ? 'الصف' : 'Row'} {index + 1}: {error.error}
+                            {isRTL ? 'الصف' : 'Row'} {error.row?._rowNumber || index + 1}: {error.error}
                           </p>
+                          {error.row && (
+                            <p className="text-xs text-gray-600 mt-1">
+                              {isRTL ? 'البيانات:' : 'Data:'} {JSON.stringify(error.row).substring(0, 100)}...
+                            </p>
+                          )}
                         </div>
                       ))}
                     </div>

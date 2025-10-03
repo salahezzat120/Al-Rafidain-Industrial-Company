@@ -9,8 +9,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { 
   Loader2, 
   Search, 
@@ -21,7 +19,6 @@ import {
   MapPin, 
   User, 
   Phone, 
-  Calendar as CalendarIcon,
   CheckCircle,
   XCircle,
   Coffee,
@@ -37,6 +34,13 @@ import { useLanguage } from "@/contexts/language-context"
 import { format, isToday, isYesterday, parseISO, differenceInHours, differenceInMinutes } from "date-fns"
 import { cn } from "@/lib/utils"
 
+// Helper function to check if two dates are the same day
+const isSameDay = (date1: Date, date2: Date): boolean => {
+  return date1.getFullYear() === date2.getFullYear() &&
+         date1.getMonth() === date2.getMonth() &&
+         date1.getDate() === date2.getDate()
+}
+
 export default function AttendanceTab() {
   const { t, isRTL } = useLanguage()
   const [records, setRecords] = useState<AttendanceWithRepresentative[]>([])
@@ -44,7 +48,6 @@ export default function AttendanceTab() {
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined)
   const [selectedRecord, setSelectedRecord] = useState<AttendanceWithRepresentative | null>(null)
   const [showDetails, setShowDetails] = useState(false)
 
@@ -77,12 +80,9 @@ export default function AttendanceTab() {
       
       const matchesStatus = statusFilter === "all" || record.status === statusFilter
       
-      const matchesDate = !dateFilter || 
-        (record.check_in_time && isSameDay(parseISO(record.check_in_time), dateFilter))
-      
-      return matchesSearch && matchesStatus && matchesDate
+      return matchesSearch && matchesStatus
     })
-  }, [records, searchTerm, statusFilter, dateFilter])
+  }, [records, searchTerm, statusFilter])
 
   const stats = useMemo(() => {
     const total = records.length
@@ -274,22 +274,6 @@ export default function AttendanceTab() {
               </SelectContent>
             </Select>
             
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full sm:w-48">
-                  <CalendarIcon className="h-4 w-4 mr-2" />
-                  {dateFilter ? format(dateFilter, "MMM dd") : (isRTL ? "اختر التاريخ" : "Select Date")}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={dateFilter}
-                  onSelect={setDateFilter}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
           </div>
         </CardContent>
       </Card>

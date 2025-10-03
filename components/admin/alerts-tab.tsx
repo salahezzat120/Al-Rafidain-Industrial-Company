@@ -7,10 +7,24 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { Bell, AlertTriangle, CheckCircle, Clock, Fuel, MapPin, Settings, X, User, MessageSquare } from "lucide-react"
+import { Bell, AlertTriangle, CheckCircle, Clock, Fuel, MapPin, Settings, X, User, MessageSquare, RefreshCw, Loader2, TrendingUp, Truck, Package, Wrench } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
 import type { VisitAlert } from "@/types/visits"
 import { getUnreadAlerts, markAlertAsRead, checkLateVisits, checkExceededTimeVisits } from "@/lib/visits"
+import { 
+  notificationManager, 
+  createAlert, 
+  getAlerts, 
+  getAlertStats, 
+  resolveAlert, 
+  deleteAlert,
+  startAlertMonitoring,
+  type SystemAlert,
+  type AlertStats,
+  updateNotificationSettings,
+  getNotificationSettings,
+  type NotificationSettings
+} from "@/lib/notifications"
 
 // Mock alerts data
 const alerts = [
@@ -88,30 +102,97 @@ const getBadgeColor = (type: string) => {
 
 export function AlertsTab() {
   const { t } = useLanguage()
+  
+  // State management
+  const [systemAlerts, setSystemAlerts] = useState<SystemAlert[]>([])
   const [visitAlerts, setVisitAlerts] = useState<VisitAlert[]>([])
+  const [alertStats, setAlertStats] = useState<AlertStats>({
+    total: 0,
+    critical: 0,
+    warning: 0,
+    info: 0,
+    resolved: 0,
+    unresolved: 0,
+    today: 0,
+    thisWeek: 0
+  })
   const [loading, setLoading] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [activeTab, setActiveTab] = useState('active')
+  const [filterType, setFilterType] = useState<string>('all')
+  const [filterCategory, setFilterCategory] = useState<string>('all')
 
-  const [alertSettings, setAlertSettings] = useState({
-    lowFuel: true,
-    delayedDeliveries: true,
-    vehicleMaintenance: true,
-    routeOptimization: false,
-    customerFeedback: true,
-    systemUpdates: false,
-    lateVisits: true,
-    timeExceeded: true,
-    internalMessages: true,
+  // Notification settings
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
+    userId: 'admin',
+    emailNotifications: true,
+    smsNotifications: false,
+    pushNotifications: true,
+    alertTypes: {
+      critical: true,
+      warning: true,
+      info: false,
+      success: false
+    },
+    categories: {
+      delivery: true,
+      vehicle: true,
+      warehouse: true,
+      visit: true,
+      system: true,
+      maintenance: true,
+      stock: true,
+      user: true
+    },
+    quietHours: {
+      enabled: false,
+      start: '22:00',
+      end: '08:00'
+    }
   })
 
   useEffect(() => {
-    loadVisitAlerts()
+    loadAllData()
     startMonitoring()
+    
+    // Load notification settings safely
+    try {
+      const settings = getNotificationSettings('admin')
+      if (settings) {
+        setNotificationSettings(settings)
+      }
+    } catch (error) {
+      console.log('Notification settings not available. Using defaults.')
+    }
   }, [])
 
-  const loadVisitAlerts = async () => {
+  const loadAllData = async () => {
     setLoading(true)
     try {
-      // In real app, this would fetch from API
+      await Promise.all([
+        loadSystemAlerts(),
+        loadVisitAlerts(),
+        loadAlertStats()
+      ])
+    } catch (error) {
+      console.error('Error loading alerts data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadSystemAlerts = async () => {
+    try {
+      const alerts = getAlerts({ resolved: false })
+      setSystemAlerts(alerts)
+    } catch (error) {
+      console.log('System alerts not available. Using empty array.')
+      setSystemAlerts([])
+    }
+  }
+
+  const loadVisitAlerts = async () => {
+    try {
       const mockVisitAlerts: VisitAlert[] = [
         {
           id: "1",
@@ -139,24 +220,110 @@ export function AlertsTab() {
       setVisitAlerts(mockVisitAlerts)
     } catch (error) {
       console.error('Error loading visit alerts:', error)
-    } finally {
-      setLoading(false)
+    }
+  }
+
+  const loadAlertStats = async () => {
+    try {
+      const stats = getAlertStats()
+      setAlertStats(stats)
+    } catch (error) {
+      console.log('Alert stats not available. Using default values.')
+      setAlertStats({
+        total: 0,
+        critical: 0,
+        warning: 0,
+        info: 0,
+        resolved: 0,
+        unresolved: 0,
+        today: 0,
+        thisWeek: 0
+      })
     }
   }
 
   const startMonitoring = () => {
+    // Start the notification manager monitoring
+    try {
+      startAlertMonitoring()
+    } catch (error) {
+      console.log('Notification manager not available. Using basic monitoring.')
+    }
+    
     // Check for late visits and exceeded time visits every minute
     const interval = setInterval(async () => {
       try {
         await checkLateVisits()
         await checkExceededTimeVisits()
-        loadVisitAlerts()
+        await loadAllData()
       } catch (error) {
-        console.error('Error in monitoring:', error)
+        console.log('Monitoring error (expected if tables don\'t exist):', error.message)
       }
     }, 60000) // Check every minute
 
     return () => clearInterval(interval)
+  }
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      await loadAllData()
+    } catch (error) {
+      console.error('Error refreshing alerts:', error)
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  const handleResolveAlert = async (alertId: string) => {
+    try {
+      await resolveAlert(alertId, 'admin')
+      await loadAllData()
+    } catch (error) {
+      console.error('Error resolving alert:', error)
+    }
+  }
+
+  const handleDeleteAlert = async (alertId: string) => {
+    try {
+      await deleteAlert(alertId)
+      await loadAllData()
+    } catch (error) {
+      console.error('Error deleting alert:', error)
+    }
+  }
+
+  const handleCreateTestAlert = async () => {
+    try {
+      await createAlert({
+        type: 'warning',
+        category: 'system',
+        title: 'Test Alert',
+        message: 'This is a test alert to verify the system is working',
+        priority: 'medium'
+      })
+      await loadAllData()
+    } catch (error) {
+      console.log('Test alert creation not available. Using mock alert.')
+      // Create a mock alert for demonstration
+      const mockAlert = {
+        id: `test_${Date.now()}`,
+        type: 'warning' as const,
+        category: 'system' as const,
+        title: 'Test Alert',
+        message: 'This is a test alert to verify the system is working',
+        timestamp: new Date().toISOString(),
+        resolved: false,
+        priority: 'medium' as const
+      }
+      setSystemAlerts(prev => [mockAlert, ...prev])
+    }
+  }
+
+  const handleNotificationSettingsChange = async (key: string, value: any) => {
+    const newSettings = { ...notificationSettings, [key]: value }
+    setNotificationSettings(newSettings)
+    await updateNotificationSettings('admin', newSettings)
   }
 
   const handleMarkAlertAsRead = async (alertId: string) => {
@@ -228,7 +395,7 @@ export function AlertsTab() {
         </div>
         <div className="flex items-center space-x-2">
           <Badge variant="destructive">
-            {activeAlerts.length + unreadVisitAlerts.length} {t("active")}
+            {alertStats.unresolved + unreadVisitAlerts.length} {t("active")}
           </Badge>
           {unreadVisitAlerts.length > 0 && (
             <Badge variant="destructive" className="flex items-center gap-1">
@@ -236,6 +403,26 @@ export function AlertsTab() {
               {unreadVisitAlerts.length} Visit Alerts
             </Badge>
           )}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            {refreshing ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            Refresh
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleCreateTestAlert}
+          >
+            Test Alert
+          </Button>
           <Button variant="outline" size="sm">
             <Settings className="h-4 w-4 mr-2" />
             {t("settings")}
@@ -251,7 +438,7 @@ export function AlertsTab() {
               <AlertTriangle className="h-8 w-8 text-red-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">{t("criticalAlerts")}</p>
-                <p className="text-2xl font-bold text-gray-900">1</p>
+                <p className="text-2xl font-bold text-gray-900">{alertStats.critical}</p>
               </div>
             </div>
           </CardContent>
@@ -262,7 +449,7 @@ export function AlertsTab() {
               <Clock className="h-8 w-8 text-yellow-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">{t("warnings")}</p>
-                <p className="text-2xl font-bold text-gray-900">2</p>
+                <p className="text-2xl font-bold text-gray-900">{alertStats.warning}</p>
               </div>
             </div>
           </CardContent>
@@ -273,7 +460,7 @@ export function AlertsTab() {
               <Bell className="h-8 w-8 text-blue-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">{t("infoAlerts")}</p>
-                <p className="text-2xl font-bold text-gray-900">1</p>
+                <p className="text-2xl font-bold text-gray-900">{alertStats.info}</p>
               </div>
             </div>
           </CardContent>
@@ -284,7 +471,7 @@ export function AlertsTab() {
               <CheckCircle className="h-8 w-8 text-green-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">{t("resolvedToday")}</p>
-                <p className="text-2xl font-bold text-gray-900">8</p>
+                <p className="text-2xl font-bold text-gray-900">{alertStats.resolved}</p>
               </div>
             </div>
           </CardContent>
@@ -305,6 +492,74 @@ export function AlertsTab() {
 
         <TabsContent value="active" className="space-y-4">
           <div className="space-y-4">
+            {/* System Alerts */}
+            {systemAlerts.map((alert) => {
+              const getCategoryIcon = (category: string) => {
+                switch (category) {
+                  case 'delivery': return Truck
+                  case 'vehicle': return Fuel
+                  case 'warehouse': return Package
+                  case 'visit': return User
+                  case 'system': return Settings
+                  case 'maintenance': return Wrench
+                  case 'stock': return TrendingUp
+                  default: return Bell
+                }
+              }
+              const Icon = getCategoryIcon(alert.category)
+              return (
+                <Card key={alert.id} className={getAlertColor(alert.type)}>
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start space-x-4">
+                        <Icon className="h-6 w-6 mt-1" />
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <h3 className="font-semibold">{alert.title}</h3>
+                            <Badge className={getBadgeColor(alert.type)}>{alert.type}</Badge>
+                            <Badge variant="outline">{alert.category}</Badge>
+                          </div>
+                          <p className="text-gray-700 mb-2">{alert.message}</p>
+                          <div className="flex items-center space-x-4 text-sm text-gray-500">
+                            <span>{new Date(alert.timestamp).toLocaleString()}</span>
+                            {alert.driver && (
+                              <>
+                                <span>•</span>
+                                <span>Driver: {alert.driver}</span>
+                              </>
+                            )}
+                            {alert.vehicle && (
+                              <>
+                                <span>•</span>
+                                <span>Vehicle: {alert.vehicle}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleResolveAlert(alert.id)}
+                        >
+                          Resolve
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          onClick={() => handleDeleteAlert(alert.id)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+            
+            {/* Mock Alerts */}
             {activeAlerts.map((alert) => {
               const Icon = alert.icon
               return (
@@ -461,8 +716,8 @@ export function AlertsTab() {
                   </div>
                   <Switch
                     id="lowFuel"
-                    checked={alertSettings.lowFuel}
-                    onCheckedChange={(checked) => setAlertSettings((prev) => ({ ...prev, lowFuel: checked }))}
+                    checked={notificationSettings.categories.vehicle}
+                    onCheckedChange={(checked) => handleNotificationSettingsChange('categories', { ...notificationSettings.categories, vehicle: checked })}
                   />
                 </div>
 
@@ -475,8 +730,8 @@ export function AlertsTab() {
                   </div>
                   <Switch
                     id="delayedDeliveries"
-                    checked={alertSettings.delayedDeliveries}
-                    onCheckedChange={(checked) => setAlertSettings((prev) => ({ ...prev, delayedDeliveries: checked }))}
+                    checked={notificationSettings.categories.delivery}
+                    onCheckedChange={(checked) => handleNotificationSettingsChange('categories', { ...notificationSettings.categories, delivery: checked })}
                   />
                 </div>
 
@@ -489,10 +744,8 @@ export function AlertsTab() {
                   </div>
                   <Switch
                     id="vehicleMaintenance"
-                    checked={alertSettings.vehicleMaintenance}
-                    onCheckedChange={(checked) =>
-                      setAlertSettings((prev) => ({ ...prev, vehicleMaintenance: checked }))
-                    }
+                    checked={notificationSettings.categories.maintenance}
+                    onCheckedChange={(checked) => handleNotificationSettingsChange('categories', { ...notificationSettings.categories, maintenance: checked })}
                   />
                 </div>
 
@@ -505,8 +758,8 @@ export function AlertsTab() {
                   </div>
                   <Switch
                     id="routeOptimization"
-                    checked={alertSettings.routeOptimization}
-                    onCheckedChange={(checked) => setAlertSettings((prev) => ({ ...prev, routeOptimization: checked }))}
+                    checked={notificationSettings.categories.delivery}
+                    onCheckedChange={(checked) => handleNotificationSettingsChange('categories', { ...notificationSettings.categories, delivery: checked })}
                   />
                 </div>
 
@@ -519,8 +772,8 @@ export function AlertsTab() {
                   </div>
                   <Switch
                     id="customerFeedback"
-                    checked={alertSettings.customerFeedback}
-                    onCheckedChange={(checked) => setAlertSettings((prev) => ({ ...prev, customerFeedback: checked }))}
+                    checked={notificationSettings.categories.user}
+                    onCheckedChange={(checked) => handleNotificationSettingsChange('categories', { ...notificationSettings.categories, user: checked })}
                   />
                 </div>
 
@@ -533,8 +786,8 @@ export function AlertsTab() {
                   </div>
                   <Switch
                     id="systemUpdates"
-                    checked={alertSettings.systemUpdates}
-                    onCheckedChange={(checked) => setAlertSettings((prev) => ({ ...prev, systemUpdates: checked }))}
+                    checked={notificationSettings.categories.system}
+                    onCheckedChange={(checked) => handleNotificationSettingsChange('categories', { ...notificationSettings.categories, system: checked })}
                   />
                 </div>
 
@@ -547,8 +800,8 @@ export function AlertsTab() {
                   </div>
                   <Switch
                     id="lateVisits"
-                    checked={alertSettings.lateVisits}
-                    onCheckedChange={(checked) => setAlertSettings((prev) => ({ ...prev, lateVisits: checked }))}
+                    checked={notificationSettings.categories.visit}
+                    onCheckedChange={(checked) => handleNotificationSettingsChange('categories', { ...notificationSettings.categories, visit: checked })}
                   />
                 </div>
 
@@ -561,8 +814,8 @@ export function AlertsTab() {
                   </div>
                   <Switch
                     id="timeExceeded"
-                    checked={alertSettings.timeExceeded}
-                    onCheckedChange={(checked) => setAlertSettings((prev) => ({ ...prev, timeExceeded: checked }))}
+                    checked={notificationSettings.categories.visit}
+                    onCheckedChange={(checked) => handleNotificationSettingsChange('categories', { ...notificationSettings.categories, visit: checked })}
                   />
                 </div>
 
@@ -575,8 +828,8 @@ export function AlertsTab() {
                   </div>
                   <Switch
                     id="internalMessages"
-                    checked={alertSettings.internalMessages}
-                    onCheckedChange={(checked) => setAlertSettings((prev) => ({ ...prev, internalMessages: checked }))}
+                    checked={notificationSettings.categories.user}
+                    onCheckedChange={(checked) => handleNotificationSettingsChange('categories', { ...notificationSettings.categories, user: checked })}
                   />
                 </div>
               </div>

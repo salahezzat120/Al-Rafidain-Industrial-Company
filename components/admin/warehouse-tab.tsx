@@ -721,32 +721,32 @@ export function WarehouseTab() {
       </div>
 
       <Tabs value={activeSubTab} onValueChange={(value) => setActiveSubTab(value as any)}>
-         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-8 gap-1 p-1">
-          <TabsTrigger value="dashboard" className="text-xs sm:text-sm px-2 py-2">
+         <TabsList className="flex w-full overflow-x-auto gap-1 p-1">
+          <TabsTrigger value="dashboard" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap flex-shrink-0">
             {t('warehouse.dashboard')}
           </TabsTrigger>
-          <TabsTrigger value="warehouses" className="text-xs sm:text-sm px-2 py-2">
+          <TabsTrigger value="warehouses" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap flex-shrink-0">
             {t('warehouse.warehouses')}
           </TabsTrigger>
-          <TabsTrigger value="products" className="text-xs sm:text-sm px-2 py-2">
+          <TabsTrigger value="products" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap flex-shrink-0">
             {t('warehouse.products')}
           </TabsTrigger>
-          <TabsTrigger value="measurement-units" className="text-xs sm:text-sm px-2 py-2">
+          <TabsTrigger value="measurement-units" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap flex-shrink-0">
             {isRTL ? 'وحدات القياس' : 'Measurement Units'}
           </TabsTrigger>
-           <TabsTrigger value="movements" className="text-xs sm:text-sm px-2 py-2">
+           <TabsTrigger value="movements" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap flex-shrink-0">
              {t('warehouse.stockMovements')}
            </TabsTrigger>
-           <TabsTrigger value="reports" className="text-xs sm:text-sm px-2 py-2">
+           <TabsTrigger value="reports" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap flex-shrink-0">
             {t('warehouse.reports')}
           </TabsTrigger>
-          <TabsTrigger value="stocktaking" className="text-xs sm:text-sm px-2 py-2">
+          <TabsTrigger value="stocktaking" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap flex-shrink-0">
             {t('warehouse.stocktaking')}
           </TabsTrigger>
-          <TabsTrigger value="bulk-upload" className="text-xs sm:text-sm px-2 py-2">
+          <TabsTrigger value="bulk-upload" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap flex-shrink-0">
             {t('warehouse.bulkUpload')}
           </TabsTrigger>
-          <TabsTrigger value="workflow" className="text-xs sm:text-sm px-2 py-2">
+          <TabsTrigger value="workflow" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap flex-shrink-0">
             {t('warehouse.workflow')}
           </TabsTrigger>
         </TabsList>
@@ -755,7 +755,7 @@ export function WarehouseTab() {
         <TabsContent value="dashboard" className="space-y-6">
           {/* Dashboard Header with Refresh Button */}
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold">{t('warehouse.dashboard')}</h2>
+            <h2 className="text-3xl font-bold text-gray-900 tracking-tight">{t('warehouse.dashboard')}</h2>
             <Button 
               onClick={refreshStats} 
               variant="outline" 
