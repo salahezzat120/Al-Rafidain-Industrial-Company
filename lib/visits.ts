@@ -211,7 +211,15 @@ export const checkLateVisits = async () => {
       .eq('status', 'scheduled')
       .lt('scheduled_start_time', now.toISOString())
 
-    if (error) throw error
+    if (error) {
+      // Check if it's a table not found error
+      if (error.message?.includes('relation "visits" does not exist') || 
+          error.message?.includes('Could not find the table')) {
+        console.log('Visits table does not exist. Skipping late visit checks.')
+        return []
+      }
+      throw error
+    }
 
     const lateVisits = data?.filter(visit => {
       const scheduledTime = new Date(visit.scheduled_start_time)
@@ -236,8 +244,15 @@ export const checkLateVisits = async () => {
 
     return lateVisits
   } catch (error) {
+    // Check if it's a table not found error
+    if (error instanceof Error && 
+        (error.message?.includes('relation "visits" does not exist') || 
+         error.message?.includes('Could not find the table'))) {
+      console.log('Visits table does not exist. Skipping late visit checks.')
+      return []
+    }
     console.error('Error checking late visits:', error)
-    throw error
+    return [] // Return empty array instead of throwing
   }
 }
 
@@ -250,7 +265,15 @@ export const checkExceededTimeVisits = async () => {
       .eq('status', 'in_progress')
       .not('actual_start_time', 'is', null)
 
-    if (error) throw error
+    if (error) {
+      // Check if it's a table not found error
+      if (error.message?.includes('relation "visits" does not exist') || 
+          error.message?.includes('Could not find the table')) {
+        console.log('Visits table does not exist. Skipping exceeded time visit checks.')
+        return []
+      }
+      throw error
+    }
 
     const exceededVisits = data?.filter(visit => {
       if (!visit.actual_start_time) return false
@@ -279,7 +302,14 @@ export const checkExceededTimeVisits = async () => {
 
     return exceededVisits
   } catch (error) {
+    // Check if it's a table not found error
+    if (error instanceof Error && 
+        (error.message?.includes('relation "visits" does not exist') || 
+         error.message?.includes('Could not find the table'))) {
+      console.log('Visits table does not exist. Skipping exceeded time visit checks.')
+      return []
+    }
     console.error('Error checking exceeded time visits:', error)
-    throw error
+    return [] // Return empty array instead of throwing
   }
 }
