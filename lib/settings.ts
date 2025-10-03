@@ -181,6 +181,11 @@ export class SettingsManager {
 
   private loadSystemSettings(): SystemSettings {
     try {
+      // Check if we're in the browser environment
+      if (typeof window === 'undefined') {
+        return defaultSystemSettings
+      }
+      
       const saved = localStorage.getItem('system-settings')
       if (saved) {
         return { ...defaultSystemSettings, ...JSON.parse(saved) }
@@ -193,6 +198,11 @@ export class SettingsManager {
 
   private saveSystemSettings(): void {
     try {
+      // Check if we're in the browser environment
+      if (typeof window === 'undefined') {
+        return
+      }
+      
       localStorage.setItem('system-settings', JSON.stringify(this.settings))
     } catch (error) {
       console.error('Error saving system settings:', error)
@@ -211,6 +221,11 @@ export class SettingsManager {
 
   private loadSecuritySettings(): SecuritySettings {
     try {
+      // Check if we're in the browser environment
+      if (typeof window === 'undefined') {
+        return defaultSecuritySettings
+      }
+      
       const saved = localStorage.getItem('security-settings')
       if (saved) {
         return { ...defaultSecuritySettings, ...JSON.parse(saved) }
@@ -223,6 +238,11 @@ export class SettingsManager {
 
   private saveSecuritySettings(): void {
     try {
+      // Check if we're in the browser environment
+      if (typeof window === 'undefined') {
+        return
+      }
+      
       localStorage.setItem('security-settings', JSON.stringify(this.securitySettings))
     } catch (error) {
       console.error('Error saving security settings:', error)
@@ -241,6 +261,11 @@ export class SettingsManager {
 
   private loadIntegrationSettings(): IntegrationSettings {
     try {
+      // Check if we're in the browser environment
+      if (typeof window === 'undefined') {
+        return defaultIntegrationSettings
+      }
+      
       const saved = localStorage.getItem('integration-settings')
       if (saved) {
         return { ...defaultIntegrationSettings, ...JSON.parse(saved) }
@@ -253,6 +278,11 @@ export class SettingsManager {
 
   private saveIntegrationSettings(): void {
     try {
+      // Check if we're in the browser environment
+      if (typeof window === 'undefined') {
+        return
+      }
+      
       localStorage.setItem('integration-settings', JSON.stringify(this.integrationSettings))
     } catch (error) {
       console.error('Error saving integration settings:', error)
@@ -357,7 +387,9 @@ export class SettingsManager {
       }
       
       // In a real implementation, this would save to a database or file system
-      localStorage.setItem('backup-' + Date.now(), JSON.stringify(backupData))
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('backup-' + Date.now(), JSON.stringify(backupData))
+      }
       return true
     } catch (error) {
       console.error('Error creating backup:', error)
@@ -382,6 +414,11 @@ export class SettingsManager {
 
   private getBackupHistory(): Array<{ filename: string; size: string; date: string }> {
     const backups: Array<{ filename: string; size: string; date: string }> = []
+    
+    // Check if we're in the browser environment
+    if (typeof window === 'undefined') {
+      return []
+    }
     
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i)

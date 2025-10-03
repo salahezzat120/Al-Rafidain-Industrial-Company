@@ -2,6 +2,7 @@
 // Handles all types of alerts and notifications across the entire system
 
 import { supabase } from './supabase'
+import { safeLocalStorage, safeParseJSON } from './local-storage-utils'
 
 export interface SystemAlert {
   id: string
@@ -328,10 +329,8 @@ export class NotificationManager {
 
   private async loadAlerts(): Promise<void> {
     try {
-      const saved = localStorage.getItem('system-alerts')
-      if (saved) {
-        this.alerts = JSON.parse(saved)
-      }
+      const saved = safeLocalStorage.getItem('system-alerts')
+      this.alerts = safeParseJSON(saved, [])
     } catch (error) {
       console.error('Error loading alerts:', error)
     }
@@ -339,7 +338,7 @@ export class NotificationManager {
 
   private async saveAlerts(): Promise<void> {
     try {
-      localStorage.setItem('system-alerts', JSON.stringify(this.alerts))
+      safeLocalStorage.setItem('system-alerts', JSON.stringify(this.alerts))
     } catch (error) {
       console.error('Error saving alerts:', error)
     }
@@ -347,10 +346,34 @@ export class NotificationManager {
 
   private async loadSettings(): Promise<void> {
     try {
-      const saved = localStorage.getItem('notification-settings')
-      if (saved) {
-        this.settings = JSON.parse(saved)
-      }
+      const saved = safeLocalStorage.getItem('notification-settings')
+      this.settings = safeParseJSON(saved, {
+        userId: '',
+        emailNotifications: true,
+        smsNotifications: false,
+        pushNotifications: true,
+        alertTypes: {
+          critical: true,
+          warning: true,
+          info: true,
+          success: true
+        },
+        categories: {
+          delivery: true,
+          vehicle: true,
+          warehouse: true,
+          visit: true,
+          system: true,
+          maintenance: true,
+          stock: true,
+          user: true
+        },
+        quietHours: {
+          enabled: false,
+          start: '22:00',
+          end: '08:00'
+        }
+      })
     } catch (error) {
       console.error('Error loading settings:', error)
     }
@@ -358,7 +381,7 @@ export class NotificationManager {
 
   private async saveSettings(): Promise<void> {
     try {
-      localStorage.setItem('notification-settings', JSON.stringify(this.settings))
+      safeLocalStorage.setItem('notification-settings', JSON.stringify(this.settings))
     } catch (error) {
       console.error('Error saving settings:', error)
     }

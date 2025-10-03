@@ -30,7 +30,9 @@ import {
   Edit,
   CheckCircle,
   XCircle,
-  StarIcon
+  StarIcon,
+  User,
+  Navigation
 } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
 import type { 
@@ -56,6 +58,10 @@ import {
   createWarranty,
   createFollowUpService
 } from "@/lib/after-sales"
+import { CustomerProfileModal } from "./customer-profile-modal"
+import { LiveTrackingModal } from "./live-tracking-modal"
+import { AssignTaskModal } from "./assign-task-modal"
+import { SendMessageModal } from "./send-message-modal"
 
 export function AfterSalesTab() {
   const { t } = useLanguage()
@@ -91,6 +97,13 @@ export function AfterSalesTab() {
 
   // Real-time updates
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
+
+  // New modal states
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false)
+  const [isAssignTaskModalOpen, setIsAssignTaskModalOpen] = useState(false)
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null)
 
   // Form data for new case
   const [formData, setFormData] = useState({
@@ -623,6 +636,35 @@ export function AfterSalesTab() {
     }
   }
 
+  // New modal handlers
+  const handleViewProfile = (customer: any) => {
+    console.log('Opening customer profile for:', customer)
+    console.log('Setting selectedCustomer to:', customer)
+    setSelectedCustomer(customer)
+    console.log('Setting isProfileModalOpen to true')
+    setIsProfileModalOpen(true)
+  }
+
+  const handleLiveTracking = () => {
+    console.log('Opening live tracking modal')
+    setIsTrackingModalOpen(true)
+  }
+
+  const handleAssignTask = (taskId?: string, taskType?: string) => {
+    console.log('Opening assign task modal for:', taskId, taskType)
+    setIsAssignTaskModalOpen(true)
+  }
+
+  const handleSendMessage = (customer?: any) => {
+    console.log('Opening send message modal for:', customer)
+    if (customer) {
+      console.log('Setting selectedCustomer to:', customer)
+      setSelectedCustomer(customer)
+    }
+    console.log('Setting isMessageModalOpen to true')
+    setIsMessageModalOpen(true)
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'open':
@@ -701,22 +743,34 @@ export function AfterSalesTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">{t("afterSalesSupport")}</h2>
-          <p className="text-gray-600">{t("manageCustomerSupport")}</p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <div className="text-xs text-gray-500">
-            آخر تحديث: {lastUpdate.toLocaleTimeString('ar-SA')}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">{t("afterSalesSupport")}</h2>
+            <p className="text-gray-600">{t("manageCustomerSupport")}</p>
           </div>
-          <Dialog open={isNewCaseOpen} onOpenChange={setIsNewCaseOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                {t("newSupportCase")}
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center space-x-2">
+            <div className="text-xs text-gray-500">
+              آخر تحديث: {lastUpdate.toLocaleTimeString('ar-SA')}
+            </div>
+            <Button variant="outline" onClick={handleLiveTracking}>
+              <Clock className="h-4 w-4 mr-2" />
+              التتبع المباشر
+            </Button>
+            <Button variant="outline" onClick={() => handleAssignTask()}>
+              <Users className="h-4 w-4 mr-2" />
+              تعيين مهام
+            </Button>
+            <Button variant="outline" onClick={() => handleSendMessage()}>
+              <MessageSquare className="h-4 w-4 mr-2" />
+              إرسال رسائل
+            </Button>
+            <Dialog open={isNewCaseOpen} onOpenChange={setIsNewCaseOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t("newSupportCase")}
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>إنشاء حالة دعم جديدة</DialogTitle>
@@ -1141,13 +1195,39 @@ export function AfterSalesTab() {
                         variant="outline" 
                         size="sm"
                         onClick={() => handleViewCase(inquiry, 'inquiry')}
+                        title="عرض التفاصيل"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="outline" 
                         size="sm"
+                        onClick={() => handleViewProfile(inquiry)}
+                        title="عرض الملف الشخصي"
+                      >
+                        <User className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleAssignTask(inquiry.id, 'inquiry')}
+                        title="تعيين مهمة"
+                      >
+                        <Users className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleSendMessage(inquiry)}
+                        title="إرسال رسالة"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
                         onClick={() => handleEditCase(inquiry, 'inquiry')}
+                        title="تعديل"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -1245,13 +1325,39 @@ export function AfterSalesTab() {
                         variant="outline" 
                         size="sm"
                         onClick={() => handleViewCase(complaint, 'complaint')}
+                        title="عرض التفاصيل"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="outline" 
                         size="sm"
+                        onClick={() => handleViewProfile(complaint)}
+                        title="عرض الملف الشخصي"
+                      >
+                        <User className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleAssignTask(complaint.id, 'complaint')}
+                        title="تعيين مهمة"
+                      >
+                        <Users className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleSendMessage(complaint)}
+                        title="إرسال رسالة"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
                         onClick={() => handleEditCase(complaint, 'complaint')}
+                        title="تعديل"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -1357,13 +1463,39 @@ export function AfterSalesTab() {
                         variant="outline" 
                         size="sm"
                         onClick={() => handleViewCase(request, 'maintenance')}
+                        title="عرض التفاصيل"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="outline" 
                         size="sm"
+                        onClick={() => handleViewProfile(request)}
+                        title="عرض الملف الشخصي"
+                      >
+                        <User className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleAssignTask(request.id, 'maintenance')}
+                        title="تعيين مهمة"
+                      >
+                        <Users className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleSendMessage(request)}
+                        title="إرسال رسالة"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
                         onClick={() => handleEditCase(request, 'maintenance')}
+                        title="تعديل"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -1455,13 +1587,39 @@ export function AfterSalesTab() {
                         variant="outline" 
                         size="sm"
                         onClick={() => handleViewCase(warranty, 'warranty')}
+                        title="عرض التفاصيل"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="outline" 
                         size="sm"
+                        onClick={() => handleViewProfile(warranty)}
+                        title="عرض الملف الشخصي"
+                      >
+                        <User className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleAssignTask(warranty.id, 'warranty')}
+                        title="تعيين مهمة"
+                      >
+                        <Users className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleSendMessage(warranty)}
+                        title="إرسال رسالة"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
                         onClick={() => handleEditCase(warranty, 'warranty')}
+                        title="تعديل"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -1563,13 +1721,39 @@ export function AfterSalesTab() {
                         variant="outline" 
                         size="sm"
                         onClick={() => handleViewCase(service, 'followup')}
+                        title="عرض التفاصيل"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="outline" 
                         size="sm"
+                        onClick={() => handleViewProfile(service)}
+                        title="عرض الملف الشخصي"
+                      >
+                        <User className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleAssignTask(service.id, 'followup')}
+                        title="تعيين مهمة"
+                      >
+                        <Users className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleSendMessage(service)}
+                        title="إرسال رسالة"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
                         onClick={() => handleEditCase(service, 'followup')}
+                        title="تعديل"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -1920,6 +2104,34 @@ export function AfterSalesTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* New Modal Components */}
+      <CustomerProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        customerId={selectedCustomer?.customer_id || selectedCustomer?.id}
+        customerName={selectedCustomer?.customer_name || selectedCustomer?.name}
+        customerEmail={selectedCustomer?.customer_email || selectedCustomer?.email}
+        customerPhone={selectedCustomer?.customer_phone || selectedCustomer?.phone}
+      />
+
+      <LiveTrackingModal
+        isOpen={isTrackingModalOpen}
+        onClose={() => setIsTrackingModalOpen(false)}
+      />
+
+      <AssignTaskModal
+        isOpen={isAssignTaskModalOpen}
+        onClose={() => setIsAssignTaskModalOpen(false)}
+      />
+
+      <SendMessageModal
+        isOpen={isMessageModalOpen}
+        onClose={() => setIsMessageModalOpen(false)}
+        recipientId={selectedCustomer?.customer_id || selectedCustomer?.id}
+        recipientName={selectedCustomer?.customer_name || selectedCustomer?.name}
+        recipientEmail={selectedCustomer?.customer_email || selectedCustomer?.email}
+      />
     </div>
   )
 }
