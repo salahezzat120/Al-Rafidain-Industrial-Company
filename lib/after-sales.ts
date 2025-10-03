@@ -20,7 +20,14 @@ export const createCustomerInquiry = async (inquiry: Omit<CustomerInquiry, 'id' 
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      if (error.message?.includes('relation "customer_inquiries" does not exist') || 
+          error.message?.includes('Could not find the table')) {
+        console.log('Customer inquiries table does not exist. Throwing error for fallback handling.')
+        throw new Error('TABLE_NOT_EXISTS')
+      }
+      throw error
+    }
     return data
   } catch (error) {
     console.error('Error creating customer inquiry:', error)
@@ -75,11 +82,24 @@ export const getCustomerInquiries = async (filters?: {
     }
 
     const { data, error } = await query
-    if (error) throw error
-    return data
+    if (error) {
+      // Check if table doesn't exist
+      if (error.message?.includes('relation "customer_inquiries" does not exist') || 
+          error.message?.includes('Could not find the table')) {
+        console.log('Customer inquiries table does not exist. Returning empty array.')
+        return []
+      }
+      throw error
+    }
+    return data || []
   } catch (error) {
+    // Check if it's a table not found error
+    if (error instanceof Error && error.message?.includes('relation') && error.message?.includes('does not exist')) {
+      console.log('Customer inquiries table does not exist. Using mock data.')
+      return []
+    }
     console.error('Error fetching customer inquiries:', error)
-    throw error
+    return []
   }
 }
 
@@ -92,7 +112,14 @@ export const createComplaint = async (complaint: Omit<Complaint, 'id' | 'created
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      if (error.message?.includes('relation "complaints" does not exist') || 
+          error.message?.includes('Could not find the table')) {
+        console.log('Complaints table does not exist. Throwing error for fallback handling.')
+        throw new Error('TABLE_NOT_EXISTS')
+      }
+      throw error
+    }
     return data
   } catch (error) {
     console.error('Error creating complaint:', error)
@@ -176,11 +203,23 @@ export const getComplaints = async (filters?: {
     }
 
     const { data, error } = await query
-    if (error) throw error
-    return data
+    if (error) {
+      if (error.message?.includes('relation "complaints" does not exist') || 
+          error.message?.includes('Could not find the table')) {
+        console.log('Complaints table does not exist. Returning empty array.')
+        return []
+      }
+      throw error
+    }
+    return data || []
   } catch (error) {
+    // Check if it's a table not found error
+    if (error instanceof Error && error.message?.includes('relation') && error.message?.includes('does not exist')) {
+      console.log('Complaints table does not exist. Using mock data.')
+      return []
+    }
     console.error('Error fetching complaints:', error)
-    throw error
+    return []
   }
 }
 
@@ -193,7 +232,14 @@ export const createMaintenanceRequest = async (request: Omit<MaintenanceRequest,
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      if (error.message?.includes('relation "maintenance_requests" does not exist') || 
+          error.message?.includes('Could not find the table')) {
+        console.log('Maintenance requests table does not exist. Throwing error for fallback handling.')
+        throw new Error('TABLE_NOT_EXISTS')
+      }
+      throw error
+    }
     return data
   } catch (error) {
     console.error('Error creating maintenance request:', error)
@@ -270,11 +316,18 @@ export const getMaintenanceRequests = async (filters?: {
     }
 
     const { data, error } = await query
-    if (error) throw error
-    return data
+    if (error) {
+      if (error.message?.includes('relation "maintenance_requests" does not exist') || 
+          error.message?.includes('Could not find the table')) {
+        console.log('Maintenance requests table does not exist. Returning empty array.')
+        return []
+      }
+      throw error
+    }
+    return data || []
   } catch (error) {
     console.error('Error fetching maintenance requests:', error)
-    throw error
+    return []
   }
 }
 
@@ -287,7 +340,14 @@ export const createWarranty = async (warranty: Omit<Warranty, 'id' | 'created_at
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      if (error.message?.includes('relation "warranties" does not exist') || 
+          error.message?.includes('Could not find the table')) {
+        console.log('Warranties table does not exist. Throwing error for fallback handling.')
+        throw new Error('TABLE_NOT_EXISTS')
+      }
+      throw error
+    }
     return data
   } catch (error) {
     console.error('Error creating warranty:', error)
@@ -317,11 +377,18 @@ export const getWarranties = async (filters?: {
     }
 
     const { data, error } = await query
-    if (error) throw error
-    return data
+    if (error) {
+      if (error.message?.includes('relation "warranties" does not exist') || 
+          error.message?.includes('Could not find the table')) {
+        console.log('Warranties table does not exist. Returning empty array.')
+        return []
+      }
+      throw error
+    }
+    return data || []
   } catch (error) {
     console.error('Error fetching warranties:', error)
-    throw error
+    return []
   }
 }
 
@@ -336,14 +403,22 @@ export const createWarrantyClaim = async (claim: Omit<WarrantyClaim, 'id' | 'cre
     if (error) throw error
 
     // Update warranty claims count
-    await supabase
+    const { data: warrantyData } = await supabase
       .from('warranties')
-      .update({ 
-        claims_count: supabase.raw('claims_count + 1'),
-        last_claim_date: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .select('claims_count')
       .eq('id', claim.warranty_id)
+      .single()
+
+    if (warrantyData) {
+      await supabase
+        .from('warranties')
+        .update({ 
+          claims_count: (warrantyData.claims_count || 0) + 1,
+          last_claim_date: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', claim.warranty_id)
+    }
 
     return data
   } catch (error) {
@@ -391,11 +466,18 @@ export const getWarrantyClaims = async (filters?: {
     }
 
     const { data, error } = await query
-    if (error) throw error
-    return data
+    if (error) {
+      if (error.message?.includes('relation "warranty_claims" does not exist') || 
+          error.message?.includes('Could not find the table')) {
+        console.log('Warranty claims table does not exist. Returning empty array.')
+        return []
+      }
+      throw error
+    }
+    return data || []
   } catch (error) {
     console.error('Error fetching warranty claims:', error)
-    throw error
+    return []
   }
 }
 
@@ -408,10 +490,76 @@ export const createFollowUpService = async (service: Omit<FollowUpService, 'id' 
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      if (error.message?.includes('relation "follow_up_services" does not exist') || 
+          error.message?.includes('Could not find the table')) {
+        console.log('Follow-up services table does not exist. Throwing error for fallback handling.')
+        throw new Error('TABLE_NOT_EXISTS')
+      }
+      throw error
+    }
     return data
   } catch (error) {
     console.error('Error creating follow-up service:', error)
+    throw error
+  }
+}
+
+// Create rating for a case
+export async function createRating(caseId: string, caseType: string, rating: number) {
+  try {
+    const { supabase } = await import('@/lib/supabase')
+    
+    // Determine the table name based on case type
+    let tableName = ''
+    switch (caseType) {
+      case 'inquiry':
+        tableName = 'customer_inquiries'
+        break
+      case 'complaint':
+        tableName = 'complaints'
+        break
+      case 'maintenance':
+        tableName = 'maintenance_requests'
+        break
+      case 'warranty':
+        tableName = 'warranties'
+        break
+      case 'followup':
+        tableName = 'follow_up_services'
+        break
+      default:
+        throw new Error('Invalid case type')
+    }
+
+    // Check if table exists
+    const { data: tableExists, error: tableError } = await supabase
+      .from(tableName)
+      .select('id')
+      .limit(1)
+
+    if (tableError && tableError.message.includes('relation') && tableError.message.includes('does not exist')) {
+      throw new Error('TABLE_NOT_EXISTS')
+    }
+
+    // Update the case with the new rating
+    const { data, error } = await supabase
+      .from(tableName)
+      .update({ 
+        customer_satisfaction_rating: rating,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', caseId)
+      .select()
+
+    if (error) {
+      console.error(`Error updating rating for ${caseType}:`, error)
+      throw error
+    }
+
+    return data
+  } catch (error) {
+    console.error('Error creating rating:', error)
     throw error
   }
 }
@@ -463,11 +611,18 @@ export const getFollowUpServices = async (filters?: {
     }
 
     const { data, error } = await query
-    if (error) throw error
-    return data
+    if (error) {
+      if (error.message?.includes('relation "follow_up_services" does not exist') || 
+          error.message?.includes('Could not find the table')) {
+        console.log('Follow-up services table does not exist. Returning empty array.')
+        return []
+      }
+      throw error
+    }
+    return data || []
   } catch (error) {
     console.error('Error fetching follow-up services:', error)
-    throw error
+    return []
   }
 }
 
@@ -485,7 +640,14 @@ export const getAfterSalesMetrics = async (dateFrom?: string, dateTo?: string): 
       .gte('created_at', fromDate)
       .lte('created_at', toDate)
 
-    if (inquiriesError) throw inquiriesError
+    if (inquiriesError) {
+      if (inquiriesError.message?.includes('relation "customer_inquiries" does not exist') || 
+          inquiriesError.message?.includes('Could not find the table')) {
+        console.log('Customer inquiries table does not exist. Using default metrics.')
+        return getDefaultMetrics()
+      }
+      throw inquiriesError
+    }
 
     // Get complaints metrics
     const { data: complaints, error: complaintsError } = await supabase
@@ -494,7 +656,14 @@ export const getAfterSalesMetrics = async (dateFrom?: string, dateTo?: string): 
       .gte('created_at', fromDate)
       .lte('created_at', toDate)
 
-    if (complaintsError) throw complaintsError
+    if (complaintsError) {
+      if (complaintsError.message?.includes('relation "complaints" does not exist') || 
+          complaintsError.message?.includes('Could not find the table')) {
+        console.log('Complaints table does not exist. Using default metrics.')
+        return getDefaultMetrics()
+      }
+      throw complaintsError
+    }
 
     // Get maintenance requests metrics
     const { data: maintenance, error: maintenanceError } = await supabase
@@ -503,14 +672,28 @@ export const getAfterSalesMetrics = async (dateFrom?: string, dateTo?: string): 
       .gte('created_at', fromDate)
       .lte('created_at', toDate)
 
-    if (maintenanceError) throw maintenanceError
+    if (maintenanceError) {
+      if (maintenanceError.message?.includes('relation "maintenance_requests" does not exist') || 
+          maintenanceError.message?.includes('Could not find the table')) {
+        console.log('Maintenance requests table does not exist. Using default metrics.')
+        return getDefaultMetrics()
+      }
+      throw maintenanceError
+    }
 
     // Get warranty metrics
     const { data: warranties, error: warrantiesError } = await supabase
       .from('warranties')
       .select('status')
 
-    if (warrantiesError) throw warrantiesError
+    if (warrantiesError) {
+      if (warrantiesError.message?.includes('relation "warranties" does not exist') || 
+          warrantiesError.message?.includes('Could not find the table')) {
+        console.log('Warranties table does not exist. Using default metrics.')
+        return getDefaultMetrics()
+      }
+      throw warrantiesError
+    }
 
     const { data: warrantyClaims, error: warrantyClaimsError } = await supabase
       .from('warranty_claims')
@@ -518,7 +701,14 @@ export const getAfterSalesMetrics = async (dateFrom?: string, dateTo?: string): 
       .gte('created_at', fromDate)
       .lte('created_at', toDate)
 
-    if (warrantyClaimsError) throw warrantyClaimsError
+    if (warrantyClaimsError) {
+      if (warrantyClaimsError.message?.includes('relation "warranty_claims" does not exist') || 
+          warrantyClaimsError.message?.includes('Could not find the table')) {
+        console.log('Warranty claims table does not exist. Using default metrics.')
+        return getDefaultMetrics()
+      }
+      throw warrantyClaimsError
+    }
 
     // Get follow-up services metrics
     const { data: followUps, error: followUpsError } = await supabase
@@ -527,7 +717,14 @@ export const getAfterSalesMetrics = async (dateFrom?: string, dateTo?: string): 
       .gte('scheduled_date', fromDate)
       .lte('scheduled_date', toDate)
 
-    if (followUpsError) throw followUpsError
+    if (followUpsError) {
+      if (followUpsError.message?.includes('relation "follow_up_services" does not exist') || 
+          followUpsError.message?.includes('Could not find the table')) {
+        console.log('Follow-up services table does not exist. Using default metrics.')
+        return getDefaultMetrics()
+      }
+      throw followUpsError
+    }
 
     // Calculate metrics
     const totalInquiries = inquiries?.length || 0
@@ -538,9 +735,56 @@ export const getAfterSalesMetrics = async (dateFrom?: string, dateTo?: string): 
       return acc + (resolved.getTime() - created.getTime()) / (1000 * 60 * 60) // hours
     }, 0) / (resolvedInquiries || 1)
 
-    const avgSatisfaction = inquiries?.filter(i => i.customer_satisfaction_rating)
-      .reduce((acc, i) => acc + (i.customer_satisfaction_rating || 0), 0) / 
-      (inquiries?.filter(i => i.customer_satisfaction_rating).length || 1)
+    // Calculate customer satisfaction from all case types
+    const allRatings: number[] = []
+    
+    // Collect ratings from inquiries
+    inquiries?.forEach(inquiry => {
+      if (inquiry.customer_satisfaction_rating && inquiry.customer_satisfaction_rating > 0) {
+        allRatings.push(inquiry.customer_satisfaction_rating)
+      }
+    })
+
+    // Get ratings from other case types
+    const [complaintsWithRatings, maintenanceWithRatings, warrantiesWithRatings, followUpsWithRatings] = await Promise.all([
+      supabase.from('complaints').select('customer_satisfaction_rating').gte('created_at', fromDate).lte('created_at', toDate),
+      supabase.from('maintenance_requests').select('customer_satisfaction_rating').gte('created_at', fromDate).lte('created_at', toDate),
+      supabase.from('warranties').select('customer_satisfaction_rating'),
+      supabase.from('follow_up_services').select('customer_satisfaction_rating').gte('scheduled_date', fromDate).lte('scheduled_date', toDate)
+    ])
+
+    // Collect ratings from complaints
+    complaintsWithRatings.data?.forEach(complaint => {
+      if (complaint.customer_satisfaction_rating && complaint.customer_satisfaction_rating > 0) {
+        allRatings.push(complaint.customer_satisfaction_rating)
+      }
+    })
+
+    // Collect ratings from maintenance requests
+    maintenanceWithRatings.data?.forEach(maintenance => {
+      if (maintenance.customer_satisfaction_rating && maintenance.customer_satisfaction_rating > 0) {
+        allRatings.push(maintenance.customer_satisfaction_rating)
+      }
+    })
+
+    // Collect ratings from warranties
+    warrantiesWithRatings.data?.forEach(warranty => {
+      if (warranty.customer_satisfaction_rating && warranty.customer_satisfaction_rating > 0) {
+        allRatings.push(warranty.customer_satisfaction_rating)
+      }
+    })
+
+    // Collect ratings from follow-up services
+    followUpsWithRatings.data?.forEach(followUp => {
+      if (followUp.customer_satisfaction_rating && followUp.customer_satisfaction_rating > 0) {
+        allRatings.push(followUp.customer_satisfaction_rating)
+      }
+    })
+
+    // Calculate average satisfaction from all ratings
+    const avgSatisfaction = allRatings.length > 0 
+      ? allRatings.reduce((acc, rating) => acc + rating, 0) / allRatings.length
+      : 0
 
     const totalComplaints = complaints?.length || 0
     const resolvedComplaints = complaints?.filter(c => c.status === 'resolved' || c.status === 'closed').length || 0
@@ -578,8 +822,35 @@ export const getAfterSalesMetrics = async (dateFrom?: string, dateTo?: string): 
       customer_retention_rate: 85 // This would be calculated from actual customer data
     }
   } catch (error) {
+    // Check if it's a table not found error
+    if (error instanceof Error && error.message?.includes('relation') && error.message?.includes('does not exist')) {
+      console.log('After-sales tables do not exist. Using default metrics.')
+      return getDefaultMetrics()
+    }
     console.error('Error fetching after-sales metrics:', error)
-    throw error
+    return getDefaultMetrics()
+  }
+}
+
+// Helper function to return default metrics when tables don't exist
+const getDefaultMetrics = (): AfterSalesMetrics => {
+  return {
+    total_inquiries: 0,
+    resolved_inquiries: 0,
+    average_resolution_time_hours: 0,
+    customer_satisfaction_score: 0,
+    total_complaints: 0,
+    resolved_complaints: 0,
+    complaint_escalation_rate: 0,
+    total_maintenance_requests: 0,
+    completed_maintenance_requests: 0,
+    average_maintenance_cost: 0,
+    active_warranties: 0,
+    warranty_claims_count: 0,
+    warranty_claim_approval_rate: 0,
+    scheduled_follow_ups: 0,
+    completed_follow_ups: 0,
+    customer_retention_rate: 0
   }
 }
 
