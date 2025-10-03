@@ -1427,73 +1427,60 @@ async function updateInventoryAfterMovement(movementData: CreateStockMovementDat
 
 export async function getProductsWithWarehouseInfo(): Promise<any[]> {
   try {
-    // First try to get products with all relationships
-    const { data, error } = await supabase
+    // Start with a basic products query
+    const { data: products, error: productsError } = await supabase
       .from('products')
-      .select(`
-        *,
-        main_group:main_groups(*),
-        sub_group:sub_groups(*),
-        color:colors(*),
-        material:materials(*),
-        unit_of_measurement:units_of_measurement(*),
-        inventory:inventory(
-          *,
-          warehouse:warehouses(*)
-        )
-      `)
+      .select('*')
       .order('product_name');
 
-    if (error) {
-      console.error('Error fetching products with warehouse info:', error);
-      console.error('Error details:', error.message, error.details, error.hint);
-      
-      // If the complex query fails, try a simpler one
-      console.log('⚠️  Complex query failed, trying simpler query...');
-      const { data: simpleData, error: simpleError } = await supabase
-        .from('products')
-        .select(`
-          *,
-          main_group:main_groups(*),
-          sub_group:sub_groups(*),
-          color:colors(*),
-          material:materials(*),
-          unit_of_measurement:units_of_measurement(*)
-        `)
-        .order('product_name');
-      
-      if (simpleError) {
-        console.error('Simple query also failed:', simpleError);
-        
-        // If even the simple query fails, try the most basic one
-        console.log('⚠️  Simple query failed, trying basic query...');
-        const { data: basicData, error: basicError } = await supabase
-          .from('products')
-          .select('*')
-          .order('product_name');
-        
-        if (basicError) {
-          console.error('Basic query also failed:', basicError);
-          return [];
-        }
-        
-        return basicData || [];
-      }
-      
-      return simpleData || [];
+    if (productsError) {
+      console.error('Error fetching products:', productsError);
+      return [];
     }
 
-    console.log('Products with warehouse info loaded:', data?.length, 'items');
-    if (data && data.length > 0) {
-      console.log('Sample product data:', {
-        id: data[0].id,
-        name: data[0].product_name,
-        main_group: data[0].main_group,
-        color: data[0].color,
-        material: data[0].material
-      });
+    if (!products || products.length === 0) {
+      console.log('No products found');
+      return [];
     }
-    return data || [];
+
+    // Get inventory data separately
+    const { data: inventory, error: inventoryError } = await supabase
+      .from('inventory')
+      .select(`
+        *,
+        warehouse:warehouses(*)
+      `);
+
+    if (inventoryError) {
+      console.warn('Error fetching inventory data:', inventoryError);
+    }
+
+    // Get dropdown data separately
+    const [mainGroups, subGroups, colors, materials, units] = await Promise.all([
+      supabase.from('main_groups').select('*').then(({ data, error }) => error ? [] : data),
+      supabase.from('sub_groups').select('*').then(({ data, error }) => error ? [] : data),
+      supabase.from('colors').select('*').then(({ data, error }) => error ? [] : data),
+      supabase.from('materials').select('*').then(({ data, error }) => error ? [] : data),
+      supabase.from('units_of_measurement').select('*').then(({ data, error }) => error ? [] : data)
+    ]);
+
+    // Manually join the data
+    const enrichedProducts = products.map(product => {
+      const productInventory = inventory?.filter(inv => inv.product_id === product.id) || [];
+      
+      return {
+        ...product,
+        main_group: mainGroups?.find(mg => mg.id === product.main_group_id) || null,
+        sub_group: subGroups?.find(sg => sg.id === product.sub_group_id) || null,
+        color: colors?.find(c => c.id === product.color_id) || null,
+        material: materials?.find(m => m.id === product.material_id) || null,
+        unit_of_measurement: units?.find(u => u.id === product.unit_of_measurement_id) || null,
+        inventory: productInventory
+      };
+    });
+
+    console.log('Products with warehouse info loaded:', enrichedProducts?.length, 'items');
+    return enrichedProducts || [];
   } catch (err) {
     console.error('Error in getProductsWithWarehouseInfo:', err);
     return [];
@@ -1729,105 +1716,198 @@ export async function generateReport(reportType: string, filters: any = {}): Pro
 
 // Cost & Sales Price Report
 async function generateCostSalesReport(filters: any): Promise<ReportData> {
-  const { data, error } = await supabase
-    .from('products')
-    .select(`
-      *,
-      inventory:inventory(*),
-      stock_movements:stock_movements(*)
-    `)
-    .order('product_name');
+  try {
+    // Get products data
+    const { data: products, error: productsError } = await supabase
+      .from('products')
+      .select('*')
+      .order('product_name');
 
-  if (error) throw error;
+    if (productsError) throw productsError;
 
-  const headers = ['Product Code', 'Product Name', 'Cost Price', 'Sales Price', 'Margin %', 'Stock Level'];
-  const rows = data?.map(product => [
-    product.product_code || '',
-    product.product_name || '',
-    product.cost_price || '0.00',
-    product.sales_price || '0.00',
-    product.sales_price && product.cost_price ? 
-      (((product.sales_price - product.cost_price) / product.cost_price) * 100).toFixed(2) + '%' : '0.00%',
-    product.inventory?.[0]?.available_quantity || '0'
-  ]) || [];
-
-  return {
-    title: 'Cost & Sales Price Report',
-    headers,
-    rows,
-    summary: {
-      totalProducts: data?.length || 0,
-      averageMargin: '0.00%'
+    if (!products || products.length === 0) {
+      return {
+        title: 'Cost & Sales Price Report',
+        headers: ['Product Code', 'Product Name', 'Cost Price', 'Sales Price', 'Margin %', 'Stock Level'],
+        rows: [],
+        summary: { totalProducts: 0, averageMargin: '0.00%' }
+      };
     }
-  };
+
+    // Get inventory data separately
+    const { data: inventory, error: inventoryError } = await supabase
+      .from('inventory')
+      .select('*');
+
+    if (inventoryError) {
+      console.warn('Error fetching inventory data:', inventoryError);
+    }
+
+    // Manually join the data
+    const headers = ['Product Code', 'Product Name', 'Cost Price', 'Sales Price', 'Margin %', 'Stock Level'];
+    const rows = products.map(product => {
+      const productInventory = inventory?.find(inv => inv.product_id === product.id);
+      const stockLevel = productInventory?.available_quantity || '0';
+      
+      const costPrice = parseFloat(product.cost_price || '0');
+      const salesPrice = parseFloat(product.sales_price || '0');
+      const margin = costPrice > 0 ? (((salesPrice - costPrice) / costPrice) * 100).toFixed(2) + '%' : '0.00%';
+      
+      return [
+        product.product_code || '',
+        product.product_name || '',
+        costPrice.toFixed(2),
+        salesPrice.toFixed(2),
+        margin,
+        stockLevel
+      ];
+    });
+
+    // Calculate average margin
+    const validMargins = products.filter(p => p.cost_price && p.sales_price && parseFloat(p.cost_price) > 0);
+    const averageMargin = validMargins.length > 0 
+      ? (validMargins.reduce((sum, p) => {
+          const cost = parseFloat(p.cost_price);
+          const sales = parseFloat(p.sales_price);
+          return sum + ((sales - cost) / cost) * 100;
+        }, 0) / validMargins.length).toFixed(2) + '%'
+      : '0.00%';
+
+    return {
+      title: 'Cost & Sales Price Report',
+      headers,
+      rows,
+      summary: {
+        totalProducts: products.length,
+        averageMargin
+      }
+    };
+  } catch (error) {
+    console.error('Error generating cost & sales report:', error);
+    throw error;
+  }
 }
 
-// Consignment Stock Report
+// Stock Availability Report
 async function generateConsignmentReport(filters: any): Promise<ReportData> {
-  const { data, error } = await supabase
-    .from('inventory')
-    .select(`
-      *,
-      product:products(*),
-      warehouse:warehouses(*)
-    `)
-    .eq('consignment', true);
+  try {
+    // Get inventory data
+    const { data: inventory, error: inventoryError } = await supabase
+      .from('inventory')
+      .select('*')
+      .not('available_quantity', 'is', null);
 
-  if (error) throw error;
+    if (inventoryError) throw inventoryError;
 
-  const headers = ['Product', 'Warehouse', 'Consignment Quantity', 'Consignment Value', 'Status'];
-  const rows = data?.map(item => [
-    item.product?.product_name || '',
-    item.warehouse?.warehouse_name || '',
-    item.consignment_quantity || '0',
-    item.consignment_value || '0.00',
-    item.consignment_status || 'Active'
-  ]) || [];
-
-  return {
-    title: 'Consignment Stock Report',
-    headers,
-    rows,
-    summary: {
-      totalItems: data?.length || 0,
-      totalValue: '0.00'
+    if (!inventory || inventory.length === 0) {
+      return {
+        title: 'Stock Availability Report',
+        headers: ['Product', 'Warehouse', 'Available Quantity', 'Minimum Stock', 'Status'],
+        rows: [],
+        summary: { totalItems: 0, inStockItems: 0 }
+      };
     }
-  };
+
+    // Get products and warehouses separately
+    const [productsResult, warehousesResult] = await Promise.all([
+      supabase.from('products').select('*'),
+      supabase.from('warehouses').select('*')
+    ]);
+
+    const products = productsResult.data || [];
+    const warehouses = warehousesResult.data || [];
+
+    // Manually join the data
+    const headers = ['Product', 'Warehouse', 'Available Quantity', 'Minimum Stock', 'Status'];
+    const rows = inventory.map(item => {
+      const product = products.find(p => p.id === item.product_id);
+      const warehouse = warehouses.find(w => w.id === item.warehouse_id);
+      
+      return [
+        product?.product_name || 'Unknown Product',
+        warehouse?.warehouse_name || 'Unknown Warehouse',
+        item.available_quantity || '0',
+        item.minimum_stock_level || '0',
+        item.available_quantity > 0 ? 'In Stock' : 'Out of Stock'
+      ];
+    });
+
+    return {
+      title: 'Stock Availability Report',
+      headers,
+      rows,
+      summary: {
+        totalItems: inventory.length,
+        inStockItems: inventory.filter(item => item.available_quantity > 0).length
+      }
+    };
+  } catch (error) {
+    console.error('Error generating stock availability report:', error);
+    throw error;
+  }
 }
 
 // Damaged Goods Report
 async function generateDamagedGoodsReport(filters: any): Promise<ReportData> {
-  const { data, error } = await supabase
-    .from('stock_movements')
-    .select(`
-      *,
-      product:products(*),
-      warehouse:warehouses(*)
-    `)
-    .eq('movement_type', 'DAMAGE')
-    .order('created_at', { ascending: false });
+  try {
+    // Get stock movements data
+    const { data: movements, error: movementsError } = await supabase
+      .from('stock_movements')
+      .select('*')
+      .eq('movement_type', 'DAMAGE')
+      .order('created_at', { ascending: false });
 
-  if (error) throw error;
+    if (movementsError) throw movementsError;
 
-  const headers = ['Date', 'Product', 'Warehouse', 'Damaged Quantity', 'Reason', 'Value'];
-  const rows = data?.map(movement => [
-    new Date(movement.created_at).toLocaleDateString(),
-    movement.product?.product_name || '',
-    movement.warehouse?.warehouse_name || '',
-    movement.quantity || '0',
-    movement.notes || '',
-    (movement.quantity * movement.unit_price).toFixed(2)
-  ]) || [];
-
-  return {
-    title: 'Damaged Goods Report',
-    headers,
-    rows,
-    summary: {
-      totalDamaged: data?.length || 0,
-      totalValue: '0.00'
+    if (!movements || movements.length === 0) {
+      return {
+        title: 'Damaged Goods Report',
+        headers: ['Date', 'Product', 'Warehouse', 'Damaged Quantity', 'Reason', 'Value'],
+        rows: [],
+        summary: { totalDamaged: 0, totalValue: '0.00' }
+      };
     }
-  };
+
+    // Get products and warehouses separately
+    const [productsResult, warehousesResult] = await Promise.all([
+      supabase.from('products').select('*'),
+      supabase.from('warehouses').select('*')
+    ]);
+
+    const products = productsResult.data || [];
+    const warehouses = warehousesResult.data || [];
+
+    // Manually join the data
+    const headers = ['Date', 'Product', 'Warehouse', 'Damaged Quantity', 'Reason', 'Value'];
+    const rows = movements.map(movement => {
+      const product = products.find(p => p.id === movement.product_id);
+      const warehouse = warehouses.find(w => w.id === movement.warehouse_id);
+      
+      return [
+        new Date(movement.created_at).toLocaleDateString(),
+        product?.product_name || 'Unknown Product',
+        warehouse?.warehouse_name || 'Unknown Warehouse',
+        movement.quantity || '0',
+        movement.notes || '',
+        ((movement.quantity || 0) * (movement.unit_price || 0)).toFixed(2)
+      ];
+    });
+
+    return {
+      title: 'Damaged Goods Report',
+      headers,
+      rows,
+      summary: {
+        totalDamaged: movements.length,
+        totalValue: movements.reduce((sum, movement) => 
+          sum + ((movement.quantity || 0) * (movement.unit_price || 0)), 0
+        ).toFixed(2)
+      }
+    };
+  } catch (error) {
+    console.error('Error generating damaged goods report:', error);
+    throw error;
+  }
 }
 
 // Expiry Report
@@ -1878,24 +1958,24 @@ async function generateExpiryReport(filters: any): Promise<ReportData> {
 // Serial Number Tracking Report
 async function generateSerialTrackingReport(filters: any): Promise<ReportData> {
   const { data, error } = await supabase
-    .from('serial_numbers')
+    .from('products')
     .select(`
       *,
-      product:products(*),
-      warehouse:warehouses(*)
+      inventory:inventory(*)
     `)
+    .not('serial_number', 'is', null)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
 
-  const headers = ['Serial Number', 'Product', 'Warehouse', 'Status', 'Date', 'Notes'];
-  const rows = data?.map(serial => [
-    serial.serial_number || '',
-    serial.product?.product_name || '',
-    serial.warehouse?.warehouse_name || '',
-    serial.status || 'Active',
-    new Date(serial.created_at).toLocaleDateString(),
-    serial.notes || ''
+  const headers = ['Product Code', 'Product Name', 'Serial Number', 'Status', 'Created Date', 'Description'];
+  const rows = data?.map(product => [
+    product.product_code || '',
+    product.product_name || '',
+    product.serial_number || '',
+    product.inventory?.[0]?.available_quantity > 0 ? 'In Stock' : 'Out of Stock',
+    new Date(product.created_at).toLocaleDateString(),
+    product.description || ''
   ]) || [];
 
   return {
@@ -1903,8 +1983,8 @@ async function generateSerialTrackingReport(filters: any): Promise<ReportData> {
     headers,
     rows,
     summary: {
-      totalSerials: data?.length || 0,
-      active: rows.filter(row => row[3] === 'Active').length
+      totalProducts: data?.length || 0,
+      inStockProducts: data?.filter(product => product.inventory?.[0]?.available_quantity > 0).length || 0
     }
   };
 }

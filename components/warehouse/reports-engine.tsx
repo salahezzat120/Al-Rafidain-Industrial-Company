@@ -103,9 +103,81 @@ export function ReportsEngine() {
       a.click();
       window.URL.revokeObjectURL(url);
     } else {
-      // PDF export logic would go here
-      console.log('PDF export not implemented yet');
+      // PDF export using browser print functionality
+      generatePDFReport(reportData, selectedReport);
     }
+  };
+
+  const generatePDFReport = (reportData: ReportData, reportType: string) => {
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    // Generate HTML content for the report
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${reportData.title}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .title { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+            .date { color: #666; font-size: 14px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            .summary { margin-top: 30px; padding: 15px; background-color: #f9f9f9; }
+            .summary h3 { margin-top: 0; }
+            .summary p { margin: 5px 0; }
+            @media print {
+              body { margin: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="title">${reportData.title}</div>
+            <div class="date">Generated on: ${new Date().toLocaleString()}</div>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                ${reportData.headers.map(header => `<th>${header}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${reportData.rows.map(row => 
+                `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`
+              ).join('')}
+            </tbody>
+          </table>
+          
+          ${reportData.summary ? `
+            <div class="summary">
+              <h3>Summary</h3>
+              ${Object.entries(reportData.summary).map(([key, value]) => 
+                `<p><strong>${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:</strong> ${value}</p>`
+              ).join('')}
+            </div>
+          ` : ''}
+          
+          <script>
+            window.onload = function() {
+              window.print();
+              window.onafterprint = function() {
+                window.close();
+              };
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   const getReportIcon = (reportId: string) => {
@@ -195,7 +267,7 @@ export function ReportsEngine() {
                             <SelectValue placeholder={isRTL ? 'جميع المستودعات' : 'All Warehouses'} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">{isRTL ? 'جميع المستودعات' : 'All Warehouses'}</SelectItem>
+                            <SelectItem value="all">{isRTL ? 'جميع المستودعات' : 'All Warehouses'}</SelectItem>
                             {warehouses.map((warehouse) => (
                               <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
                                 {isRTL ? warehouse.warehouse_name_ar : warehouse.warehouse_name}
