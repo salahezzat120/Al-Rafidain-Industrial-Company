@@ -1102,46 +1102,82 @@ export async function updateInventory(inventoryData: UpdateInventoryData): Promi
 // ==================== STOCK MOVEMENTS ====================
 
 export async function getStockMovements(productId?: number, warehouseId?: number): Promise<StockMovement[]> {
-  let query = supabase
-    .from('stock_movements')
-    .select(`
-      *,
-      product:products(*),
-      warehouse:warehouses(*)
-    `)
-    .order('created_at', { ascending: false });
+  try {
+    console.log('🔄 Fetching stock movements...');
+    
+    let query = supabase
+      .from('stock_movements')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-  if (productId) {
-    query = query.eq('product_id', productId);
+    if (productId) {
+      query = query.eq('product_id', productId);
+    }
+
+    if (warehouseId) {
+      query = query.eq('warehouse_id', warehouseId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('❌ Error fetching stock movements:', error);
+      console.error('Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
+      
+      // Check if it's a table doesn't exist error
+      if (error.message.includes('relation "stock_movements" does not exist')) {
+        throw new Error('Stock movements table does not exist. Please run the database setup script first.');
+      }
+      
+      // Check if it's an RLS error
+      if (error.message.includes('row-level security')) {
+        throw new Error('RLS policy is blocking access. Please run the RLS fix script.');
+      }
+      
+      throw new Error(`Failed to fetch stock movements: ${error.message}`);
+    }
+
+    console.log('✅ Stock movements fetched successfully:', data?.length || 0, 'records');
+    return data || [];
+  } catch (err) {
+    console.error('❌ getStockMovements error:', err);
+    throw err;
   }
-
-  if (warehouseId) {
-    query = query.eq('warehouse_id', warehouseId);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error('Error fetching stock movements:', error);
-    throw new Error('Failed to fetch stock movements');
-  }
-
-  return data || [];
 }
 
 export async function createStockMovement(movementData: CreateStockMovementData): Promise<StockMovement> {
   try {
+    console.log('🔄 Creating stock movement with data:', movementData);
+    
     // Validate required fields
     if (!movementData.product_id || !movementData.warehouse_id || !movementData.quantity) {
       throw new Error('Missing required fields: product_id, warehouse_id, or quantity');
     }
 
-  // Map movement types to database values
-  const dbMovementType = movementData.movement_type === 'RECEIPT' ? 'IN' : 
-                        movementData.movement_type === 'ISSUE' ? 'OUT' : 
+    // Validate that product and warehouse exist
+    const [productCheck, warehouseCheck] = await Promise.all([
+      supabase.from('products').select('id').eq('id', movementData.product_id).single(),
+      supabase.from('warehouses').select('id').eq('id', movementData.warehouse_id).single()
+    ]);
+
+    if (productCheck.error) {
+      throw new Error(`Product with ID ${movementData.product_id} not found`);
+    }
+    if (warehouseCheck.error) {
+      throw new Error(`Warehouse with ID ${movementData.warehouse_id} not found`);
+    }
+
+    // Map movement types to database values
+    const dbMovementType = movementData.movement_type === 'RECEIPT' ? 'IN' : 
+                          movementData.movement_type === 'ISSUE' ? 'OUT' : 
                           movementData.movement_type === 'TRANSFER' ? 'TRANSFER' :
                           movementData.movement_type === 'RETURN' ? 'IN' :
-                        movementData.movement_type;
+                          movementData.movement_type;
 
     // Map movement types to Arabic
     const movementTypeArabic = {
@@ -1154,13 +1190,13 @@ export async function createStockMovement(movementData: CreateStockMovementData)
       'RETURN': 'إرجاع'
     };
 
-    // Use data structure that includes required Arabic fields
-    const minimalData = {
+    // Prepare the data for insertion (Arabic & English) - minimal fields only
+    const fullMovementData = {
       product_id: movementData.product_id,
       warehouse_id: movementData.warehouse_id,
-    movement_type: dbMovementType,
+      movement_type: dbMovementType,
       movement_type_ar: movementTypeArabic[dbMovementType] || dbMovementType,
-      quantity: Math.abs(movementData.quantity),
+      quantity: Math.abs(movementData.quantity), // Ensure positive quantity
       unit_price: movementData.unit_price || 0,
       reference_number: movementData.reference_number || `REF-${Date.now()}`,
       reference_number_ar: movementData.reference_number_ar || `مرجع-${Date.now()}`,
@@ -1170,40 +1206,57 @@ export async function createStockMovement(movementData: CreateStockMovementData)
       created_by_ar: movementData.created_by_ar || 'النظام'
     };
 
-    console.log('Creating stock movement with minimal data:', minimalData);
+    console.log('📝 Prepared movement data:', fullMovementData);
 
-    // Try the insert with minimal data
-  const { data, error } = await supabase
-    .from('stock_movements')
-      .insert([minimalData])
-    .select(`
-      *,
-      product:products(*),
-      warehouse:warehouses(*)
-    `)
-    .single();
+    // Try the insert with full data
+    const { data, error } = await supabase
+      .from('stock_movements')
+      .insert([fullMovementData])
+      .select('*')
+      .single();
 
-  if (error) {
-    console.error('Error creating stock movement:', error);
+    if (error) {
+      console.error('❌ Error creating stock movement:', error);
+      console.error('Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
       
-      // If it's still an RLS error, provide a more helpful message
+      // Provide specific error messages
       if (error.message.includes('row-level security')) {
         throw new Error('RLS policy is blocking the insert. Please run the RLS fix script in Supabase SQL Editor.');
       }
       
+      if (error.message.includes('foreign key')) {
+        throw new Error('Invalid product or warehouse ID. Please check that the selected product and warehouse exist.');
+      }
+      
+      if (error.message.includes('check constraint')) {
+        throw new Error('Invalid movement type or status. Please check the movement type.');
+      }
+      
+      if (error.message.includes('relation "stock_movements" does not exist')) {
+        throw new Error('Stock movements table does not exist. Please run the database setup script first.');
+      }
+      
       throw new Error(`Failed to create stock movement: ${error.message}`);
-  }
-
-  // Update inventory after stock movement
-    try {
-      await updateInventoryAfterMovement(minimalData);
-    } catch (inventoryError) {
-      console.warn('Inventory update failed, but movement was created:', inventoryError);
     }
 
-  return data;
+    console.log('✅ Stock movement created successfully:', data);
+
+    // Update inventory after stock movement (optional)
+    try {
+      await updateInventoryAfterMovement(fullMovementData);
+      console.log('📦 Inventory updated after movement');
+    } catch (inventoryError) {
+      console.warn('⚠️ Inventory update failed, but movement was created:', inventoryError);
+    }
+
+    return data;
   } catch (error) {
-    console.error('Error in createStockMovement:', error);
+    console.error('❌ Error in createStockMovement:', error);
     throw error;
   }
 }

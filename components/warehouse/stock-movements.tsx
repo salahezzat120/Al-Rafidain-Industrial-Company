@@ -16,7 +16,7 @@ import { useLanguage } from '@/contexts/language-context';
 import { 
   getStockMovements, 
   createStockMovement,
-  getProductsWithWarehouseInfo,
+  getProducts,
   getWarehouses
 } from '@/lib/warehouse';
 import type { 
@@ -58,17 +58,34 @@ export function StockMovements() {
   const loadData = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Loading stock movements data...');
+      
       const [movementsData, productsData, warehousesData] = await Promise.all([
-        getStockMovements(),
-        getProductsWithWarehouseInfo(),
-        getWarehouses()
+        getStockMovements().catch(err => {
+          console.error('Error loading movements:', err);
+          return [];
+        }),
+        getProducts().catch(err => {
+          console.error('Error loading products:', err);
+          return [];
+        }),
+        getWarehouses().catch(err => {
+          console.error('Error loading warehouses:', err);
+          return [];
+        })
       ]);
+
+      console.log('📦 Products loaded:', productsData.length);
+      console.log('🏭 Warehouses loaded:', warehousesData.length);
+      console.log('📋 Movements loaded:', movementsData.length);
 
       setMovements(movementsData);
       setProducts(productsData);
       setWarehouses(warehousesData);
+      
+      console.log('✅ Stock movements data loaded successfully');
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('❌ Error loading data:', error);
     } finally {
       setLoading(false);
     }
@@ -108,6 +125,11 @@ export function StockMovements() {
   };
 
   const getStatusBadge = (status: string) => {
+    // Handle missing status field
+    if (!status) {
+      return <Badge variant="secondary">Active</Badge>;
+    }
+    
     switch (status) {
       case 'APPROVED': return <Badge className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />{t('warehouse.approved')}</Badge>;
       case 'PENDING': return <Badge className="bg-yellow-100 text-yellow-800">{t('warehouse.pending')}</Badge>;
@@ -116,11 +138,17 @@ export function StockMovements() {
     }
   };
 
-  const filteredMovements = movements.filter(movement =>
-    movement.product?.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    movement.warehouse?.warehouse_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    movement.reference_number?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredMovements = movements.filter(movement => {
+    // Get product and warehouse names from the separate arrays
+    const product = products.find(p => p.id === movement.product_id);
+    const warehouse = warehouses.find(w => w.id === movement.warehouse_id);
+    
+    return (
+      product?.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      warehouse?.warehouse_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      movement.reference_number?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   if (loading) {
     return (
@@ -161,6 +189,22 @@ export function StockMovements() {
               </DialogDescription>
             </DialogHeader>
             
+            {/* Debug Information */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mb-4 p-3 bg-gray-100 rounded-lg text-sm">
+                <p><strong>Debug Info:</strong></p>
+                <p>Products loaded: {products.length}</p>
+                <p>Warehouses loaded: {warehouses.length}</p>
+                <p>Loading: {loading ? 'Yes' : 'No'}</p>
+                {products.length > 0 && (
+                  <p>Sample product: {products[0].product_name}</p>
+                )}
+                {warehouses.length > 0 && (
+                  <p>Sample warehouse: {warehouses[0].warehouse_name}</p>
+                )}
+              </div>
+            )}
+
             <Tabs value={activeTab} onValueChange={(value) => {
               setActiveTab(value as any);
               setFormData(prev => ({ ...prev, movement_type: value.toUpperCase() as any }));
@@ -196,11 +240,17 @@ export function StockMovements() {
                         <SelectValue placeholder={isRTL ? 'اختر المنتج' : 'Select product'} />
                       </SelectTrigger>
                       <SelectContent>
-                        {products.map((product) => (
-                          <SelectItem key={product.id} value={product.id.toString()}>
-                            {isRTL ? product.product_name_ar : product.product_name}
+                        {products.length > 0 ? (
+                          products.map((product) => (
+                            <SelectItem key={product.id} value={product.id.toString()}>
+                              {isRTL ? (product.product_name_ar || product.product_name) : product.product_name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="no-data" disabled>
+                            {loading ? 'Loading products...' : 'No products found - check database'}
                           </SelectItem>
-                        ))}
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -214,11 +264,17 @@ export function StockMovements() {
                         <SelectValue placeholder={isRTL ? 'اختر المستودع' : 'Select warehouse'} />
                       </SelectTrigger>
                       <SelectContent>
-                        {warehouses.map((warehouse) => (
-                          <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
-                            {isRTL ? warehouse.warehouse_name_ar : warehouse.warehouse_name}
+                        {warehouses.length > 0 ? (
+                          warehouses.map((warehouse) => (
+                            <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
+                              {isRTL ? (warehouse.warehouse_name_ar || warehouse.warehouse_name) : warehouse.warehouse_name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="no-data" disabled>
+                            {loading ? 'Loading warehouses...' : 'No warehouses found - check database'}
                           </SelectItem>
-                        ))}
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -341,15 +397,21 @@ export function StockMovements() {
                     </div>
                   </TableCell>
                   <TableCell className="font-medium">
-                    {isRTL ? movement.product?.product_name_ar : movement.product?.product_name}
+                    {(() => {
+                      const product = products.find(p => p.id === movement.product_id);
+                      return isRTL ? (product?.product_name_ar || product?.product_name) : product?.product_name;
+                    })()}
                   </TableCell>
                   <TableCell>
-                    {isRTL ? movement.warehouse?.warehouse_name_ar : movement.warehouse?.warehouse_name}
+                    {(() => {
+                      const warehouse = warehouses.find(w => w.id === movement.warehouse_id);
+                      return isRTL ? (warehouse?.warehouse_name_ar || warehouse?.warehouse_name) : warehouse?.warehouse_name;
+                    })()}
                   </TableCell>
                   <TableCell>{movement.quantity}</TableCell>
                   <TableCell>{movement.unit_price ? `$${movement.unit_price.toFixed(2)}` : '-'}</TableCell>
                   <TableCell>{isRTL ? (movement.reference_number_ar || movement.reference_number) : movement.reference_number || '-'}</TableCell>
-                  <TableCell>{getStatusBadge(movement.status)}</TableCell>
+                  <TableCell>{getStatusBadge(movement.status || 'Active')}</TableCell>
                   <TableCell>{new Date(movement.created_at).toLocaleDateString()}</TableCell>
                 </TableRow>
               ))}
