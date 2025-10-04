@@ -1,8 +1,10 @@
 "use client"
 
+import React, { useState, useEffect } from "react"
 import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/contexts/auth-context"
 import { useLanguage } from "@/contexts/language-context"
+import { PermissionProviderSimple } from "@/contexts/permission-context-simple"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,7 +13,8 @@ import { Badge } from "@/components/ui/badge"
 import { LogOut, Users, Package, BarChart3 } from "lucide-react"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { OverviewTab } from "@/components/admin/overview-tab"
-import { UsersTab } from "@/components/admin/users-tab"
+import { UsersTabSimple } from "@/components/admin/users-tab-simple"
+import { SupervisorDashboard } from "@/components/supervisor/supervisor-dashboard"
 import EmployeesTab from "@/components/admin/employees-tab"
 import { RepresentativesTab } from "@/components/admin/representatives-tab";
 import { CustomersTab } from "@/components/admin/customers-tab"
@@ -33,11 +36,6 @@ import { AssignDeliveryModal } from "@/components/supervisor/assign-delivery-mod
 import { ManageRepresentativesModal } from "@/components/supervisor/manage-representatives-modal";
 import { ReportsModal } from "@/components/supervisor/reports-modal"
 import { TrackVehiclesModal } from "@/components/supervisor/track-vehicles-modal"
-import { RepresentativeStats } from "@/components/representative/representative-stats";
-import { AssignedDeliveries } from "@/components/driver/assigned-deliveries"
-import { RepresentativeNotifications } from "@/components/representative/representative-notifications";
-import { RepresentativeQuickActions } from "@/components/representative/representative-quick-actions";
-import { useState, useEffect } from "react"
 import Image from "next/image"
 import dynamic from "next/dynamic"
 import { NoSSR } from "@/components/no-ssr"
@@ -48,6 +46,15 @@ function Dashboard() {
   const { user, logout } = useAuth()
   const { t, isRTL } = useLanguage()
   const [activeTab, setActiveTab] = useState("overview")
+  
+  // Handle URL parameters for tab navigation
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const tabParam = urlParams.get('tab')
+    if (tabParam) {
+      setActiveTab(tabParam)
+    }
+  }, [])
   
   // Debug logging
   console.log('Dashboard: Current user object', user)
@@ -75,8 +82,9 @@ function Dashboard() {
 
   if (user?.role === "admin") {
     return (
-      <div className="min-h-screen bg-gray-50 flex" dir={isRTL ? "rtl" : "ltr"}>
-        <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <PermissionProviderSimple>
+        <div className="min-h-screen bg-gray-50 flex" dir={isRTL ? "rtl" : "ltr"}>
+          <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
         <div className="flex-1 flex flex-col">
           <header className="bg-white shadow-sm border-b">
@@ -122,7 +130,7 @@ function Dashboard() {
 
           <main className="flex-1 p-6">
             {activeTab === "overview" && <OverviewTab />}
-            {activeTab === "users" && <UsersTab />}
+            {activeTab === "users" && <UsersTabSimple />}
             {activeTab === "employees" && <EmployeesTab />}
             {activeTab === "representatives" && <RepresentativesTab />}
             {activeTab === "customers" && <CustomersTab />}
@@ -143,74 +151,183 @@ function Dashboard() {
             {activeTab === "chat-support" && <ChatSupportTab />}
           </main>
         </div>
-      </div>
+        </div>
+      </PermissionProviderSimple>
+    )
+  }
+
+  if (user?.role === "supervisor") {
+    // Check if supervisor is accessing a specific admin page
+    const urlParams = new URLSearchParams(window.location.search)
+    const tabParam = urlParams.get('tab')
+    
+    // If accessing a specific tab, show admin interface
+    if (tabParam) {
+      return (
+        <PermissionProviderSimple>
+          <div className="min-h-screen bg-gray-50 flex" dir={isRTL ? "rtl" : "ltr"}>
+            <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+
+            <div className="flex-1 flex flex-col">
+              <header className="bg-white shadow-sm border-b">
+                <div className="px-6 py-4">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <Image
+                        src="/logo.png"
+                        alt="Al-Rafidain Industrial Company"
+                        width={32}
+                        height={32}
+                        className="h-8 w-8 object-contain"
+                      />
+                      <div>
+                        <h1 className="text-xl font-bold text-gray-900">
+                          {isRTL ? "شركة الرفيدان للصناعة" : "Al-Rafidain Industrial Company"}
+                        </h1>
+                        <p className="text-sm text-gray-600">{t("dashboard.welcome")}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <LanguageSwitcher />
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={user?.avatar || "/placeholder.svg"} alt={user?.name} />
+                          <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="hidden sm:block">
+                          <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                            {t(`auth.${user?.role || ""}`).toUpperCase()}
+                          </Badge>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={logout}>
+                        <LogOut className="h-4 w-4 mr-2" />
+                        {t("auth.logout")}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </header>
+
+              <main className="flex-1 p-6">
+                {/* Back to Dashboard button for supervisors */}
+                <div className="mb-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => window.location.href = '/'}
+                    className="mb-4"
+                  >
+                    ← Back to Supervisor Dashboard
+                  </Button>
+                </div>
+                
+                {activeTab === "overview" && <OverviewTab />}
+                {activeTab === "users" && <UsersTabSimple />}
+                {activeTab === "employees" && <EmployeesTab />}
+                {activeTab === "representatives" && <RepresentativesTab />}
+                {activeTab === "customers" && <CustomersTab />}
+                {activeTab === "warehouse" && <WarehouseTab />}
+                {activeTab === "payments" && <PaymentsTab />}
+                {activeTab === "deliveries" && <DeliveriesTab />}
+                {activeTab === "vehicles" && <VehiclesTab />}
+                {activeTab === "live-map" && <LiveMapTab />}
+                {activeTab === "analytics" && <AnalyticsTab />}
+                {activeTab === "reports" && <ReportsTab />}
+                {activeTab === "loyalty" && <LoyaltyTab />}
+                {activeTab === "alerts" && <AlertsTab />}
+                {activeTab === "visits" && <VisitsTab />}
+                {activeTab === "messaging" && <MessagingTab />}
+                {activeTab === "after-sales" && <AfterSalesTab />}
+                {activeTab === "settings" && <SettingsTab />}
+                {activeTab === "attendance" && <AttendanceTab />}
+                {activeTab === "chat-support" && <ChatSupportTab />}
+              </main>
+            </div>
+          </div>
+        </PermissionProviderSimple>
+      )
+    }
+    
+    // Default supervisor dashboard
+    return (
+      <PermissionProviderSimple>
+        <div className="min-h-screen bg-gray-50" dir={isRTL ? "rtl" : "ltr"}>
+          <header className="bg-white shadow-sm border-b">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex justify-between items-center h-16">
+                <div className="flex items-center gap-3">
+                  <Image
+                    src="/logo.png"
+                    alt="Al-Rafidain Industrial Company"
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 object-contain"
+                  />
+                  <div>
+                    <h1 className="text-xl font-bold text-gray-900">
+                      {isRTL ? "شركة الرفيدان للصناعة" : "Al-Rafidain Industrial Company"}
+                    </h1>
+                    <p className="text-sm text-gray-600">{t("dashboard.supervisorDashboard")}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <LanguageSwitcher />
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={user?.avatar || "/placeholder.svg"} alt={user?.name} />
+                      <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="hidden sm:block">
+                      <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+                      <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                        {t(`auth.${user?.role || ""}`).toUpperCase()}
+                      </Badge>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={logout}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    {t("auth.logout")}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <SupervisorDashboard />
+          </main>
+        </div>
+      </PermissionProviderSimple>
     )
   }
 
   if (user?.role === "representative") {
     return (
-      <div className="min-h-screen bg-gray-50" dir={isRTL ? "rtl" : "ltr"}>
-        <header className="bg-white shadow-sm border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center gap-3">
-                <Image
-                  src="/logo.png"
-                  alt="Al-Rafidain Industrial Company"
-                  width={32}
-                  height={32}
-                  className="h-8 w-8 object-contain"
-                />
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900">{t("dashboard.representativeDashboard")}</h1>
-                  <p className="text-sm text-gray-600">{t("representative.assignedDeliveries")}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <LanguageSwitcher />
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.avatar || "/placeholder.svg"} alt={user?.name} />
-                    <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  <div className="hidden sm:block">
-                    <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                    <Badge variant="secondary" className={getRoleColor(user?.role || "")}>
-                      {t(`auth.${user?.role || ""}`).toUpperCase()}
-                    </Badge>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm" onClick={logout}>
-                  <LogOut className="h-4 w-4 mr-2" />
-                  {t("auth.logout")}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center" dir={isRTL ? "rtl" : "ltr"}>
+        <div className="text-center">
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              {isRTL
-                ? `${t("dashboard.welcomeBack")}، ${user?.name}!`
-                : `${t("dashboard.welcomeBack")}, ${user?.name}!`}
-            </h2>
-            <p className="text-gray-600">{t("dashboard.deliveryOverview")}</p>
+            <Image
+              src="/logo.png"
+              alt="Al-Rafidain Industrial Company"
+              width={64}
+              height={64}
+              className="h-16 w-16 object-contain mx-auto mb-4"
+            />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              {isRTL ? 'لوحة تحكم المندوب غير متاحة' : 'Representative Dashboard Not Available'}
+            </h1>
+            <p className="text-gray-600 mb-6">
+              {isRTL 
+                ? 'لوحة تحكم المندوبين غير متاحة حالياً. يرجى التواصل مع الإدارة.' 
+                : 'The representative dashboard is currently not available. Please contact the administration.'}
+            </p>
+            <Button onClick={logout} className="bg-blue-600 hover:bg-blue-700 text-white">
+              <LogOut className="h-4 w-4 mr-2" />
+              {t("auth.logout")}
+            </Button>
           </div>
-
-          <RepresentativeStats />
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <AssignedDeliveries />
-            </div>
-            <div className="space-y-6">
-              <RepresentativeNotifications />
-              <RepresentativeQuickActions />
-            </div>
-          </div>
-        </main>
+        </div>
       </div>
     )
   }

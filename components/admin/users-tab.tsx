@@ -15,6 +15,9 @@ import { UserPlus, Shield, Users, Eye, EyeOff, AlertCircle, CheckCircle, Edit, T
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useLanguage } from "@/contexts/language-context"
 import { getUsers, createUser, updateUser, deleteUser, checkEmailExists, type User, type CreateUserData, type UpdateUserData } from "@/lib/users"
+import { PermissionSelector } from "@/components/admin/permission-selector"
+import { createUserPermissions } from "@/lib/permissions"
+import type { PagePermission } from "@/types/permissions"
 
 export function UsersTab() {
   const { t, isRTL } = useLanguage()
@@ -45,6 +48,9 @@ export function UsersTab() {
     role: '',
     confirmPassword: ''
   })
+
+  const [newUserPermissions, setNewUserPermissions] = useState<PagePermission[]>([])
+  const [editUserPermissions, setEditUserPermissions] = useState<PagePermission[]>([])
 
   // Load users on component mount
   React.useEffect(() => {
@@ -91,9 +97,19 @@ export function UsersTab() {
         role: newUser.role as 'admin' | 'supervisor' | 'representative'
       }
 
-      await createUser(userData)
+      const createdUser = await createUser(userData)
+      
+      // Create user permissions if any are set
+      if (newUserPermissions.length > 0) {
+        await createUserPermissions({
+          userId: createdUser.id,
+          permissions: newUserPermissions
+        })
+      }
+      
       setMessage({ type: 'success', text: `${newUser.role} user created successfully!` })
       setNewUser({ name: '', email: '', password: '', role: '', confirmPassword: '' })
+      setNewUserPermissions([])
       setIsCreateModalOpen(false)
       loadUsers() // Reload users list
     } catch (error: any) {
@@ -223,7 +239,7 @@ export function UsersTab() {
               Add New User
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New User</DialogTitle>
               <DialogDescription>
@@ -318,6 +334,14 @@ export function UsersTab() {
                 />
               </div>
 
+              {/* Permission Selector */}
+              <div className="border-t pt-4">
+                <PermissionSelector
+                  permissions={newUserPermissions}
+                  onPermissionsChange={setNewUserPermissions}
+                />
+              </div>
+
               {message && (
                 <Alert variant={message.type === 'error' ? 'destructive' : 'default'}>
                   {message.type === 'error' ? (
@@ -336,6 +360,7 @@ export function UsersTab() {
                   onClick={() => {
                     setIsCreateModalOpen(false)
                     setNewUser({ name: '', email: '', password: '', role: '', confirmPassword: '' })
+                    setNewUserPermissions([])
                     setMessage(null)
                   }}
                 >

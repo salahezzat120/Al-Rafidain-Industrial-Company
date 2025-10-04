@@ -19,7 +19,7 @@ function LoginFormContent() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [representativeId, setRepresentativeId] = useState("")
-  const [selectedRole, setSelectedRole] = useState<"admin" | "representative" | "supervisor" | null>(null)
+  const [selectedRole, setSelectedRole] = useState<"admin" | "supervisor" | null>(null)
   const [error, setError] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const { login, isLoading } = useAuth()
@@ -36,36 +36,12 @@ function LoginFormContent() {
       return
     }
 
-    if (selectedRole === "representative") {
-      if (!email || !representativeId) {
-        setError("Please enter both email and Representative ID.")
-        return
-      }
-    } else {
-      if (!email || !password) {
-        setError("Please enter both email and password.")
-        return
-      }
+    if (!email || !password) {
+      setError("Please enter both email and password.")
+      return
     }
 
     try {
-      if (selectedRole === "representative") {
-        // For representatives, use email + ID as password
-        const success = await login(email, representativeId)
-        if (success) {
-          // Force a hard refresh to ensure the user context is updated
-          console.log('Representative login successful, redirecting...')
-          window.location.href = "/"
-          // Force reload after redirect
-          setTimeout(() => {
-            window.location.reload()
-          }, 100)
-        } else {
-          setError("Invalid email or Representative ID. Please check your credentials and try again.")
-        }
-        return
-      }
-      
       const success = await login(email, password)
       if (success) {
         // Redirect to main page (admin/supervisor dashboard)
@@ -224,23 +200,6 @@ function LoginFormContent() {
                       <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-blue-600/20 to-blue-700/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     </button>
 
-                    {/* Representative Role */}
-                    <button
-                      type="button"
-                      onClick={() => setSelectedRole("representative")}
-                      className="group relative p-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg hover:bg-white/15 transition-all duration-300 hover:scale-105"
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div className="p-3 bg-gradient-to-r from-green-600 to-green-700 rounded-lg group-hover:scale-110 transition-transform duration-300">
-                          <UserCheck className="h-6 w-6 text-white" />
-                        </div>
-                        <div className="text-left">
-                          <h4 className="font-semibold text-white">{t("representative")}</h4>
-                          <p className="text-sm text-slate-300">{t("deliveryAndFieldOperations")}</p>
-                        </div>
-                      </div>
-                      <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-green-600/20 to-green-700/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    </button>
                   </div>
                 </div>
               ) : (

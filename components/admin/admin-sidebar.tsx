@@ -24,6 +24,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useLanguage } from "@/contexts/language-context"
+import { usePermissions } from "@/contexts/permission-context-simple"
 
 interface AdminSidebarProps {
   activeTab: string
@@ -33,6 +34,7 @@ interface AdminSidebarProps {
 export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const { t, isRTL } = useLanguage()
+  const { canAccess } = usePermissions()
 
   const sidebarItems = [
     { id: "overview", label: t("nav.overview"), icon: LayoutDashboard },
@@ -70,6 +72,11 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
         <nav className="p-2">
           {sidebarItems.map((item) => {
             const Icon = item.icon
+            const hasAccess = canAccess(item.id)
+            
+            // Don't render items the user can't access
+            if (!hasAccess) return null
+            
             return (
               <Button
                 key={item.id}

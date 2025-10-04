@@ -95,9 +95,23 @@ export const createUser = async (userData: CreateUserData): Promise<User> => {
       throw new Error('User with this email already exists')
     }
 
+    // Generate a UUID for the user
+    // Use a more robust UUID generation method
+    const userId = crypto.randomUUID ? crypto.randomUUID() : 
+      'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      })
+    
+    const userDataWithId = {
+      ...userData,
+      id: userId
+    }
+
     const { data, error } = await supabase
       .from('users')
-      .insert([userData])
+      .insert([userDataWithId])
       .select()
       .single()
 
