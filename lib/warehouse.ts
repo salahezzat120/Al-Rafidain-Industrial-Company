@@ -2362,43 +2362,57 @@ export async function bulkUploadProducts(products: any[]): Promise<{ success: nu
 
   for (const product of products) {
     try {
-      // Validate required fields
-      if (!product.product_name || !product.product_code) {
+      // Validate required fields for new table structure
+      if (!product.product_name || !product.main_group || !product.unit) {
         results.errors.push({ 
-          error: `Missing required fields: product_name and product_code are required`,
+          error: `Missing required fields: product_name, main_group, and unit are required`,
           row: product
         });
         continue;
       }
 
-      // Check if product already exists
-      const { data: existingProduct } = await supabase
-        .from('products')
-        .select('id')
-        .eq('product_code', product.product_code)
-        .single();
+      // Check if product already exists by product_code (if provided)
+      let existingProduct = null;
+      if (product.product_code) {
+        const { data: existing } = await supabase
+          .from('products')
+          .select('id')
+          .eq('product_code', product.product_code)
+          .single();
+        existingProduct = existing;
+      }
+
+      // Prepare data for the new table structure
+      const productData = {
+        product_name: product.product_name,
+        product_name_ar: product.product_name_ar || product.product_name,
+        product_code: product.product_code || '',
+        stock_number: product.stock_number || '',
+        stock_number_ar: product.stock_number_ar || product.stock_number || '',
+        stock: parseFloat(product.stock) || 0,
+        main_group: product.main_group,
+        sub_group: product.sub_group || '',
+        color: product.color || '',
+        material: product.material || '',
+        unit: product.unit,
+        description: product.description || '',
+        description_ar: product.description_ar || product.description || '',
+        cost_price: parseFloat(product.cost_price) || 0,
+        selling_price: parseFloat(product.selling_price) || 0,
+        weight: parseFloat(product.weight) || null,
+        dimensions: product.dimensions || '',
+        expiry_date: product.expiry_date || null,
+        serial_number: product.serial_number || '',
+        warehouses: product.warehouses || '',
+        is_active: product.is_active === 'true' || product.is_active === true || product.is_active === '1' || product.is_active === 1,
+        updated_at: new Date().toISOString()
+      };
 
       if (existingProduct) {
         // Update existing product
-        const updateData = {
-          product_name: product.product_name,
-          product_name_ar: product.product_name_ar || product.product_name,
-          main_group_id: parseInt(product.main_group_id) || null,
-          sub_group_id: parseInt(product.sub_group_id) || null,
-          color_id: parseInt(product.color_id) || null,
-          material_id: parseInt(product.material_id) || null,
-          unit_of_measurement_id: parseInt(product.unit_of_measurement_id) || null,
-          description: product.description || '',
-          cost_price: parseFloat(product.cost_price) || 0,
-          selling_price: parseFloat(product.selling_price) || 0,
-          weight: parseFloat(product.weight) || 0,
-          dimensions: product.dimensions || '',
-          updated_at: new Date().toISOString()
-        };
-
         const { error: updateError } = await supabase
           .from('products')
-          .update(updateData)
+          .update(productData)
           .eq('id', existingProduct.id);
 
         if (updateError) {
@@ -2412,23 +2426,8 @@ export async function bulkUploadProducts(products: any[]): Promise<{ success: nu
       } else {
         // Create new product
         const insertData = {
-          product_name: product.product_name,
-          product_name_ar: product.product_name_ar || product.product_name,
-          product_code: product.product_code,
-          main_group_id: parseInt(product.main_group_id) || null,
-          sub_group_id: parseInt(product.sub_group_id) || null,
-          color_id: parseInt(product.color_id) || null,
-          material_id: parseInt(product.material_id) || null,
-          unit_of_measurement_id: parseInt(product.unit_of_measurement_id) || null,
-          description: product.description || '',
-          cost_price: parseFloat(product.cost_price) || 0,
-          selling_price: parseFloat(product.selling_price) || 0,
-          weight: parseFloat(product.weight) || 0,
-          dimensions: product.dimensions || '',
-          stock: 0,
-          is_active: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          ...productData,
+          created_at: new Date().toISOString()
         };
 
         const { error: insertError } = await supabase
