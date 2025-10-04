@@ -229,7 +229,7 @@ const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 2. **Find the Adding Tab** - Look for "إضافة العناصر" (Adding Items) tab in the warehouse interface
 3. **Start Managing** - Click on the tab to access all reference data management functions
 
-**Note:** The Adding tab is only accessible through the Warehouse Management interface, not as a separate sidebar item.
+**Note:** The Adding tab is only accessible through the Warehouse Management interface, not as a separate sidebar item. This replaces the old "Measurement Units" tab that was previously in the warehouse interface.
 
 ## 🌐 **Language Support**
 
