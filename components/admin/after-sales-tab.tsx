@@ -98,6 +98,13 @@ export function AfterSalesTab() {
   // Real-time updates
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
 
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [priorityFilter, setPriorityFilter] = useState('all')
+  const [dateFilter, setDateFilter] = useState('all')
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
+
   // New modal states
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false)
@@ -722,6 +729,62 @@ export function AfterSalesTab() {
     }
   }
 
+  // Filter functions
+  const filterData = (data: any[], type: string) => {
+    return data.filter(item => {
+      // Search filter
+      const matchesSearch = !searchTerm || 
+        item.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.customer_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.description?.toLowerCase().includes(searchTerm.toLowerCase())
+
+      // Status filter
+      const matchesStatus = statusFilter === 'all' || item.status === statusFilter
+
+      // Priority filter
+      const matchesPriority = priorityFilter === 'all' || item.priority === priorityFilter
+
+      // Date filter
+      let matchesDate = true
+      if (dateFilter !== 'all') {
+        const itemDate = new Date(item.created_at)
+        const now = new Date()
+        const daysDiff = Math.floor((now.getTime() - itemDate.getTime()) / (1000 * 60 * 60 * 24))
+        
+        switch (dateFilter) {
+          case 'today':
+            matchesDate = daysDiff === 0
+            break
+          case 'week':
+            matchesDate = daysDiff <= 7
+            break
+          case 'month':
+            matchesDate = daysDiff <= 30
+            break
+          case 'older':
+            matchesDate = daysDiff > 30
+            break
+        }
+      }
+
+      return matchesSearch && matchesStatus && matchesPriority && matchesDate
+    })
+  }
+
+  const getFilteredInquiries = () => filterData(inquiries, 'inquiry')
+  const getFilteredComplaints = () => filterData(complaints, 'complaint')
+  const getFilteredMaintenanceRequests = () => filterData(maintenanceRequests, 'maintenance')
+  const getFilteredWarranties = () => filterData(warranties, 'warranty')
+  const getFilteredFollowUpServices = () => filterData(followUpServices, 'followup')
+
+  const clearFilters = () => {
+    setSearchTerm('')
+    setStatusFilter('all')
+    setPriorityFilter('all')
+    setDateFilter('all')
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -1131,18 +1194,82 @@ export function AfterSalesTab() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   placeholder={t("searchInquiries")}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+              >
                 <Filter className="h-4 w-4 mr-2" />
                 {t("common.filter")}
               </Button>
             </div>
           </div>
 
+          {/* Filter Panel */}
+          {isFilterOpen && (
+            <Card className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Label htmlFor="status-filter">الحالة</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الحالة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">جميع الحالات</SelectItem>
+                      <SelectItem value="open">مفتوحة</SelectItem>
+                      <SelectItem value="in_progress">قيد التنفيذ</SelectItem>
+                      <SelectItem value="resolved">محلولة</SelectItem>
+                      <SelectItem value="closed">مغلقة</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="priority-filter">الأولوية</Label>
+                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الأولوية" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">جميع الأولويات</SelectItem>
+                      <SelectItem value="low">منخفضة</SelectItem>
+                      <SelectItem value="medium">متوسطة</SelectItem>
+                      <SelectItem value="high">عالية</SelectItem>
+                      <SelectItem value="urgent">عاجلة</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="date-filter">التاريخ</Label>
+                  <Select value={dateFilter} onValueChange={setDateFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الفترة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">جميع التواريخ</SelectItem>
+                      <SelectItem value="today">اليوم</SelectItem>
+                      <SelectItem value="week">هذا الأسبوع</SelectItem>
+                      <SelectItem value="month">هذا الشهر</SelectItem>
+                      <SelectItem value="older">أقدم من شهر</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button variant="outline" onClick={clearFilters} className="w-full">
+                    مسح الفلاتر
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
           <div className="space-y-4">
-            {inquiries.length === 0 ? (
+            {getFilteredInquiries().length === 0 ? (
               <Card>
                 <CardContent className="p-8 text-center">
                   <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
@@ -1151,7 +1278,7 @@ export function AfterSalesTab() {
                 </CardContent>
               </Card>
             ) : (
-              inquiries.map((inquiry) => (
+              getFilteredInquiries().map((inquiry) => (
               <Card key={inquiry.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
@@ -1256,18 +1383,82 @@ export function AfterSalesTab() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   placeholder={t("searchComplaints")}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+              >
                 <Filter className="h-4 w-4 mr-2" />
                 {t("common.filter")}
               </Button>
             </div>
           </div>
 
+          {/* Filter Panel */}
+          {isFilterOpen && (
+            <Card className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Label htmlFor="status-filter">الحالة</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الحالة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">جميع الحالات</SelectItem>
+                      <SelectItem value="new">جديدة</SelectItem>
+                      <SelectItem value="investigating">قيد التحقيق</SelectItem>
+                      <SelectItem value="resolved">محلولة</SelectItem>
+                      <SelectItem value="closed">مغلقة</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="priority-filter">الأولوية</Label>
+                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الأولوية" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">جميع الأولويات</SelectItem>
+                      <SelectItem value="low">منخفضة</SelectItem>
+                      <SelectItem value="medium">متوسطة</SelectItem>
+                      <SelectItem value="high">عالية</SelectItem>
+                      <SelectItem value="urgent">عاجلة</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="date-filter">التاريخ</Label>
+                  <Select value={dateFilter} onValueChange={setDateFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الفترة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">جميع التواريخ</SelectItem>
+                      <SelectItem value="today">اليوم</SelectItem>
+                      <SelectItem value="week">هذا الأسبوع</SelectItem>
+                      <SelectItem value="month">هذا الشهر</SelectItem>
+                      <SelectItem value="older">أقدم من شهر</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button variant="outline" onClick={clearFilters} className="w-full">
+                    مسح الفلاتر
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
           <div className="space-y-4">
-            {complaints.length === 0 ? (
+            {getFilteredComplaints().length === 0 ? (
               <Card>
                 <CardContent className="p-8 text-center">
                   <AlertTriangle className="h-12 w-12 mx-auto text-gray-400 mb-4" />
@@ -1276,7 +1467,7 @@ export function AfterSalesTab() {
                 </CardContent>
               </Card>
             ) : (
-              complaints.map((complaint) => (
+              getFilteredComplaints().map((complaint) => (
               <Card key={complaint.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
@@ -1386,18 +1577,82 @@ export function AfterSalesTab() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   placeholder={t("searchMaintenance")}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+              >
                 <Filter className="h-4 w-4 mr-2" />
                 {t("common.filter")}
               </Button>
             </div>
           </div>
 
+          {/* Filter Panel */}
+          {isFilterOpen && (
+            <Card className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Label htmlFor="status-filter">الحالة</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الحالة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">جميع الحالات</SelectItem>
+                      <SelectItem value="requested">مطلوبة</SelectItem>
+                      <SelectItem value="scheduled">مجدولة</SelectItem>
+                      <SelectItem value="in_progress">قيد التنفيذ</SelectItem>
+                      <SelectItem value="completed">مكتملة</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="priority-filter">الأولوية</Label>
+                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الأولوية" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">جميع الأولويات</SelectItem>
+                      <SelectItem value="low">منخفضة</SelectItem>
+                      <SelectItem value="medium">متوسطة</SelectItem>
+                      <SelectItem value="high">عالية</SelectItem>
+                      <SelectItem value="urgent">عاجلة</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="date-filter">التاريخ</Label>
+                  <Select value={dateFilter} onValueChange={setDateFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الفترة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">جميع التواريخ</SelectItem>
+                      <SelectItem value="today">اليوم</SelectItem>
+                      <SelectItem value="week">هذا الأسبوع</SelectItem>
+                      <SelectItem value="month">هذا الشهر</SelectItem>
+                      <SelectItem value="older">أقدم من شهر</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button variant="outline" onClick={clearFilters} className="w-full">
+                    مسح الفلاتر
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
           <div className="space-y-4">
-            {maintenanceRequests.length === 0 ? (
+            {getFilteredMaintenanceRequests().length === 0 ? (
               <Card>
                 <CardContent className="p-8 text-center">
                   <Wrench className="h-12 w-12 mx-auto text-gray-400 mb-4" />
@@ -1406,7 +1661,7 @@ export function AfterSalesTab() {
                 </CardContent>
               </Card>
             ) : (
-              maintenanceRequests.map((request) => (
+              getFilteredMaintenanceRequests().map((request) => (
               <Card key={request.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
@@ -1524,18 +1779,80 @@ export function AfterSalesTab() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   placeholder={t("searchWarranties")}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+              >
                 <Filter className="h-4 w-4 mr-2" />
                 {t("common.filter")}
               </Button>
             </div>
           </div>
 
+          {/* Filter Panel */}
+          {isFilterOpen && (
+            <Card className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Label htmlFor="status-filter">الحالة</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الحالة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">جميع الحالات</SelectItem>
+                      <SelectItem value="active">نشط</SelectItem>
+                      <SelectItem value="expired">منتهي</SelectItem>
+                      <SelectItem value="void">ملغي</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="priority-filter">نوع الضمان</Label>
+                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر النوع" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">جميع الأنواع</SelectItem>
+                      <SelectItem value="standard">عادي</SelectItem>
+                      <SelectItem value="extended">ممتد</SelectItem>
+                      <SelectItem value="premium">مميز</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="date-filter">التاريخ</Label>
+                  <Select value={dateFilter} onValueChange={setDateFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الفترة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">جميع التواريخ</SelectItem>
+                      <SelectItem value="today">اليوم</SelectItem>
+                      <SelectItem value="week">هذا الأسبوع</SelectItem>
+                      <SelectItem value="month">هذا الشهر</SelectItem>
+                      <SelectItem value="older">أقدم من شهر</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button variant="outline" onClick={clearFilters} className="w-full">
+                    مسح الفلاتر
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
           <div className="space-y-4">
-            {warranties.length === 0 ? (
+            {getFilteredWarranties().length === 0 ? (
               <Card>
                 <CardContent className="p-8 text-center">
                   <Shield className="h-12 w-12 mx-auto text-gray-400 mb-4" />
@@ -1544,7 +1861,7 @@ export function AfterSalesTab() {
                 </CardContent>
               </Card>
             ) : (
-              warranties.map((warranty) => (
+              getFilteredWarranties().map((warranty) => (
               <Card key={warranty.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
@@ -1648,18 +1965,82 @@ export function AfterSalesTab() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   placeholder={t("searchFollowUps")}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+              >
                 <Filter className="h-4 w-4 mr-2" />
                 {t("common.filter")}
               </Button>
             </div>
           </div>
 
+          {/* Filter Panel */}
+          {isFilterOpen && (
+            <Card className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Label htmlFor="status-filter">الحالة</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الحالة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">جميع الحالات</SelectItem>
+                      <SelectItem value="scheduled">مجدولة</SelectItem>
+                      <SelectItem value="completed">مكتملة</SelectItem>
+                      <SelectItem value="cancelled">ملغية</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="priority-filter">نوع الخدمة</Label>
+                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر النوع" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">جميع الأنواع</SelectItem>
+                      <SelectItem value="satisfaction_survey">استطلاع رضا</SelectItem>
+                      <SelectItem value="product_training">تدريب على المنتج</SelectItem>
+                      <SelectItem value="maintenance_reminder">تذكير صيانة</SelectItem>
+                      <SelectItem value="upgrade_offer">عرض ترقية</SelectItem>
+                      <SelectItem value="feedback_collection">جمع ملاحظات</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="date-filter">التاريخ</Label>
+                  <Select value={dateFilter} onValueChange={setDateFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="اختر الفترة" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">جميع التواريخ</SelectItem>
+                      <SelectItem value="today">اليوم</SelectItem>
+                      <SelectItem value="week">هذا الأسبوع</SelectItem>
+                      <SelectItem value="month">هذا الشهر</SelectItem>
+                      <SelectItem value="older">أقدم من شهر</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button variant="outline" onClick={clearFilters} className="w-full">
+                    مسح الفلاتر
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
           <div className="space-y-4">
-            {followUpServices.length === 0 ? (
+            {getFilteredFollowUpServices().length === 0 ? (
               <Card>
                 <CardContent className="p-8 text-center">
                   <Phone className="h-12 w-12 mx-auto text-gray-400 mb-4" />
@@ -1668,7 +2049,7 @@ export function AfterSalesTab() {
                 </CardContent>
               </Card>
             ) : (
-              followUpServices.map((service) => (
+              getFilteredFollowUpServices().map((service) => (
               <Card key={service.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
