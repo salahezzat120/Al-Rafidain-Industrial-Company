@@ -11,6 +11,13 @@ export const metadata: Metadata = {
   title: "Al-Rafidain Delivery Management",
   description: "Centralized delivery management system by Al-Rafidain Industrial Company",
   generator: "v0.app",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.svg", type: "image/svg+xml" }
+    ],
+    apple: "/favicon.ico"
+  }
 }
 
 export default function RootLayout({
