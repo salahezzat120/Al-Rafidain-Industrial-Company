@@ -159,19 +159,60 @@ export async function getAttendanceRecords(): Promise<{
   error: string | null;
 }> {
   try {
-    const { data, error } = await supabase
-      .from('attendance')
-      .select(`*, representatives!attendance_representative_id_fkey (name, phone)`) // join
+    // First try the new representative_attendance table
+    const { data: newData, error: newError } = await supabase
+      .from('representative_attendance')
+      .select(`
+        *,
+        representatives!representative_attendance_representative_id_fkey (name, phone)
+      `)
       .order('check_in_time', { ascending: false });
-    if (error) return { data: null, error: error.message };
-    // Map representative info
-    const mapped = (data || []).map((row: any) => ({
-      ...row,
-      representative_name: row.representatives?.name || '',
-      representative_phone: row.representatives?.phone || ''
-    }));
+
+    if (!newError && newData) {
+      // Map representative info from the new table
+      const mapped = (newData || []).map((row: any) => ({
+        ...row,
+        representative_name: row.representatives?.name || '',
+        representative_phone: row.representatives?.phone || ''
+      }));
+      return { data: mapped, error: null };
+    }
+
+    // Fallback: try the old attendance table with manual join
+    console.log('⚠️ representative_attendance table not found, trying fallback approach');
+    
+    const { data: attendanceData, error: attendanceError } = await supabase
+      .from('attendance')
+      .select('*')
+      .order('check_in_time', { ascending: false });
+
+    if (attendanceError) {
+      return { data: null, error: attendanceError.message };
+    }
+
+    // Get representatives data separately
+    const { data: representativesData, error: representativesError } = await supabase
+      .from('representatives')
+      .select('id, name, phone');
+
+    if (representativesError) {
+      console.error('Error fetching representatives:', representativesError);
+      return { data: null, error: 'Failed to fetch representative information' };
+    }
+
+    // Manually join the data
+    const mapped = (attendanceData || []).map((row: any) => {
+      const representative = representativesData?.find(rep => rep.id === row.representative_id);
+      return {
+        ...row,
+        representative_name: representative?.name || '',
+        representative_phone: representative?.phone || ''
+      };
+    });
+
     return { data: mapped, error: null };
   } catch (err) {
+    console.error('Error in getAttendanceRecords:', err);
     return { data: null, error: 'An unexpected error occurred' };
   }
 }

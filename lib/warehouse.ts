@@ -688,6 +688,12 @@ export async function getRepresentatives(): Promise<Representative[]> {
     if (simpleError) {
       console.error('❌ Error fetching representatives (simple query):', simpleError);
       console.log('⚠️  Representatives table may not exist or have issues');
+      console.log('🔍 Error details:', {
+        code: simpleError.code,
+        message: simpleError.message,
+        details: simpleError.details,
+        hint: simpleError.hint
+      });
       return [];
     }
     

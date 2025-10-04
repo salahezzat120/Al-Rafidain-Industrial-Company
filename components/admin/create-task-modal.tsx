@@ -76,6 +76,7 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [lastSubmitTime, setLastSubmitTime] = useState(0)
   
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [isLoadingWarehouses, setIsLoadingWarehouses] = useState(false)
@@ -239,7 +240,7 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
     setFilteredProducts(filtered)
   }, [products, productSearchTerm, selectedWarehouse, warehouses])
 
-  // Handle product selection
+  // Handle product selection with duplicate prevention
   const handleAddProduct = (product: any) => {
     if (product.stock <= 0) {
       toast({
@@ -250,14 +251,18 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
       return
     }
 
+    // Prevent duplicate additions by checking if product is already being processed
     const existingProduct = selectedProducts.find(p => p.id === product.id)
     if (existingProduct) {
+      // If product exists, just increase quantity (don't add duplicate)
       setSelectedProducts(prev => prev.map(p => 
         p.id === product.id 
           ? { ...p, quantity: Math.min(p.quantity + 1, p.availableStock) }
           : p
       ))
+      console.log('📦 Product quantity increased:', product.product_name, 'New quantity:', existingProduct.quantity + 1)
     } else {
+      // Add new product only if it doesn't exist
       const newProduct: SelectedProduct = {
         id: product.id,
         name: product.product_name,
@@ -270,6 +275,7 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
         availableStock: product.stock
       }
       setSelectedProducts(prev => [...prev, newProduct])
+      console.log('📦 New product added:', product.product_name)
     }
   }
 
@@ -303,9 +309,28 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+      console.log('⚠️ Form submission already in progress, ignoring duplicate submission')
+      return
+    }
+
+    // Debounce protection - prevent rapid clicking
+    const now = Date.now()
+    if (now - lastSubmitTime < 2000) { // 2 second debounce
+      console.log('⚠️ Form submission too soon, please wait before submitting again')
+      toast({
+        title: "Please Wait",
+        description: "Please wait a moment before submitting again",
+        variant: "destructive",
+      })
+      return
+    }
+
     if (!validateForm()) return
 
     setIsSubmitting(true)
+    setLastSubmitTime(now)
 
     try {
       const selectedCustomer = customers.find((c) => c.id === formData.customerId)
@@ -965,26 +990,53 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
             </div>
           )}
 
+          {/* Selected Products Summary */}
+          {selectedProducts.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <ShoppingCart className="h-4 w-4" />
+                  Selected Products ({selectedProducts.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {selectedProducts.map((product) => (
+                    <div key={product.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <div className="flex-1">
+                        <div className="font-medium">{product.name}</div>
+                        <div className="text-sm text-gray-500">
+                          {product.code} • {product.quantity} {product.unit} • {product.price} IQD each
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium">{(product.price * product.quantity).toLocaleString()} IQD</div>
+                        <div className="text-sm text-gray-500">Qty: {product.quantity}</div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="border-t pt-2 mt-2">
+                    <div className="flex justify-between items-center font-bold text-lg">
+                      <span>Total Order Value:</span>
+                      <span className="text-green-600">{getTotalValue().toLocaleString()} IQD</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               {formData.representativeId !== "unassigned" ? t("task.taskWillBeAssigned") : t("task.taskWillBePending")}
-              {selectedProducts.length > 0 && (
-                <span className="block mt-1">
-                  Total order value: {getTotalValue().toLocaleString()} IQD
-                </span>
-              )}
+              <span className="block mt-2 text-sm text-blue-600">
+                💡 Add products to your order, then click "Create Task" when ready
+              </span>
             </AlertDescription>
           </Alert>
 
           <div className="flex justify-between">
-            <div className="flex gap-2">
-              {activeTab === "products" && (
-                <Button type="button" variant="outline" onClick={() => setActiveTab("details")}>
-                  ← Back to Details
-                </Button>
-              )}
-            </div>
             <div className="flex gap-3">
               <Button type="button" variant="outline" onClick={onClose}>
                 {t("common.cancel")}
@@ -995,10 +1047,18 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
                 </Button>
               )}
               {activeTab === "products" && (
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? t("task.creatingTask") : t("task.createTask")}
+                <Button type="button" variant="outline" onClick={() => setActiveTab("details")}>
+                  ← Back to Details
                 </Button>
               )}
+              <Button type="submit" disabled={isSubmitting} className={selectedProducts.length > 0 ? "bg-green-600 hover:bg-green-700" : ""}>
+                {isSubmitting ? t("task.creatingTask") : t("task.createTask")}
+                {selectedProducts.length > 0 && (
+                  <span className="ml-2 text-xs bg-white/20 px-2 py-1 rounded">
+                    {selectedProducts.length} products
+                  </span>
+                )}
+              </Button>
             </div>
           </div>
         </form>

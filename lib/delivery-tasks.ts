@@ -156,6 +156,22 @@ export async function createDeliveryTask(taskData: CreateDeliveryTaskData): Prom
     console.log('✅ All stock validations passed');
   }
 
+  // Check for duplicate tasks with same title and customer within last 5 minutes
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const { data: recentTasks, error: duplicateCheckError } = await supabase
+    .from('delivery_tasks')
+    .select('id, title, customer_id, created_at')
+    .eq('title', taskData.title)
+    .eq('customer_id', taskData.customer_id)
+    .gte('created_at', fiveMinutesAgo);
+
+  if (duplicateCheckError) {
+    console.error('❌ Error checking for duplicate tasks:', duplicateCheckError);
+  } else if (recentTasks && recentTasks.length > 0) {
+    console.log('⚠️ Potential duplicate task detected:', recentTasks);
+    throw new Error('A similar task was created recently. Please wait a moment before creating another task.');
+  }
+
   // Generate unique task ID
   const taskId = await generateTaskId();
 
