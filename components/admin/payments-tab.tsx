@@ -53,7 +53,7 @@ import {
   getPayments, 
   getPaymentStats, 
   deletePayment, 
-  markPaymentAsPaid,
+  markPaymentAsCompleted,
   generatePaymentId 
 } from '@/lib/payments'
 import AddPaymentModal from './add-payment-modal'
@@ -119,30 +119,28 @@ export default function PaymentsTab() {
   }, [selectedStatus, selectedMethod])
 
   const filteredPayments = payments.filter(payment =>
-    payment.payment_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.order_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.customer_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.payment_reference?.toLowerCase().includes(searchTerm.toLowerCase())
+    payment.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    payment.order_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    payment.payment_method.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    payment.notes?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'paid': return 'bg-green-100 text-green-800'
+      case 'completed': return 'bg-green-100 text-green-800'
       case 'pending': return 'bg-yellow-100 text-yellow-800'
-      case 'partial': return 'bg-blue-100 text-blue-800'
-      case 'overdue': return 'bg-red-100 text-red-800'
-      case 'cancelled': return 'bg-gray-100 text-gray-800'
+      case 'failed': return 'bg-red-100 text-red-800'
+      case 'refunded': return 'bg-blue-100 text-blue-800'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'paid': return <CheckCircle className="h-4 w-4" />
+      case 'completed': return <CheckCircle className="h-4 w-4" />
       case 'pending': return <Clock className="h-4 w-4" />
-      case 'partial': return <TrendingUp className="h-4 w-4" />
-      case 'overdue': return <AlertTriangle className="h-4 w-4" />
-      case 'cancelled': return <X className="h-4 w-4" />
+      case 'failed': return <AlertTriangle className="h-4 w-4" />
+      case 'refunded': return <TrendingDown className="h-4 w-4" />
       default: return <Clock className="h-4 w-4" />
     }
   }
@@ -185,20 +183,17 @@ export default function PaymentsTab() {
     }
   }
 
-  const handleMarkAsPaid = async (paymentId: string) => {
+  const handleMarkAsCompleted = async (paymentId: string) => {
     try {
-      const payment = payments.find(p => p.id === paymentId)
-      if (!payment) return
-
-      const { data, error } = await markPaymentAsPaid(paymentId, payment.due_amount)
+      const { data, error } = await markPaymentAsCompleted(paymentId)
       if (error) {
-        toast.error(`Failed to mark payment as paid: ${error}`)
+        toast.error(`Failed to mark payment as completed: ${error}`)
         return
       }
 
       if (data) {
         handleUpdatePayment(data)
-        toast.success('Payment marked as paid!')
+        toast.success('Payment marked as completed!')
       }
     } catch (err) {
       toast.error('An unexpected error occurred')
@@ -214,10 +209,6 @@ export default function PaymentsTab() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString()
-  }
-
-  const isOverdue = (dueDate: string, status: string) => {
-    return new Date(dueDate) < new Date() && status !== 'paid'
   }
 
   return (
@@ -254,45 +245,45 @@ export default function PaymentsTab() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Collected</CardTitle>
+              <CardTitle className="text-sm font-medium">Completed</CardTitle>
               <CheckCircle className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {formatCurrency(stats.totalPaid)}
+                {stats.completedPayments}
               </div>
               <p className="text-xs text-muted-foreground">
-                {stats.collectionRate.toFixed(1)}% collection rate
+                {stats.completionRate.toFixed(1)}% completion rate
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-orange-600" />
+              <CardTitle className="text-sm font-medium">Pending</CardTitle>
+              <Clock className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-600">
-                {formatCurrency(stats.totalOutstanding)}
+              <div className="text-2xl font-bold text-yellow-600">
+                {stats.pendingPayments}
               </div>
               <p className="text-xs text-muted-foreground">
-                {stats.overduePayments} overdue payments
+                Awaiting completion
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg. Payment Time</CardTitle>
-              <Clock className="h-4 w-4 text-blue-600" />
+              <CardTitle className="text-sm font-medium">Avg. Amount</CardTitle>
+              <TrendingUp className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-600">
-                {stats.averagePaymentTime.toFixed(0)} days
+                {formatCurrency(stats.averagePaymentAmount)}
               </div>
               <p className="text-xs text-muted-foreground">
-                From due date to collection
+                Per payment
               </p>
             </CardContent>
           </Card>
@@ -325,10 +316,9 @@ export default function PaymentsTab() {
             >
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
-              <option value="partial">Partial</option>
-              <option value="paid">Paid</option>
-              <option value="overdue">Overdue</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+              <option value="refunded">Refunded</option>
             </select>
 
             <select
@@ -365,27 +355,25 @@ export default function PaymentsTab() {
             <TableHeader>
               <TableRow>
                 <TableHead>Payment ID</TableHead>
-                <TableHead>Customer</TableHead>
                 <TableHead>Order ID</TableHead>
                 <TableHead>Amount</TableHead>
-                <TableHead>Paid</TableHead>
-                <TableHead>Outstanding</TableHead>
                 <TableHead>Method</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Due Date</TableHead>
+                <TableHead>Payment Date</TableHead>
+                <TableHead>Notes</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     Loading payments...
                   </TableCell>
                 </TableRow>
               ) : filteredPayments.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     No payments found
                   </TableCell>
                 </TableRow>
@@ -393,25 +381,10 @@ export default function PaymentsTab() {
                 filteredPayments.map((payment) => (
                   <TableRow key={payment.id}>
                     <TableCell className="font-medium">
-                      {payment.payment_id}
+                      {payment.id.slice(0, 8)}...
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src="/placeholder-user.jpg" />
-                          <AvatarFallback>
-                            {payment.customer_id.slice(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm">{payment.customer_id}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{payment.order_id || '-'}</TableCell>
+                    <TableCell>{payment.order_id}</TableCell>
                     <TableCell>{formatCurrency(payment.amount)}</TableCell>
-                    <TableCell>{formatCurrency(payment.paid_amount)}</TableCell>
-                    <TableCell className={payment.outstanding_balance > 0 ? 'text-orange-600 font-medium' : 'text-green-600'}>
-                      {formatCurrency(payment.outstanding_balance)}
-                    </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-1">
                         {getMethodIcon(payment.payment_method)}
@@ -419,15 +392,16 @@ export default function PaymentsTab() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge className={getStatusColor(payment.payment_status)}>
+                      <Badge className={getStatusColor(payment.status)}>
                         <div className="flex items-center space-x-1">
-                          {getStatusIcon(payment.payment_status)}
-                          <span className="capitalize">{payment.payment_status}</span>
+                          {getStatusIcon(payment.status)}
+                          <span className="capitalize">{payment.status}</span>
                         </div>
                       </Badge>
                     </TableCell>
-                    <TableCell className={isOverdue(payment.due_date, payment.payment_status) ? 'text-red-600 font-medium' : ''}>
-                      {formatDate(payment.due_date)}
+                    <TableCell>{formatDate(payment.payment_date)}</TableCell>
+                    <TableCell className="max-w-[200px] truncate">
+                      {payment.notes || '-'}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -451,10 +425,10 @@ export default function PaymentsTab() {
                             <Edit className="h-4 w-4 mr-2" />
                             Edit Payment
                           </DropdownMenuItem>
-                          {payment.payment_status !== 'paid' && (
-                            <DropdownMenuItem onClick={() => handleMarkAsPaid(payment.id)}>
+                          {payment.status !== 'completed' && (
+                            <DropdownMenuItem onClick={() => handleMarkAsCompleted(payment.id)}>
                               <CheckCircle className="h-4 w-4 mr-2" />
-                              Mark as Paid
+                              Mark as Completed
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem 

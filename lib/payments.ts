@@ -53,16 +53,16 @@ export const getPayments = async (filters?: PaymentFilters): Promise<{ data: Pay
 
     if (filters) {
       if (filters.status) {
-        query = query.eq('payment_status', filters.status)
+        query = query.eq('status', filters.status)
       }
       if (filters.payment_method) {
         query = query.eq('payment_method', filters.payment_method)
       }
-      if (filters.customer_id) {
-        query = query.eq('customer_id', filters.customer_id)
+      if (filters.order_id) {
+        query = query.eq('order_id', filters.order_id)
       }
       if (filters.date_range) {
-        query = query.gte('due_date', filters.date_range.start).lte('due_date', filters.date_range.end)
+        query = query.gte('payment_date', filters.date_range.start).lte('payment_date', filters.date_range.end)
       }
       if (filters.amount_range) {
         query = query.gte('amount', filters.amount_range.min).lte('amount', filters.amount_range.max)
@@ -257,38 +257,37 @@ export const getPaymentStats = async (): Promise<{ data: PaymentStats | null; er
       return { data: null, error: error.message || 'Failed to fetch payment statistics' }
     }
 
-    if (!payments) {
-      return { data: null, error: 'No payments found' }
+    if (!payments || payments.length === 0) {
+      return { 
+        data: {
+          totalPayments: 0,
+          totalAmount: 0,
+          completedPayments: 0,
+          pendingPayments: 0,
+          failedPayments: 0,
+          refundedPayments: 0,
+          averagePaymentAmount: 0,
+          completionRate: 0
+        }, 
+        error: null 
+      }
     }
+
+    const totalAmount = payments.reduce((sum, payment) => sum + payment.amount, 0)
+    const completedPayments = payments.filter(p => p.status === 'completed').length
+    const pendingPayments = payments.filter(p => p.status === 'pending').length
+    const failedPayments = payments.filter(p => p.status === 'failed').length
+    const refundedPayments = payments.filter(p => p.status === 'refunded').length
 
     const stats: PaymentStats = {
       totalPayments: payments.length,
-      totalAmount: payments.reduce((sum, payment) => sum + payment.amount, 0),
-      totalPaid: payments.reduce((sum, payment) => sum + payment.paid_amount, 0),
-      totalOutstanding: payments.reduce((sum, payment) => sum + payment.outstanding_balance, 0),
-      pendingPayments: payments.filter(p => p.payment_status === 'pending').length,
-      partialPayments: payments.filter(p => p.payment_status === 'partial').length,
-      paidPayments: payments.filter(p => p.payment_status === 'paid').length,
-      overduePayments: payments.filter(p => p.payment_status === 'overdue').length,
-      averagePaymentTime: 0, // Calculate based on collection_date - due_date
-      collectionRate: 0 // Calculate as totalPaid / totalAmount
-    }
-
-    // Calculate average payment time
-    const paidPayments = payments.filter(p => p.payment_status === 'paid' && p.collection_date)
-    if (paidPayments.length > 0) {
-      const totalDays = paidPayments.reduce((sum, payment) => {
-        const dueDate = new Date(payment.due_date)
-        const collectionDate = new Date(payment.collection_date!)
-        const daysDiff = Math.ceil((collectionDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
-        return sum + daysDiff
-      }, 0)
-      stats.averagePaymentTime = totalDays / paidPayments.length
-    }
-
-    // Calculate collection rate
-    if (stats.totalAmount > 0) {
-      stats.collectionRate = (stats.totalPaid / stats.totalAmount) * 100
+      totalAmount,
+      completedPayments,
+      pendingPayments,
+      failedPayments,
+      refundedPayments,
+      averagePaymentAmount: totalAmount / payments.length,
+      completionRate: payments.length > 0 ? (completedPayments / payments.length) * 100 : 0
     }
 
     return { data: stats, error: null }
@@ -344,18 +343,16 @@ export const getCustomerPaymentSummary = async (customerId?: string): Promise<{ 
 }
 
 // Utility functions
-export const markPaymentAsPaid = async (paymentId: string, paidAmount: number, collectionDate?: string): Promise<{ data: Payment | null; error: string | null }> => {
+export const markPaymentAsCompleted = async (paymentId: string): Promise<{ data: Payment | null; error: string | null }> => {
   try {
     const updates: UpdatePaymentData = {
       id: paymentId,
-      paid_amount: paidAmount,
-      collection_date: collectionDate || new Date().toISOString().split('T')[0],
-      updated_by: 'current_user' // You might want to get this from auth context
+      status: 'completed'
     }
 
     return await updatePayment(paymentId, updates)
   } catch (err) {
-    console.error('Unexpected error marking payment as paid:', err)
+    console.error('Unexpected error marking payment as completed:', err)
     return { data: null, error: 'An unexpected error occurred' }
   }
 }

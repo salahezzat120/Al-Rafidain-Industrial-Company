@@ -15,6 +15,40 @@ import type {
 
 // ==================== DELIVERY TASKS ====================
 
+// Get delivery tasks by customer ID
+export async function getDeliveryTasksByCustomerId(customerId: string): Promise<{ data: DeliveryTask[] | null; error: string | null }> {
+  try {
+    console.log('🔍 Fetching delivery tasks for customer:', customerId);
+    
+    const { data, error } = await supabase
+      .from('delivery_tasks')
+      .select(`
+        id,
+        task_id,
+        title,
+        description,
+        status,
+        priority,
+        total_value,
+        currency,
+        scheduled_for,
+        created_at
+      `)
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching delivery tasks by customer ID:', error);
+      return { data: null, error: error.message || 'Failed to fetch delivery tasks' };
+    }
+
+    return { data: data || [], error: null };
+  } catch (err) {
+    console.error('Unexpected error fetching delivery tasks by customer ID:', err);
+    return { data: null, error: 'An unexpected error occurred' };
+  }
+}
+
 export async function getDeliveryTasks(filters?: DeliveryTaskFilters): Promise<DeliveryTask[]> {
   try {
     console.log('🔍 Fetching delivery tasks...');

@@ -1,20 +1,11 @@
 export interface Payment {
   id: string
-  payment_id: string
-  customer_id: string
-  order_id?: string
+  order_id: string
+  payment_method: string
   amount: number
-  due_amount: number
-  paid_amount: number
-  outstanding_balance: number
-  payment_method: 'cash' | 'card' | 'transfer' | 'check' | 'other'
-  payment_status: 'pending' | 'partial' | 'paid' | 'overdue' | 'cancelled'
-  due_date: string
-  collection_date?: string
-  payment_reference?: string
+  payment_date: string
+  status: 'pending' | 'completed' | 'failed' | 'refunded'
   notes?: string
-  created_by?: string
-  updated_by?: string
   created_at: string
   updated_at: string
 }
@@ -47,16 +38,11 @@ export interface PaymentMethod {
 }
 
 export interface CreatePaymentData {
-  payment_id?: string
-  customer_id: string
-  order_id?: string
+  order_id: string
+  payment_method: string
   amount: number
-  due_amount: number
-  paid_amount?: number
-  payment_method: 'cash' | 'card' | 'transfer' | 'check' | 'other'
-  due_date: string
-  collection_date?: string
-  payment_reference?: string
+  payment_date: string
+  status?: 'pending' | 'completed' | 'failed' | 'refunded'
   notes?: string
 }
 
@@ -97,14 +83,12 @@ export interface UpdatePaymentMethodData extends Partial<CreatePaymentMethodData
 export interface PaymentStats {
   totalPayments: number
   totalAmount: number
-  totalPaid: number
-  totalOutstanding: number
+  completedPayments: number
   pendingPayments: number
-  partialPayments: number
-  paidPayments: number
-  overduePayments: number
-  averagePaymentTime: number
-  collectionRate: number
+  failedPayments: number
+  refundedPayments: number
+  averagePaymentAmount: number
+  completionRate: number
 }
 
 export interface PaymentAnalytics {
@@ -131,13 +115,13 @@ export interface CustomerPaymentSummary {
 }
 
 export interface PaymentFilters {
-  status?: string
+  status?: 'pending' | 'completed' | 'failed' | 'refunded'
   payment_method?: string
   date_range?: {
     start: string
     end: string
   }
-  customer_id?: string
+  order_id?: string
   amount_range?: {
     min: number
     max: number

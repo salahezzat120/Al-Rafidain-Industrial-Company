@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,11 +18,14 @@ import {
   User,
   FileText,
   Building,
-  CheckCircle
+  CheckCircle,
+  Package
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Payment, CreatePaymentData } from '@/types/payments'
-import { createPayment, generatePaymentId } from '@/lib/payments'
+import { createPayment } from '@/lib/payments'
+import { getCustomers, type Customer } from '@/lib/customers'
+import { getDeliveryTasksByCustomerId, type DeliveryTask } from '@/lib/delivery-tasks'
 
 interface AddPaymentModalProps {
   open: boolean
@@ -33,38 +36,78 @@ interface AddPaymentModalProps {
 export default function AddPaymentModal({ open, onOpenChange, onAdd }: AddPaymentModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [deliveryTasks, setDeliveryTasks] = useState<DeliveryTask[]>([])
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [loadingCustomers, setLoadingCustomers] = useState(false)
+  const [loadingTasks, setLoadingTasks] = useState(false)
 
   const [formData, setFormData] = useState<CreatePaymentData>({
-    payment_id: '',
-    customer_id: '',
     order_id: '',
-    amount: 0,
-    due_amount: 0,
-    paid_amount: 0,
     payment_method: 'cash',
-    due_date: '',
-    collection_date: '',
-    payment_reference: '',
+    amount: 0,
+    payment_date: new Date().toISOString().split('T')[0],
+    status: 'pending',
     notes: ''
   })
+
+  // Load customers on component mount
+  useEffect(() => {
+    if (open) {
+      loadCustomers()
+    }
+  }, [open])
+
+  // Load delivery tasks when customer is selected
+  useEffect(() => {
+    if (selectedCustomer) {
+      loadDeliveryTasks(selectedCustomer.id)
+    } else {
+      setDeliveryTasks([])
+      setFormData(prev => ({ ...prev, order_id: '' }))
+    }
+  }, [selectedCustomer])
+
+  const loadCustomers = async () => {
+    try {
+      setLoadingCustomers(true)
+      const { data, error } = await getCustomers()
+      if (error) {
+        toast.error(`Failed to load customers: ${error}`)
+        return
+      }
+      setCustomers(data || [])
+    } catch (err) {
+      toast.error('An unexpected error occurred while loading customers')
+    } finally {
+      setLoadingCustomers(false)
+    }
+  }
+
+  const loadDeliveryTasks = async (customerId: string) => {
+    try {
+      setLoadingTasks(true)
+      const { data, error } = await getDeliveryTasksByCustomerId(customerId)
+      if (error) {
+        toast.error(`Failed to load delivery tasks: ${error}`)
+        return
+      }
+      setDeliveryTasks(data || [])
+    } catch (err) {
+      toast.error('An unexpected error occurred while loading delivery tasks')
+    } finally {
+      setLoadingTasks(false)
+    }
+  }
 
   const validateForm = (): boolean => {
     const newErrors: { [key: string]: string } = {}
 
-    console.log('Validating form data:', formData)
-
-    if (!formData.payment_id || !formData.payment_id.trim()) newErrors.payment_id = 'Payment ID is required'
-    if (!formData.customer_id || !formData.customer_id.trim()) newErrors.customer_id = 'Customer ID is required'
-    else if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(formData.customer_id)) {
-      newErrors.customer_id = 'Customer ID must be a valid UUID format'
-    }
+    if (!selectedCustomer) newErrors.customer = 'Please select a customer'
+    if (!formData.order_id || !formData.order_id.trim()) newErrors.order_id = 'Please select an order'
     if (!formData.amount || formData.amount <= 0) newErrors.amount = 'Amount must be greater than 0'
-    if (!formData.due_amount || formData.due_amount <= 0) newErrors.due_amount = 'Due amount must be greater than 0'
-    if (!formData.due_date || !formData.due_date.trim()) newErrors.due_date = 'Due date is required'
-    if (formData.paid_amount < 0) newErrors.paid_amount = 'Paid amount cannot be negative'
-    if (formData.paid_amount > formData.due_amount) newErrors.paid_amount = 'Paid amount cannot exceed due amount'
+    if (!formData.payment_date || !formData.payment_date.trim()) newErrors.payment_date = 'Payment date is required'
 
-    console.log('Validation errors:', newErrors)
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -75,53 +118,25 @@ export default function AddPaymentModal({ open, onOpenChange, onAdd }: AddPaymen
 
     setIsSubmitting(true)
     try {
-      console.log('Form data being submitted:', formData)
-      console.log('Form data type check:', {
-        customer_id_type: typeof formData.customer_id,
-        amount_type: typeof formData.amount,
-        due_amount_type: typeof formData.due_amount,
-        paid_amount_type: typeof formData.paid_amount,
-        due_date_type: typeof formData.due_date
-      })
-      
-      // Ensure all required fields are properly formatted
-      const paymentData = {
-        ...formData,
-        customer_id: formData.customer_id.trim(),
-        payment_id: formData.payment_id.trim(),
+      const paymentData: CreatePaymentData = {
+        order_id: formData.order_id,
+        payment_method: formData.payment_method,
         amount: Number(formData.amount),
-        due_amount: Number(formData.due_amount),
-        paid_amount: Number(formData.paid_amount || 0),
-        due_date: formData.due_date.trim()
+        payment_date: formData.payment_date,
+        status: formData.status,
+        notes: formData.notes
       }
-      
-      console.log('Processed payment data:', paymentData)
       
       const { data: newPayment, error } = await createPayment(paymentData)
       if (error) {
-        console.error('Error from createPayment:', error)
         toast.error(`Failed to create payment: ${error}`)
         return
       }
 
       if (newPayment) {
-        console.log('Payment created successfully:', newPayment)
         onAdd(newPayment)
         onOpenChange(false)
-        setFormData({
-          payment_id: '',
-          customer_id: '',
-          order_id: '',
-          amount: 0,
-          due_amount: 0,
-          paid_amount: 0,
-          payment_method: 'cash',
-          due_date: '',
-          collection_date: '',
-          payment_reference: '',
-          notes: ''
-        })
-        setErrors({})
+        resetForm()
         toast.success('Payment added successfully!')
       }
     } catch (err) {
@@ -132,28 +147,27 @@ export default function AddPaymentModal({ open, onOpenChange, onAdd }: AddPaymen
     }
   }
 
-  const generatePaymentIdHandler = async () => {
-    try {
-      const newId = await generatePaymentId()
-      setFormData(prev => ({ ...prev, payment_id: newId }))
-    } catch (err) {
-      console.error('Error generating payment ID:', err)
-    }
-  }
-
-  const generateCustomerId = () => {
-    // Generate a proper UUID v4 format
-    const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0
-      const v = c === 'x' ? r : (r & 0x3 | 0x8)
-      return v.toString(16)
+  const resetForm = () => {
+    setFormData({
+      order_id: '',
+      payment_method: 'cash',
+      amount: 0,
+      payment_date: new Date().toISOString().split('T')[0],
+      status: 'pending',
+      notes: ''
     })
-    setFormData(prev => ({ ...prev, customer_id: uuid }))
+    setSelectedCustomer(null)
+    setDeliveryTasks([])
+    setErrors({})
   }
 
-  const handleAmountChange = (field: 'amount' | 'due_amount' | 'paid_amount', value: string) => {
-    const numValue = value ? Number(value) : 0
-    setFormData(prev => ({ ...prev, [field]: numValue }))
+  const handleCustomerChange = (customerId: string) => {
+    const customer = customers.find(c => c.id === customerId)
+    setSelectedCustomer(customer || null)
+  }
+
+  const handleOrderChange = (orderId: string) => {
+    setFormData(prev => ({ ...prev, order_id: orderId }))
   }
 
   return (
@@ -170,99 +184,179 @@ export default function AddPaymentModal({ open, onOpenChange, onAdd }: AddPaymen
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Payment Information */}
+          {/* Customer Selection */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-blue-600" />
-                Payment Information
+                <User className="h-5 w-5 text-blue-600" />
+                Customer Selection
               </CardTitle>
-              <CardDescription>Basic payment details and identification</CardDescription>
+              <CardDescription>Select the customer for this payment</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="payment_id">Payment ID *</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="payment_id"
-                      value={formData.payment_id || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, payment_id: e.target.value }))}
-                      placeholder="PAY20241201-0001"
-                      className={errors.payment_id ? 'border-red-500' : ''}
-                    />
-                    <Button type="button" variant="outline" onClick={generatePaymentIdHandler}>
-                      Generate
-                    </Button>
-                  </div>
-                  {errors.payment_id && (
-                    <Alert variant="destructive" className="py-2">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{errors.payment_id}</AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="order_id">Order ID</Label>
-                  <Input
-                    id="order_id"
-                    value={formData.order_id || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, order_id: e.target.value }))}
-                    placeholder="ORD-001"
-                  />
-                </div>
-              </div>
-
               <div className="space-y-2">
-                <Label htmlFor="customer_id">Customer ID *</Label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="customer_id"
-                      value={formData.customer_id || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, customer_id: e.target.value }))}
-                      placeholder="550e8400-e29b-41d4-a716-446655440000"
-                      className={`pl-10 ${errors.customer_id ? 'border-red-500' : ''}`}
-                    />
-                  </div>
-                  <Button type="button" variant="outline" onClick={generateCustomerId}>
-                    Generate UUID
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Must be a valid UUID format (e.g., 550e8400-e29b-41d4-a716-446655440000)
-                </p>
-                {errors.customer_id && (
+                <Label htmlFor="customer">Customer *</Label>
+                <Select 
+                  value={selectedCustomer?.id || ''} 
+                  onValueChange={handleCustomerChange}
+                  disabled={loadingCustomers}
+                >
+                  <SelectTrigger className={errors.customer ? 'border-red-500' : ''}>
+                    <SelectValue placeholder={loadingCustomers ? "Loading customers..." : "Select a customer"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          <span>{customer.name}</span>
+                          <span className="text-sm text-muted-foreground">({customer.customer_id})</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.customer && (
                   <Alert variant="destructive" className="py-2">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{errors.customer_id}</AlertDescription>
+                    <AlertDescription>{errors.customer}</AlertDescription>
                   </Alert>
                 )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Financial Details */}
+          {/* Order Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-green-600" />
+                Order Selection
+              </CardTitle>
+              <CardDescription>Select the delivery task/order for this payment</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="order">Order *</Label>
+                <Select 
+                  value={formData.order_id} 
+                  onValueChange={handleOrderChange}
+                  disabled={!selectedCustomer || loadingTasks}
+                >
+                  <SelectTrigger className={errors.order_id ? 'border-red-500' : ''}>
+                    <SelectValue placeholder={
+                      !selectedCustomer 
+                        ? "Please select a customer first" 
+                        : loadingTasks 
+                          ? "Loading orders..." 
+                          : deliveryTasks.length === 0 
+                            ? "No orders found for this customer"
+                            : "Select an order"
+                    }>
+                      {formData.order_id && (() => {
+                        const selectedTask = deliveryTasks.find(task => task.id === formData.order_id)
+                        return selectedTask ? (
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex flex-col items-start">
+                              <span className="font-medium text-sm">{selectedTask.title}</span>
+                              <span className="text-xs text-gray-500">{selectedTask.task_id}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                                {selectedTask.status.toUpperCase()}
+                              </span>
+                              <span className="text-sm font-semibold text-green-600">
+                                {selectedTask.total_value} {selectedTask.currency || 'IQD'}
+                              </span>
+                            </div>
+                          </div>
+                        ) : null
+                      })()}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {deliveryTasks.map((task) => (
+                      <SelectItem key={task.id} value={task.id}>
+                        <div className="flex flex-col w-full">
+                          <div className="flex items-center justify-between w-full">
+                            <span className="font-medium text-base">{task.title}</span>
+                            <span className="text-sm font-semibold text-green-600">
+                              {task.total_value} {task.currency || 'IQD'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-sm text-gray-600 font-mono">{task.task_id}</span>
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              task.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              task.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                              task.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {task.status.replace('_', ' ').toUpperCase()}
+                            </span>
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              task.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                              task.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                              task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {task.priority.toUpperCase()}
+                            </span>
+                          </div>
+                          {task.description && (
+                            <span className="text-xs text-gray-500 mt-1 line-clamp-2">
+                              {task.description}
+                            </span>
+                          )}
+                          {task.scheduled_for && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <Calendar className="h-3 w-3 text-blue-500" />
+                              <span className="text-xs text-blue-600 font-medium">
+                                Scheduled: {new Date(task.scheduled_for).toLocaleDateString('en-US', {
+                                  weekday: 'short',
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.order_id && (
+                  <Alert variant="destructive" className="py-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{errors.order_id}</AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Payment Details */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <DollarSign className="h-5 w-5 text-green-600" />
-                Financial Details
+                Payment Details
               </CardTitle>
-              <CardDescription>Payment amounts and financial information</CardDescription>
+              <CardDescription>Payment amount, method, and status</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="amount">Total Amount *</Label>
+                  <Label htmlFor="amount">Amount *</Label>
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       id="amount"
                       type="number"
                       value={formData.amount || ''}
-                      onChange={(e) => handleAmountChange('amount', e.target.value)}
+                      onChange={(e) => setFormData(prev => ({ ...prev, amount: Number(e.target.value) }))}
                       placeholder="1000.00"
                       className={`pl-10 ${errors.amount ? 'border-red-500' : ''}`}
                       step="0.01"
@@ -277,57 +371,10 @@ export default function AddPaymentModal({ open, onOpenChange, onAdd }: AddPaymen
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="due_amount">Due Amount *</Label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="due_amount"
-                      type="number"
-                      value={formData.due_amount || ''}
-                      onChange={(e) => handleAmountChange('due_amount', e.target.value)}
-                      placeholder="1000.00"
-                      className={`pl-10 ${errors.due_amount ? 'border-red-500' : ''}`}
-                      step="0.01"
-                      min="0"
-                    />
-                  </div>
-                  {errors.due_amount && (
-                    <Alert variant="destructive" className="py-2">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{errors.due_amount}</AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="paid_amount">Paid Amount</Label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="paid_amount"
-                      type="number"
-                      value={formData.paid_amount || ''}
-                      onChange={(e) => handleAmountChange('paid_amount', e.target.value)}
-                      placeholder="0.00"
-                      className={`pl-10 ${errors.paid_amount ? 'border-red-500' : ''}`}
-                      step="0.01"
-                      min="0"
-                    />
-                  </div>
-                  {errors.paid_amount && (
-                    <Alert variant="destructive" className="py-2">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{errors.paid_amount}</AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
                   <Label htmlFor="payment_method">Payment Method *</Label>
                   <Select 
                     value={formData.payment_method} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, payment_method: value as any }))}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, payment_method: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select payment method" />
@@ -366,61 +413,64 @@ export default function AddPaymentModal({ open, onOpenChange, onAdd }: AddPaymen
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="payment_reference">Payment Reference</Label>
-                  <Input
-                    id="payment_reference"
-                    value={formData.payment_reference || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, payment_reference: e.target.value }))}
-                    placeholder="Transaction ID or reference"
-                  />
-                </div>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Dates */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-purple-600" />
-                Important Dates
-              </CardTitle>
-              <CardDescription>Payment due date and collection information</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="due_date">Due Date *</Label>
+                  <Label htmlFor="payment_date">Payment Date *</Label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
-                      id="due_date"
+                      id="payment_date"
                       type="date"
-                      value={formData.due_date || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
-                      className={`pl-10 ${errors.due_date ? 'border-red-500' : ''}`}
+                      value={formData.payment_date}
+                      onChange={(e) => setFormData(prev => ({ ...prev, payment_date: e.target.value }))}
+                      className={`pl-10 ${errors.payment_date ? 'border-red-500' : ''}`}
                     />
                   </div>
-                  {errors.due_date && (
+                  {errors.payment_date && (
                     <Alert variant="destructive" className="py-2">
                       <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{errors.due_date}</AlertDescription>
+                      <AlertDescription>{errors.payment_date}</AlertDescription>
                     </Alert>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="collection_date">Collection Date</Label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="collection_date"
-                      type="date"
-                      value={formData.collection_date || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, collection_date: e.target.value }))}
-                      className="pl-10"
-                    />
-                  </div>
+                  <Label htmlFor="status">Status *</Label>
+                  <Select 
+                    value={formData.status} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as any }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4" />
+                          Pending
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="completed">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="h-4 w-4" />
+                          Completed
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="failed">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4" />
+                          Failed
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="refunded">
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4" />
+                          Refunded
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardContent>
