@@ -1,723 +1,760 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { User, Star, Package, Clock, MapPin, Save, X, DollarSign, TrendingUp, Navigation, CheckCircle, XCircle, Calendar, Loader2, AlertCircle } from "lucide-react"
-import { updateCustomer, Customer as SupabaseCustomer } from "@/lib/customers"
-import { useToast } from "@/hooks/use-toast"
-
-interface Customer {
-  id: string
-  customer_id: string
-  name: string
-  email: string
-  phone: string
-  address: string
-  status: 'active' | 'vip' | 'inactive'
-  total_orders: number
-  total_spent: number
-  last_order_date?: string
-  rating: number
-  preferred_delivery_time: string
-  avatar_url?: string
-  join_date?: string
-  notes?: string
-  // GPS/Geolocation fields
-  latitude?: number
-  longitude?: number
-  // Visit tracking fields
-  visit_status: 'visited' | 'not_visited'
-  last_visit_date?: string
-  visit_notes?: string
-  created_at?: string
-  updated_at?: string
-}
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { 
+  User, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  Calendar, 
+  Star, 
+  MessageSquare, 
+  AlertTriangle, 
+  Wrench, 
+  Shield,
+  Clock,
+  TrendingUp,
+  History,
+  Settings,
+  Edit,
+  Send,
+  CheckCircle,
+  XCircle
+} from "lucide-react"
+import { useLanguage } from "@/contexts/language-context"
+import type { 
+  CustomerInquiry, 
+  Complaint, 
+  MaintenanceRequest, 
+  Warranty, 
+  FollowUpService 
+} from "@/types/after-sales"
 
 interface CustomerProfileModalProps {
-  customer: Customer | null
   isOpen: boolean
   onClose: () => void
-  onSave: (customer: Customer) => void
+  customerId: string
+  customerName: string
+  customerEmail: string
+  customerPhone?: string
 }
 
-export function CustomerProfileModal({ customer, isOpen, onClose, onSave }: CustomerProfileModalProps) {
-  const [editedCustomer, setEditedCustomer] = useState<Customer | null>(customer)
-  const [isEditing, setIsEditing] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const { toast } = useToast()
+interface CustomerProfile {
+  id: string
+  name: string
+  email: string
+  phone?: string
+  address?: string
+  company?: string
+  joinDate: string
+  totalOrders: number
+  totalSpent: number
+  satisfactionRating: number
+  preferredLanguage: string
+  communicationPreference: string
+  lastContact: string
+  status: 'active' | 'inactive' | 'vip' | 'blocked'
+  tags: string[]
+  notes: string
+}
 
-  // Update editedCustomer when customer prop changes
+export function CustomerProfileModal({ 
+  isOpen, 
+  onClose, 
+  customerId, 
+  customerName, 
+  customerEmail, 
+  customerPhone 
+}: CustomerProfileModalProps) {
+  const { t } = useLanguage()
+  const [activeTab, setActiveTab] = useState("overview")
+  const [loading, setLoading] = useState(false)
+  
+  // Customer profile data
+  const [profile, setProfile] = useState<CustomerProfile | null>(null)
+  
+  // Customer history data
+  const [inquiries, setInquiries] = useState<CustomerInquiry[]>([])
+  const [complaints, setComplaints] = useState<Complaint[]>([])
+  const [maintenanceRequests, setMaintenanceRequests] = useState<MaintenanceRequest[]>([])
+  const [warranties, setWarranties] = useState<Warranty[]>([])
+  const [followUpServices, setFollowUpServices] = useState<FollowUpService[]>([])
+  
+  // Quick actions
+  const [isEditingProfile, setIsEditingProfile] = useState(false)
+  const [isSendingMessage, setIsSendingMessage] = useState(false)
+  const [newMessage, setNewMessage] = useState("")
+
   useEffect(() => {
-    if (customer) {
-      setEditedCustomer(customer)
+    if (isOpen && customerId) {
+      loadCustomerProfile()
     }
-  }, [customer])
+  }, [isOpen, customerId])
 
-  if (!customer || !editedCustomer) return null
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {}
-
-    if (!editedCustomer.name.trim()) {
-      newErrors.name = "Name is required"
-    }
-    if (!editedCustomer.email.trim()) {
-      newErrors.email = "Email is required"
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editedCustomer.email)) {
-      newErrors.email = "Please enter a valid email"
-    }
-    if (!editedCustomer.phone.trim()) {
-      newErrors.phone = "Phone is required"
-    }
-    if (!editedCustomer.address.trim()) {
-      newErrors.address = "Address is required"
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
-
-  const handleSave = async () => {
-    if (!validateForm()) {
-      toast({
-        title: "Validation Error",
-        description: "Please fix the errors before saving",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsSaving(true)
+  const loadCustomerProfile = async () => {
+    setLoading(true)
     try {
-      const updateData = {
-        id: editedCustomer.id,
-        name: editedCustomer.name,
-        email: editedCustomer.email,
-        phone: editedCustomer.phone,
-        address: editedCustomer.address,
-        status: editedCustomer.status,
-        preferred_delivery_time: editedCustomer.preferred_delivery_time,
-        notes: editedCustomer.notes,
-        latitude: editedCustomer.latitude || undefined,
-        longitude: editedCustomer.longitude || undefined,
-        visit_status: editedCustomer.visit_status,
-        last_visit_date: editedCustomer.last_visit_date || undefined,
-        visit_notes: editedCustomer.visit_notes,
+      // Load customer profile data
+      const mockProfile: CustomerProfile = {
+        id: customerId,
+        name: customerName,
+        email: customerEmail,
+        phone: customerPhone,
+        address: "الرياض، المملكة العربية السعودية",
+        company: "شركة الصناعات البلاستيكية",
+        joinDate: "2023-01-15",
+        totalOrders: 24,
+        totalSpent: 125000,
+        satisfactionRating: 4.2,
+        preferredLanguage: "العربية",
+        communicationPreference: "هاتف",
+        lastContact: "2024-01-15",
+        status: 'active',
+        tags: ["VIP", "مؤسسة", "صيانة دورية"],
+        notes: "عميل مميز، يفضل التواصل بالهاتف، يحتاج متابعة دورية"
       }
+      setProfile(mockProfile)
 
-      const { data, error } = await updateCustomer(updateData)
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: `Failed to update customer: ${error}`,
-          variant: "destructive",
-        })
-        return
-      }
-
-      if (data) {
-        // Update the local state with the returned data
-        const updatedCustomer = data as Customer
-        setEditedCustomer(updatedCustomer)
-        onSave(updatedCustomer)
-        setIsEditing(false)
-        setErrors({})
-        toast({
-          title: "Success",
-          description: "Customer updated successfully!",
-        })
-      }
-    } catch (err) {
-      console.error('Unexpected error updating customer:', err)
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive",
-      })
+      // Load customer history
+      await Promise.all([
+        loadCustomerInquiries(),
+        loadCustomerComplaints(),
+        loadCustomerMaintenance(),
+        loadCustomerWarranties(),
+        loadCustomerFollowUps()
+      ])
+    } catch (error) {
+      console.error('Error loading customer profile:', error)
     } finally {
-      setIsSaving(false)
+      setLoading(false)
     }
   }
 
-  const handleCancel = () => {
-    setEditedCustomer(customer)
-    setIsEditing(false)
-    setErrors({})
+  const loadCustomerInquiries = async () => {
+    try {
+      // Mock data for demonstration
+      const mockInquiries: CustomerInquiry[] = [
+        {
+          id: "inq_001",
+          customer_id: customerId,
+          customer_name: customerName,
+          customer_email: customerEmail,
+          customer_phone: customerPhone,
+          inquiry_type: "technical",
+          subject: "استفسار حول تشغيل الجهاز",
+          description: "أحتاج مساعدة في تشغيل الجهاز الجديد",
+          priority: "medium",
+          status: "resolved",
+          created_at: "2024-01-10T10:00:00Z",
+          updated_at: "2024-01-10T15:00:00Z",
+          resolved_at: "2024-01-10T15:00:00Z",
+          customer_satisfaction_rating: 5,
+          tags: ["تقني", "جهاز جديد"]
+        }
+      ]
+      setInquiries(mockInquiries)
+    } catch (error) {
+      console.error('Error loading customer inquiries:', error)
+    }
   }
 
-  const recentOrders = [
-    {
-      id: "ORD001",
-      date: "2024-01-15",
-      items: "Electronics Package",
-      amount: 299.99,
-      status: "delivered",
-      representative: "Mike Johnson",
-    },
-    {
-      id: "ORD002",
-      date: "2024-01-10",
-      items: "Home Appliances",
-      amount: 156.5,
-      status: "delivered",
-      representative: "Sarah Wilson",
-    },
-    {
-      id: "ORD003",
-      date: "2024-01-05",
-      items: "Books & Stationery",
-      amount: 89.25,
-      status: "delivered",
-      representative: "David Chen",
-    },
-  ]
+  const loadCustomerComplaints = async () => {
+    try {
+      // Mock data for demonstration
+      const mockComplaints: Complaint[] = [
+        {
+          id: "comp_001",
+          customer_id: customerId,
+          customer_name: customerName,
+          customer_email: customerEmail,
+          customer_phone: customerPhone,
+          complaint_type: "delivery_issue",
+          subject: "تأخير في التسليم",
+          description: "الطلب تأخر عن الموعد المحدد",
+          severity: "medium",
+          status: "resolved",
+          created_at: "2024-01-05T09:00:00Z",
+          updated_at: "2024-01-05T14:00:00Z",
+          resolved_at: "2024-01-05T14:00:00Z",
+          customer_satisfaction_rating: 4,
+          escalation_level: 0
+        }
+      ]
+      setComplaints(mockComplaints)
+    } catch (error) {
+      console.error('Error loading customer complaints:', error)
+    }
+  }
 
-  const monthlyStats = [
-    { month: "Jan", orders: 8, spent: 1240.5 },
-    { month: "Dec", orders: 12, spent: 1890.75 },
-    { month: "Nov", orders: 6, spent: 780.25 },
-    { month: "Oct", orders: 10, spent: 1456.0 },
-  ]
+  const loadCustomerMaintenance = async () => {
+    try {
+      // Mock data for demonstration
+      const mockMaintenance: MaintenanceRequest[] = [
+        {
+          id: "maint_001",
+          customer_id: customerId,
+          customer_name: customerName,
+          customer_email: customerEmail,
+          customer_phone: customerPhone,
+          equipment_name: "مضخة المياه",
+          request_type: "preventive",
+          description: "صيانة دورية للمضخة",
+          priority: "medium",
+          status: "completed",
+          created_at: "2024-01-08T08:00:00Z",
+          updated_at: "2024-01-08T16:00:00Z",
+          completed_date: "2024-01-08T16:00:00Z",
+          warranty_covered: true,
+          customer_satisfaction_rating: 5
+        }
+      ]
+      setMaintenanceRequests(mockMaintenance)
+    } catch (error) {
+      console.error('Error loading customer maintenance:', error)
+    }
+  }
+
+  const loadCustomerWarranties = async () => {
+    try {
+      // Mock data for demonstration
+      const mockWarranties: Warranty[] = [
+        {
+          id: "warr_001",
+          customer_id: customerId,
+          customer_name: customerName,
+          product_id: "prod_001",
+          product_name: "مضخة مياه صناعية",
+          order_id: "order_001",
+          warranty_type: "standard",
+          start_date: "2023-06-01T00:00:00Z",
+          end_date: "2024-06-01T00:00:00Z",
+          duration_months: 12,
+          coverage_details: "تغطية كاملة للأجزاء والعمالة",
+          terms_conditions: "الضمان يغطي الأعطال الطبيعية فقط",
+          status: "active",
+          claims_count: 1,
+          created_at: "2023-06-01T00:00:00Z",
+          updated_at: "2023-06-01T00:00:00Z"
+        }
+      ]
+      setWarranties(mockWarranties)
+    } catch (error) {
+      console.error('Error loading customer warranties:', error)
+    }
+  }
+
+  const loadCustomerFollowUps = async () => {
+    try {
+      // Mock data for demonstration
+      const mockFollowUps: FollowUpService[] = [
+        {
+          id: "follow_001",
+          customer_id: customerId,
+          customer_name: customerName,
+          customer_email: customerEmail,
+          customer_phone: customerPhone,
+          service_type: "satisfaction_survey",
+          scheduled_date: "2024-01-20T10:00:00Z",
+          status: "scheduled",
+          priority: "medium",
+          description: "استطلاع رضا العميل",
+          follow_up_required: false,
+          created_at: "2024-01-15T00:00:00Z",
+          updated_at: "2024-01-15T00:00:00Z"
+        }
+      ]
+      setFollowUpServices(mockFollowUps)
+    } catch (error) {
+      console.error('Error loading customer follow-ups:', error)
+    }
+  }
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim()) return
+    
+    setIsSendingMessage(true)
+    try {
+      // Simulate sending message
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // Add message to customer history (in real app, this would save to database)
+      console.log('Message sent:', newMessage)
+      
+      setNewMessage("")
+      alert('تم إرسال الرسالة بنجاح!')
+    } catch (error) {
+      console.error('Error sending message:', error)
+      alert('حدث خطأ أثناء إرسال الرسالة')
+    } finally {
+      setIsSendingMessage(false)
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active':
+      case 'resolved':
+      case 'completed':
+        return "bg-green-100 text-green-800"
+      case 'inactive':
+      case 'cancelled':
+        return "bg-gray-100 text-gray-800"
+      case 'vip':
+        return "bg-purple-100 text-purple-800"
+      case 'blocked':
+        return "bg-red-100 text-red-800"
+      case 'open':
+      case 'new':
+      case 'requested':
+      case 'scheduled':
+        return "bg-blue-100 text-blue-800"
+      case 'in_progress':
+      case 'investigating':
+        return "bg-yellow-100 text-yellow-800"
+      case 'escalated':
+        return "bg-red-100 text-red-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgent':
+        return "bg-red-100 text-red-800"
+      case 'high':
+        return "bg-orange-100 text-orange-800"
+      case 'medium':
+        return "bg-yellow-100 text-yellow-800"
+      case 'low':
+        return "bg-green-100 text-green-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  if (loading) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+              <p className="text-gray-600">جاري تحميل بيانات العميل...</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    )
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-3">
-              <Avatar className="h-12 w-12">
-                <AvatarImage src={customer.avatar_url || "/placeholder.svg"} alt={customer.name} />
-                <AvatarFallback>
-                  {customer.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <h2 className="text-xl font-bold">{customer.name}</h2>
-                <p className="text-sm text-gray-600">Customer ID: {customer.customer_id}</p>
-              </div>
-            </DialogTitle>
-            <div className="flex items-center gap-2">
-              {isEditing ? (
-                <>
-                  <Button onClick={handleSave} size="sm" disabled={isSaving}>
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        Save
-                      </>
-                    )}
-                  </Button>
-                  <Button variant="outline" onClick={handleCancel} size="sm" disabled={isSaving}>
-                    <X className="h-4 w-4 mr-2" />
-                    Cancel
-                  </Button>
-                </>
-              ) : (
-                <Button onClick={() => setIsEditing(true)} size="sm">
-                  Edit Profile
-                </Button>
-              )}
-            </div>
-          </div>
+          <DialogTitle className="flex items-center space-x-3">
+            <User className="h-6 w-6" />
+            <span>ملف العميل - {customerName}</span>
+          </DialogTitle>
+          <DialogDescription>
+            عرض تفاصيل العميل وتاريخ التعامل معه
+          </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="orders">Order History</TabsTrigger>
-            <TabsTrigger value="visits">Visits</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="preferences">Preferences</TabsTrigger>
-          </TabsList>
+        {profile && (
+          <div className="space-y-6">
+            {/* Customer Header */}
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-4">
+                    <Avatar className="h-16 w-16">
+                      <AvatarImage src="" />
+                      <AvatarFallback className="text-lg">
+                        {customerName.split(' ').map(n => n[0]).join('')}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h3 className="text-xl font-semibold">{profile.name}</h3>
+                      <p className="text-gray-600">{profile.email}</p>
+                      <div className="flex items-center space-x-2 mt-2">
+                        <Badge className={getStatusColor(profile.status)}>
+                          {profile.status === 'active' ? 'نشط' : 
+                           profile.status === 'vip' ? 'VIP' : 
+                           profile.status === 'inactive' ? 'غير نشط' : 'محظور'}
+                        </Badge>
+                        <Badge variant="outline">
+                          {profile.satisfactionRating}/5 ⭐
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button variant="outline" size="sm" onClick={() => setIsEditingProfile(true)}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      تعديل
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setActiveTab("communication")}>
+                      <Send className="h-4 w-4 mr-2" />
+                      إرسال رسالة
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-          <TabsContent value="profile" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    Personal Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="name">Full Name</Label>
-                    {isEditing ? (
-                      <>
-                        <Input
-                          id="name"
-                          value={editedCustomer.name}
-                          onChange={(e) => setEditedCustomer({ ...editedCustomer, name: e.target.value })}
-                          className={errors.name ? "border-red-500" : ""}
-                        />
-                        {errors.name && (
-                          <div className="flex items-center gap-1 text-sm text-red-600 mt-1">
-                            <AlertCircle className="h-4 w-4" />
-                            {errors.name}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-sm font-medium mt-1">{customer.name}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="email">Email</Label>
-                    {isEditing ? (
-                      <>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={editedCustomer.email}
-                          onChange={(e) => setEditedCustomer({ ...editedCustomer, email: e.target.value })}
-                          className={errors.email ? "border-red-500" : ""}
-                        />
-                        {errors.email && (
-                          <div className="flex items-center gap-1 text-sm text-red-600 mt-1">
-                            <AlertCircle className="h-4 w-4" />
-                            {errors.email}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-sm font-medium mt-1">{customer.email}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="phone">Phone</Label>
-                    {isEditing ? (
-                      <>
-                        <Input
-                          id="phone"
-                          value={editedCustomer.phone}
-                          onChange={(e) => setEditedCustomer({ ...editedCustomer, phone: e.target.value })}
-                          className={errors.phone ? "border-red-500" : ""}
-                        />
-                        {errors.phone && (
-                          <div className="flex items-center gap-1 text-sm text-red-600 mt-1">
-                            <AlertCircle className="h-4 w-4" />
-                            {errors.phone}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-sm font-medium mt-1">{customer.phone}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="address">Address</Label>
-                    {isEditing ? (
-                      <>
-                        <Textarea
-                          id="address"
-                          value={editedCustomer.address}
-                          onChange={(e) => setEditedCustomer({ ...editedCustomer, address: e.target.value })}
-                          className={errors.address ? "border-red-500" : ""}
-                        />
-                        {errors.address && (
-                          <div className="flex items-center gap-1 text-sm text-red-600 mt-1">
-                            <AlertCircle className="h-4 w-4" />
-                            {errors.address}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-sm font-medium mt-1">{customer.address}</p>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <MessageSquare className="h-5 w-5 text-blue-600" />
                     <div>
-                      <Label htmlFor="latitude">GPS Latitude</Label>
-                      {isEditing ? (
-                        <Input
-                          id="latitude"
-                          type="number"
-                          step="any"
-                          value={editedCustomer.latitude || ""}
-                          onChange={(e) => setEditedCustomer({ ...editedCustomer, latitude: parseFloat(e.target.value) || undefined })}
-                          placeholder="e.g., 33.3152"
-                        />
-                      ) : (
-                        <p className="text-sm font-medium mt-1">{customer.latitude || "Not set"}</p>
-                      )}
+                      <p className="text-sm text-gray-600">الاستفسارات</p>
+                      <p className="text-lg font-semibold">{inquiries.length}</p>
                     </div>
-                    <div>
-                      <Label htmlFor="longitude">GPS Longitude</Label>
-                      {isEditing ? (
-                        <Input
-                          id="longitude"
-                          type="number"
-                          step="any"
-                          value={editedCustomer.longitude || ""}
-                          onChange={(e) => setEditedCustomer({ ...editedCustomer, longitude: parseFloat(e.target.value) || undefined })}
-                          placeholder="e.g., 44.3661"
-                        />
-                      ) : (
-                        <p className="text-sm font-medium mt-1">{customer.longitude || "Not set"}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="status">Status</Label>
-                    {isEditing ? (
-                      <Select
-                        value={editedCustomer.status}
-                        onValueChange={(value) => setEditedCustomer({ ...editedCustomer, status: value as 'active' | 'vip' | 'inactive' })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="vip">VIP</SelectItem>
-                          <SelectItem value="inactive">Inactive</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Badge className="mt-1">{customer.status}</Badge>
-                    )}
                   </div>
                 </CardContent>
               </Card>
-
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Package className="h-5 w-5" />
-                    Customer Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center p-3 bg-blue-50 rounded-lg">
-                      <p className="text-2xl font-bold text-blue-600">{customer.total_orders}</p>
-                      <p className="text-sm text-blue-700">Total Orders</p>
-                    </div>
-                    <div className="text-center p-3 bg-green-50 rounded-lg">
-                      <p className="text-2xl font-bold text-green-600">${customer.total_spent.toLocaleString()}</p>
-                      <p className="text-sm text-green-700">Total Spent</p>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <AlertTriangle className="h-5 w-5 text-red-600" />
+                    <div>
+                      <p className="text-sm text-gray-600">الشكاوى</p>
+                      <p className="text-lg font-semibold">{complaints.length}</p>
                     </div>
                   </div>
-
-                  <div>
-                    <Label>Customer Rating</Label>
-                    <div className="flex items-center gap-1 mt-1">
-                      <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                      <span className="text-sm font-medium">{customer.rating}</span>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <Wrench className="h-5 w-5 text-green-600" />
+                    <div>
+                      <p className="text-sm text-gray-600">طلبات الصيانة</p>
+                      <p className="text-lg font-semibold">{maintenanceRequests.length}</p>
                     </div>
                   </div>
-
-                  <div>
-                    <Label>Join Date</Label>
-                    <p className="text-sm font-medium mt-1">{customer.join_date || "June 15, 2023"}</p>
-                  </div>
-
-                  <div>
-                    <Label>Last Order</Label>
-                    <p className="text-sm font-medium mt-1">{customer.last_order_date || "Never"}</p>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="notes">Notes</Label>
-                    {isEditing ? (
-                      <Textarea
-                        id="notes"
-                        value={editedCustomer.notes || ""}
-                        onChange={(e) => setEditedCustomer({ ...editedCustomer, notes: e.target.value })}
-                        placeholder="Add customer notes..."
-                      />
-                    ) : (
-                      <p className="text-sm font-medium mt-1">{customer.notes || "No notes"}</p>
-                    )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <Shield className="h-5 w-5 text-purple-600" />
+                    <div>
+                      <p className="text-sm text-gray-600">الضمانات</p>
+                      <p className="text-lg font-semibold">{warranties.length}</p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
 
-          <TabsContent value="orders" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
-                  Recent Orders
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {recentOrders.map((order) => (
-                    <div key={order.id} className="flex items-center gap-4 p-3 border rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium">#{order.id}</span>
-                          <Badge variant="outline" className="text-green-600 border-green-600">
-                            {order.status}
+            {/* Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+              <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
+                <TabsTrigger value="history">التاريخ</TabsTrigger>
+                <TabsTrigger value="communication">التواصل</TabsTrigger>
+                <TabsTrigger value="preferences">التفضيلات</TabsTrigger>
+                <TabsTrigger value="notes">الملاحظات</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="overview" className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Contact Information */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2">
+                        <User className="h-5 w-5" />
+                        <span>معلومات الاتصال</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <Mail className="h-4 w-4 text-gray-500" />
+                        <span>{profile.email}</span>
+                      </div>
+                      {profile.phone && (
+                        <div className="flex items-center space-x-2">
+                          <Phone className="h-4 w-4 text-gray-500" />
+                          <span>{profile.phone}</span>
+                        </div>
+                      )}
+                      {profile.address && (
+                        <div className="flex items-center space-x-2">
+                          <MapPin className="h-4 w-4 text-gray-500" />
+                          <span>{profile.address}</span>
+                        </div>
+                      )}
+                      {profile.company && (
+                        <div className="flex items-center space-x-2">
+                          <User className="h-4 w-4 text-gray-500" />
+                          <span>{profile.company}</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Customer Statistics */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2">
+                        <TrendingUp className="h-5 w-5" />
+                        <span>إحصائيات العميل</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex justify-between">
+                        <span>تاريخ الانضمام:</span>
+                        <span className="font-medium">{new Date(profile.joinDate).toLocaleDateString('ar-SA')}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>إجمالي الطلبات:</span>
+                        <span className="font-medium">{profile.totalOrders}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>إجمالي المبلغ:</span>
+                        <span className="font-medium">{profile.totalSpent.toLocaleString()} ريال</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>تقييم الرضا:</span>
+                        <div className="flex items-center space-x-1">
+                          <Star className="h-4 w-4 text-yellow-500" />
+                          <span className="font-medium">{profile.satisfactionRating}/5</span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>آخر تواصل:</span>
+                        <span className="font-medium">{new Date(profile.lastContact).toLocaleDateString('ar-SA')}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Tags */}
+                {profile.tags.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>العلامات</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2">
+                        {profile.tags.map((tag, index) => (
+                          <Badge key={index} variant="secondary">
+                            {tag}
                           </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+
+              <TabsContent value="history" className="space-y-4">
+                <div className="space-y-4">
+                  {/* Inquiries */}
+                  {inquiries.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                          <MessageSquare className="h-5 w-5" />
+                          <span>الاستفسارات ({inquiries.length})</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {inquiries.map((inquiry) => (
+                            <div key={inquiry.id} className="border rounded-lg p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-medium">{inquiry.subject}</h4>
+                                <div className="flex items-center space-x-2">
+                                  <Badge className={getStatusColor(inquiry.status)}>
+                                    {inquiry.status}
+                                  </Badge>
+                                  <Badge className={getPriorityColor(inquiry.priority)}>
+                                    {inquiry.priority}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-600 mb-2">{inquiry.description}</p>
+                              <div className="flex items-center justify-between text-xs text-gray-500">
+                                <span>{new Date(inquiry.created_at).toLocaleDateString('ar-SA')}</span>
+                                {inquiry.customer_satisfaction_rating && (
+                                  <div className="flex items-center space-x-1">
+                                    <Star className="h-3 w-3 text-yellow-500" />
+                                    <span>{inquiry.customer_satisfaction_rating}/5</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        <p className="text-sm text-gray-600">{order.items}</p>
-                        <p className="text-xs text-gray-500">Representative: {order.representative}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium">${order.amount}</p>
-                        <p className="text-xs text-gray-500">{order.date}</p>
-                      </div>
-                    </div>
-                  ))}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Complaints */}
+                  {complaints.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                          <AlertTriangle className="h-5 w-5" />
+                          <span>الشكاوى ({complaints.length})</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {complaints.map((complaint) => (
+                            <div key={complaint.id} className="border rounded-lg p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-medium">{complaint.subject}</h4>
+                                <div className="flex items-center space-x-2">
+                                  <Badge className={getStatusColor(complaint.status)}>
+                                    {complaint.status}
+                                  </Badge>
+                                  <Badge className={getPriorityColor(complaint.severity)}>
+                                    {complaint.severity}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-600 mb-2">{complaint.description}</p>
+                              <div className="flex items-center justify-between text-xs text-gray-500">
+                                <span>{new Date(complaint.created_at).toLocaleDateString('ar-SA')}</span>
+                                {complaint.customer_satisfaction_rating && (
+                                  <div className="flex items-center space-x-1">
+                                    <Star className="h-3 w-3 text-yellow-500" />
+                                    <span>{complaint.customer_satisfaction_rating}/5</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Maintenance Requests */}
+                  {maintenanceRequests.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                          <Wrench className="h-5 w-5" />
+                          <span>طلبات الصيانة ({maintenanceRequests.length})</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {maintenanceRequests.map((request) => (
+                            <div key={request.id} className="border rounded-lg p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-medium">{request.equipment_name || 'طلب صيانة'}</h4>
+                                <div className="flex items-center space-x-2">
+                                  <Badge className={getStatusColor(request.status)}>
+                                    {request.status}
+                                  </Badge>
+                                  <Badge className={getPriorityColor(request.priority)}>
+                                    {request.priority}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-600 mb-2">{request.description}</p>
+                              <div className="flex items-center justify-between text-xs text-gray-500">
+                                <span>{new Date(request.created_at).toLocaleDateString('ar-SA')}</span>
+                                {request.customer_satisfaction_rating && (
+                                  <div className="flex items-center space-x-1">
+                                    <Star className="h-3 w-3 text-yellow-500" />
+                                    <span>{request.customer_satisfaction_rating}/5</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </TabsContent>
 
-          <TabsContent value="visits" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5" />
-                    Visit Status
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label>Current Status</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      {customer.visit_status === "visited" ? (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <XCircle className="h-4 w-4 text-red-600" />
-                      )}
-                      <Badge className={customer.visit_status === "visited" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
-                        {customer.visit_status === "visited" ? "Visited" : "Not Visited"}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Last Visit Date</Label>
-                    <p className="text-sm font-medium mt-1">
-                      {customer.last_visit_date || "No visits recorded"}
-                    </p>
-                  </div>
-
-                  <div>
-                    <Label>Visit Notes</Label>
-                    {isEditing ? (
-                      <Textarea
-                        value={editedCustomer.visit_notes || ""}
-                        onChange={(e) => setEditedCustomer({ ...editedCustomer, visit_notes: e.target.value })}
-                        placeholder="Add visit notes..."
-                        rows={3}
+              <TabsContent value="communication" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>إرسال رسالة</CardTitle>
+                    <CardDescription>
+                      إرسال رسالة مباشرة للعميل
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">الرسالة</label>
+                      <textarea
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        placeholder="اكتب رسالتك هنا..."
+                        className="w-full p-3 border rounded-lg resize-none"
+                        rows={4}
                       />
-                    ) : (
-                      <p className="text-sm font-medium mt-1">
-                        {customer.visit_notes || "No visit notes"}
-                      </p>
-                    )}
-                  </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-gray-500">
+                        إلى: {profile.email}
+                      </div>
+                      <Button 
+                        onClick={handleSendMessage}
+                        disabled={isSendingMessage || !newMessage.trim()}
+                      >
+                        {isSendingMessage ? 'جاري الإرسال...' : 'إرسال الرسالة'}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-                  {isEditing && (
-                    <div className="grid grid-cols-2 gap-4">
+              <TabsContent value="preferences" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>تفضيلات العميل</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="visitStatus">Update Status</Label>
-                        <Select
-                          value={editedCustomer.visit_status || "not_visited"}
-                          onValueChange={(value) => setEditedCustomer({ ...editedCustomer, visit_status: value as 'visited' | 'not_visited' })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="not_visited">Not Visited</SelectItem>
-                            <SelectItem value="visited">Visited</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <label className="text-sm font-medium">اللغة المفضلة</label>
+                        <p className="text-gray-600">{profile.preferredLanguage}</p>
                       </div>
                       <div>
-                        <Label htmlFor="lastVisitDate">Last Visit Date</Label>
-                        <Input
-                          id="lastVisitDate"
-                          type="date"
-                          value={editedCustomer.last_visit_date || ""}
-                          onChange={(e) => setEditedCustomer({ ...editedCustomer, last_visit_date: e.target.value })}
-                        />
+                        <label className="text-sm font-medium">طريقة التواصل المفضلة</label>
+                        <p className="text-gray-600">{profile.communicationPreference}</p>
                       </div>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Navigation className="h-5 w-5" />
-                    Location Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label>GPS Coordinates</Label>
-                    <div className="p-3 bg-gray-50 rounded-lg">
-                      <p className="text-sm font-mono">
-                        {customer.latitude && customer.longitude 
-                          ? `${customer.latitude}, ${customer.longitude}`
-                          : "No GPS coordinates available"
-                        }
-                      </p>
+              <TabsContent value="notes" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>ملاحظات العميل</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">الملاحظات</label>
+                      <p className="text-gray-600 whitespace-pre-wrap">{profile.notes}</p>
                     </div>
-                  </div>
-
-                  <div>
-                    <Label>Address</Label>
-                    <p className="text-sm font-medium mt-1">{customer.address}</p>
-                  </div>
-
-                  {customer.latitude && customer.longitude && (
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-800">
-                        <strong>Map Link:</strong> 
-                        <a 
-                          href={`https://www.google.com/maps?q=${customer.latitude},${customer.longitude}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="ml-1 text-blue-600 hover:underline"
-                        >
-                          View on Google Maps
-                        </a>
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      <Navigation className="h-4 w-4 mr-2" />
-                      Get Directions
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      Schedule Visit
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Monthly Trends
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {monthlyStats.map((stat) => (
-                      <div key={stat.month} className="flex items-center justify-between p-2 border rounded">
-                        <span className="font-medium">{stat.month}</span>
-                        <div className="text-right">
-                          <p className="text-sm font-medium">{stat.orders} orders</p>
-                          <p className="text-xs text-gray-600">${stat.spent}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5" />
-                    Customer Value
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="text-center p-4 bg-purple-50 rounded-lg">
-                    <p className="text-2xl font-bold text-purple-600">
-                      ${customer.total_orders > 0 ? (customer.total_spent / customer.total_orders).toFixed(2) : "0.00"}
-                    </p>
-                    <p className="text-sm text-purple-700">Average Order Value</p>
-                  </div>
-                  <div className="text-center p-4 bg-orange-50 rounded-lg">
-                    <p className="text-2xl font-bold text-orange-600">${(customer.total_spent / 12).toFixed(2)}</p>
-                    <p className="text-sm text-orange-700">Monthly Average</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="preferences" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Delivery Preferences
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="deliveryTime">Preferred Delivery Time</Label>
-                  {isEditing ? (
-                    <Select
-                      value={editedCustomer.preferred_delivery_time}
-                      onValueChange={(value) => setEditedCustomer({ ...editedCustomer, preferred_delivery_time: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Morning (9-12 PM)">Morning (9-12 PM)</SelectItem>
-                        <SelectItem value="Afternoon (1-5 PM)">Afternoon (1-5 PM)</SelectItem>
-                        <SelectItem value="Evening (5-8 PM)">Evening (5-8 PM)</SelectItem>
-                        <SelectItem value="Flexible">Flexible</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <p className="text-sm font-medium mt-1">{customer.preferred_delivery_time}</p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 border rounded-lg">
-                    <p className="text-sm font-medium">Contactless Delivery</p>
-                    <p className="text-xs text-gray-600">Preferred</p>
-                  </div>
-                  <div className="p-3 border rounded-lg">
-                    <p className="text-sm font-medium">SMS Notifications</p>
-                    <p className="text-xs text-gray-600">Enabled</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )

@@ -9,6 +9,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { RepresentativeProfileModal } from "./representative-profile-modal";
 import { AddRepresentativeModal } from "./add-representative-modal";
 import { LiveTrackingModal } from "./live-tracking-modal";
+import { AssignTaskModal } from "./assign-task-modal";
+import { SendMessageModal } from "./send-message-modal";
 import { useLanguage } from "@/contexts/language-context";
 import { getRepresentatives, generateRepresentativeId, testRepresentativesTable, testSimpleInsert } from "@/lib/supabase-utils";
 import * as XLSX from 'xlsx';
@@ -22,6 +24,8 @@ export function RepresentativesTab() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
+  const [isAssignTaskModalOpen, setIsAssignTaskModalOpen] = useState(false);
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
   const [formData, setFormData] = useState({ id: '' });
   const [errors, setErrors] = useState({ id: '' });
 
@@ -55,6 +59,34 @@ export function RepresentativesTab() {
 
   const handleAddRepresentative = (newRepresentative: any) => {
     setRepresentatives((prev) => [...prev, newRepresentative]);
+  };
+
+  // New modal handlers
+  const handleViewProfile = (representative: any) => {
+    console.log('Opening representative profile for:', representative);
+    console.log('Setting selectedRepresentative to:', representative);
+    setSelectedRepresentative(representative);
+    console.log('Setting isProfileModalOpen to true');
+    setIsProfileModalOpen(true);
+    console.log('Modal should now be open');
+  };
+
+  const handleLiveTracking = () => {
+    console.log('Opening live tracking modal');
+    setIsTrackingModalOpen(true);
+  };
+
+  const handleAssignTask = (representativeId?: string) => {
+    console.log('Opening assign task modal for representative:', representativeId);
+    setIsAssignTaskModalOpen(true);
+  };
+
+  const handleSendMessage = (representative?: any) => {
+    console.log('Opening send message modal for representative:', representative);
+    if (representative) {
+      setSelectedRepresentative(representative);
+    }
+    setIsMessageModalOpen(true);
   };
 
   const getStatusStats = () => {
@@ -242,22 +274,19 @@ export function RepresentativesTab() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => {
-                        setSelectedRepresentative(representative);
-                        setIsProfileModalOpen(true);
-                      }}>
+                      <DropdownMenuItem onClick={() => handleViewProfile(representative)}>
                         {t("viewProfile")}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => {
                         setSelectedRepresentative(representative);
-                        setIsTrackingModalOpen(true);
+                        handleLiveTracking();
                       }}>
                         {t("liveTracking")}
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleAssignTask(representative.id)}>
                         {t("assignTask")}
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleSendMessage(representative)}>
                         {t("sendMessage")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -352,6 +381,25 @@ export function RepresentativesTab() {
         representative={selectedRepresentative}
         isOpen={isTrackingModalOpen}
         onClose={() => setIsTrackingModalOpen(false)}
+      />
+
+      <AssignTaskModal
+        isOpen={isAssignTaskModalOpen}
+        onClose={() => setIsAssignTaskModalOpen(false)}
+        onAssign={(taskData) => {
+          console.log('Task assigned:', taskData);
+          setIsAssignTaskModalOpen(false);
+        }}
+      />
+
+      <SendMessageModal
+        isOpen={isMessageModalOpen}
+        onClose={() => setIsMessageModalOpen(false)}
+        onSend={(messageData) => {
+          console.log('Message sent:', messageData);
+          setIsMessageModalOpen(false);
+        }}
+        recipient={selectedRepresentative}
       />
     </div>
   );

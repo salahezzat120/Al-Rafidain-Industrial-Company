@@ -107,10 +107,11 @@ export function BulkUpload() {
     let template = '';
     
     if (activeTab === 'products') {
-      template = 'product_name,product_name_ar,product_code,main_group_id,sub_group_id,color_id,material_id,unit_of_measurement_id,description,cost_price,selling_price,weight,dimensions\n';
-      template += 'White Plastic Cup,كوب بلاستيك أبيض,CUP-WH-200,1,1,1,1,1,"200ml white plastic cup",0.50,1.00,10,200ml\n';
-      template += 'Blue Plastic Bottle,زجاجة بلاستيك زرقاء,BOTTLE-BL-500,1,2,2,1,1,"500ml blue plastic bottle",1.20,2.50,25,500ml\n';
-      template += 'Red Plastic Plate,طبق بلاستيك أحمر,PLATE-RD-300,1,3,3,1,1,"300mm red plastic plate",0.80,1.80,15,300mm\n';
+      // Updated template to match the new products table structure
+      template = 'product_name,product_name_ar,product_code,stock_number,stock_number_ar,stock,main_group,sub_group,color,material,unit,description,description_ar,cost_price,selling_price,weight,dimensions,expiry_date,serial_number,warehouses,is_active\n';
+      template += 'White Plastic Cup,كوب بلاستيك أبيض,CUP-WH-200,ST-001,مخزون-001,100,Plastic Products,Cups,White,Plastic,piece,"200ml white plastic cup","كوب بلاستيك أبيض 200مل",0.50,1.00,10,200ml,2025-12-31,SN001,"Warehouse A",true\n';
+      template += 'Blue Plastic Bottle,زجاجة بلاستيك زرقاء,BOTTLE-BL-500,ST-002,مخزون-002,50,Plastic Products,Bottles,Blue,Plastic,piece,"500ml blue plastic bottle","زجاجة بلاستيك زرقاء 500مل",1.20,2.50,25,500ml,2025-12-31,SN002,"Warehouse A",true\n';
+      template += 'Red Plastic Plate,طبق بلاستيك أحمر,PLATE-RD-300,ST-003,مخزون-003,75,Plastic Products,Plates,Red,Plastic,piece,"300mm red plastic plate","طبق بلاستيك أحمر 300مم",0.80,1.80,15,300mm,2025-12-31,SN003,"Warehouse B",true\n';
     } else {
       template = 'product_id,warehouse_id,movement_type,quantity,unit_price,reference_number,notes\n';
       template += '1,1,RECEIPT,100,0.50,PO-001,Initial stock\n';
@@ -198,7 +199,13 @@ export function BulkUpload() {
                   {isRTL ? 'يجب أن يحتوي ملف CSV على الأعمدة التالية:' : 'CSV file must contain the following columns:'}
                 </p>
                 <div className="text-sm font-mono bg-white p-2 rounded border">
-                  product_name, product_name_ar, product_code, main_group_id, sub_group_id, color_id, material_id, unit_of_measurement_id, description, cost_price, selling_price, weight, dimensions
+                  product_name, product_name_ar, product_code, stock_number, stock_number_ar, stock, main_group, sub_group, color, material, unit, description, description_ar, cost_price, selling_price, weight, dimensions, expiry_date, serial_number, warehouses, is_active
+                </div>
+                <div className="mt-3 text-sm text-gray-600">
+                  <p><strong>Required fields:</strong> product_name, main_group, unit, stock</p>
+                  <p><strong>Optional fields:</strong> All others can be left empty</p>
+                  <p><strong>Date format:</strong> YYYY-MM-DD (e.g., 2025-12-31)</p>
+                  <p><strong>Boolean values:</strong> true/false for is_active</p>
                 </div>
               </div>
             </CardContent>
