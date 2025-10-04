@@ -41,6 +41,7 @@ import {
 } from "@/lib/visit-management-single"
 import { getRepresentativeById } from "@/lib/warehouse"
 import { getCustomerById } from "@/lib/customers"
+import { CustomerSelectionDropdown } from "@/components/admin/customer-selection-dropdown"
 
 interface VisitManagementRecord {
   id: string
@@ -151,7 +152,53 @@ export function VisitManagementSingleTab() {
     }
   }
 
-  // Function to lookup customer data
+  // Function to handle customer selection from dropdown
+  const handleCustomerSelect = (customer: any) => {
+    console.log('🔍 Customer selected:', customer)
+    setSelectedCustomer(customer)
+    
+    if (customer) {
+      // Auto-fill customer data
+      setNewVisit(prev => ({
+        ...prev,
+        customer_id: customer.customer_id || '',
+        customer_name: customer.name || '',
+        customer_address: customer.address || '',
+        customer_phone: customer.phone || '',
+        customer_email: customer.email || ''
+      }))
+      
+      // Mark fields as auto-filled
+      setAutoFilledFields(prev => ({
+        ...prev,
+        customer_name: true,
+        customer_address: true,
+        customer_phone: true,
+        customer_email: true
+      }))
+    } else {
+      // Clear customer data if no customer selected
+      setNewVisit(prev => ({
+        ...prev,
+        customer_id: '',
+        customer_name: '',
+        customer_address: '',
+        customer_phone: '',
+        customer_email: ''
+      }))
+      
+      // Reset auto-filled flags
+      setAutoFilledFields(prev => ({
+        ...prev,
+        customer_name: false,
+        customer_address: false,
+        customer_phone: false,
+        customer_email: false
+      }))
+    }
+  }
+
+  // Function to lookup customer data (legacy - for manual ID entry)
   const lookupCustomer = async (customerId: string) => {
     if (customerId.trim()) {
       try {
@@ -232,6 +279,9 @@ export function VisitManagementSingleTab() {
     delegate_email: false,
     delegate_phone: false
   })
+
+  // Selected customer from dropdown
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null)
 
   useEffect(() => {
     console.log('🔄 VisitManagementSingleTab: Component mounted, loading visits...')
@@ -318,6 +368,7 @@ export function VisitManagementSingleTab() {
         delegate_email: false,
         delegate_phone: false
       })
+      setSelectedCustomer(null)
       loadVisits()
     } catch (error) {
       console.error('Error creating visit:', error)
@@ -512,17 +563,11 @@ export function VisitManagementSingleTab() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="customer_id">Customer ID</Label>
-                  <Input
-                    id="customer_id"
-                    value={newVisit.customer_id}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      setNewVisit(prev => ({ ...prev, customer_id: value }))
-                      // Trigger customer lookup
-                      lookupCustomer(value)
-                    }}
-                    placeholder="C001"
+                  <CustomerSelectionDropdown
+                    selectedCustomer={selectedCustomer}
+                    onCustomerSelect={handleCustomerSelect}
+                    placeholder="Select customer..."
+                    className="w-full"
                   />
                 </div>
                 <div className="space-y-2">
