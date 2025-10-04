@@ -49,6 +49,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Payment, PaymentStats, PaymentFilters } from '@/types/payments'
+import { useLanguage } from '@/contexts/language-context'
 import { 
   getPayments, 
   getPaymentStats, 
@@ -56,10 +57,12 @@ import {
   markPaymentAsCompleted,
   generatePaymentId 
 } from '@/lib/payments'
+import { exportPaymentsToExcel, exportPaymentsToExcelWithSummary } from '@/lib/excel-export'
 import AddPaymentModal from './add-payment-modal'
 import PaymentDetailsModal from './payment-details-modal'
 
 export default function PaymentsTab() {
+  const { t, isRTL } = useLanguage()
   const [payments, setPayments] = useState<Payment[]>([])
   const [stats, setStats] = useState<PaymentStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -89,13 +92,13 @@ export default function PaymentsTab() {
 
       const { data, error } = await getPayments(filters)
       if (error) {
-        toast.error(`Failed to load payments: ${error}`)
+        toast.error(t('payments.loadError').replace('{error}', error))
         return
       }
 
       setPayments(data || [])
     } catch (err) {
-      toast.error('An unexpected error occurred')
+      toast.error(t('payments.unexpectedError'))
     } finally {
       setLoading(false)
     }
@@ -158,28 +161,28 @@ export default function PaymentsTab() {
   const handleAddPayment = (newPayment: Payment) => {
     setPayments(prev => [newPayment, ...prev])
     loadStats()
-    toast.success('Payment added successfully!')
+    toast.success(t('payments.addSuccess'))
   }
 
   const handleUpdatePayment = (updatedPayment: Payment) => {
     setPayments(prev => prev.map(p => p.id === updatedPayment.id ? updatedPayment : p))
     loadStats()
-    toast.success('Payment updated successfully!')
+    toast.success(t('payments.updateSuccess'))
   }
 
   const handleDeletePayment = async (paymentId: string) => {
     try {
       const { error } = await deletePayment(paymentId)
       if (error) {
-        toast.error(`Failed to delete payment: ${error}`)
+        toast.error(t('payments.deleteError').replace('{error}', error))
         return
       }
 
       setPayments(prev => prev.filter(p => p.id !== paymentId))
       loadStats()
-      toast.success('Payment deleted successfully!')
+      toast.success(t('payments.deleteSuccess'))
     } catch (err) {
-      toast.error('An unexpected error occurred')
+      toast.error(t('payments.unexpectedError'))
     }
   }
 
@@ -187,16 +190,59 @@ export default function PaymentsTab() {
     try {
       const { data, error } = await markPaymentAsCompleted(paymentId)
       if (error) {
-        toast.error(`Failed to mark payment as completed: ${error}`)
+        toast.error(t('payments.markCompletedError').replace('{error}', error))
         return
       }
 
       if (data) {
         handleUpdatePayment(data)
-        toast.success('Payment marked as completed!')
+        toast.success(t('payments.markCompletedSuccess'))
       }
     } catch (err) {
-      toast.error('An unexpected error occurred')
+      toast.error(t('payments.unexpectedError'))
+    }
+  }
+
+  const handleExportToExcel = () => {
+    try {
+      if (filteredPayments.length === 0) {
+        toast.error(t('payments.noPaymentsToExport'))
+        return
+      }
+
+      exportPaymentsToExcel(filteredPayments, {
+        filename: 'payments-export',
+        sheetName: 'Payments'
+      })
+      
+      toast.success(t('payments.exportSuccess').replace('{count}', filteredPayments.length.toString()))
+    } catch (err) {
+      console.error('Export error:', err)
+      toast.error(t('payments.exportError'))
+    }
+  }
+
+  const handleExportToExcelWithSummary = () => {
+    try {
+      if (filteredPayments.length === 0) {
+        toast.error(t('payments.noPaymentsToExport'))
+        return
+      }
+
+      if (!stats) {
+        toast.error(t('payments.statsNotAvailable'))
+        return
+      }
+
+      exportPaymentsToExcelWithSummary(filteredPayments, stats, {
+        filename: 'payments-export-with-summary',
+        sheetName: 'Payments'
+      })
+      
+      toast.success(t('payments.exportWithSummarySuccess').replace('{count}', filteredPayments.length.toString()))
+    } catch (err) {
+      console.error('Export error:', err)
+      toast.error(t('payments.exportError'))
     }
   }
 
@@ -212,18 +258,18 @@ export default function PaymentsTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Payment Tracking</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{t('payments.title')}</h2>
           <p className="text-muted-foreground">
-            Monitor and record all client payments with real-time visibility
+            {t('payments.subtitle')}
           </p>
         </div>
         <Button onClick={() => setShowAddModal(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Add Payment
+          {t('payments.addPayment')}
         </Button>
       </div>
 
@@ -232,20 +278,20 @@ export default function PaymentsTab() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Payments</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('payments.totalPayments')}</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalPayments}</div>
               <p className="text-xs text-muted-foreground">
-                {formatCurrency(stats.totalAmount)} total amount
+                {formatCurrency(stats.totalAmount)} {t('payments.totalAmount')}
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completed</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('payments.completedPayments')}</CardTitle>
               <CheckCircle className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
@@ -253,14 +299,14 @@ export default function PaymentsTab() {
                 {stats.completedPayments}
               </div>
               <p className="text-xs text-muted-foreground">
-                {stats.completionRate.toFixed(1)}% completion rate
+                {stats.completionRate.toFixed(1)}% {t('payments.completionRate')}
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('payments.pendingPayments')}</CardTitle>
               <Clock className="h-4 w-4 text-yellow-600" />
             </CardHeader>
             <CardContent>
@@ -268,14 +314,14 @@ export default function PaymentsTab() {
                 {stats.pendingPayments}
               </div>
               <p className="text-xs text-muted-foreground">
-                Awaiting completion
+                {t('payments.awaitingCompletion')}
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg. Amount</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('payments.avgAmount')}</CardTitle>
               <TrendingUp className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
@@ -283,7 +329,7 @@ export default function PaymentsTab() {
                 {formatCurrency(stats.averagePaymentAmount)}
               </div>
               <p className="text-xs text-muted-foreground">
-                Per payment
+                {t('payments.perPayment')}
               </p>
             </CardContent>
           </Card>
@@ -293,18 +339,18 @@ export default function PaymentsTab() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Payment Filters</CardTitle>
+          <CardTitle>{t('payments.title')} Filters</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-4">
             <div className="flex-1 min-w-[200px]">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground`} />
                 <Input
-                  placeholder="Search payments..."
+                  placeholder={t('payments.searchPlaceholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className={isRTL ? 'pr-10' : 'pl-10'}
                 />
               </div>
             </div>
@@ -314,11 +360,11 @@ export default function PaymentsTab() {
               onChange={(e) => setSelectedStatus(e.target.value)}
               className="px-3 py-2 border border-input bg-background rounded-md text-sm"
             >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-              <option value="failed">Failed</option>
-              <option value="refunded">Refunded</option>
+              <option value="all">{t('payments.allStatus')}</option>
+              <option value="pending">{t('payments.pending')}</option>
+              <option value="completed">{t('payments.completed')}</option>
+              <option value="failed">{t('payments.failed')}</option>
+              <option value="refunded">{t('payments.refunded')}</option>
             </select>
 
             <select
@@ -326,18 +372,24 @@ export default function PaymentsTab() {
               onChange={(e) => setSelectedMethod(e.target.value)}
               className="px-3 py-2 border border-input bg-background rounded-md text-sm"
             >
-              <option value="all">All Methods</option>
-              <option value="cash">Cash</option>
-              <option value="card">Card</option>
-              <option value="transfer">Transfer</option>
-              <option value="check">Check</option>
-              <option value="other">Other</option>
+              <option value="all">{t('payments.allMethods')}</option>
+              <option value="cash">{t('payments.cash')}</option>
+              <option value="card">{t('payments.card')}</option>
+              <option value="transfer">{t('payments.transfer')}</option>
+              <option value="check">{t('payments.check')}</option>
+              <option value="other">{t('payments.other')}</option>
             </select>
 
-            <Button variant="outline" onClick={() => {/* Export functionality */}}>
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleExportToExcel}>
+                <Download className="h-4 w-4 mr-2" />
+                {t('payments.exportExcel')}
+              </Button>
+              <Button variant="outline" onClick={handleExportToExcelWithSummary}>
+                <FileText className="h-4 w-4 mr-2" />
+                {t('payments.exportWithSummary')}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -345,36 +397,36 @@ export default function PaymentsTab() {
       {/* Payments Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Payments</CardTitle>
+          <CardTitle>{t('payments.title')}</CardTitle>
           <CardDescription>
-            {filteredPayments.length} payment{filteredPayments.length !== 1 ? 's' : ''} found
+            {filteredPayments.length} {t('payments.paymentsFound')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Payment ID</TableHead>
-                <TableHead>Order ID</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Method</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Payment Date</TableHead>
-                <TableHead>Notes</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>{t('payments.paymentId')}</TableHead>
+                <TableHead>{t('payments.orderId')}</TableHead>
+                <TableHead>{t('payments.amount')}</TableHead>
+                <TableHead>{t('payments.method')}</TableHead>
+                <TableHead>{t('payments.status')}</TableHead>
+                <TableHead>{t('payments.paymentDate')}</TableHead>
+                <TableHead>{t('payments.notes')}</TableHead>
+                <TableHead>{t('payments.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8">
-                    Loading payments...
+                    {t('payments.loadingPayments')}
                   </TableCell>
                 </TableRow>
               ) : filteredPayments.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8">
-                    No payments found
+                    {t('payments.noPaymentsFound')}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -416,19 +468,19 @@ export default function PaymentsTab() {
                             setShowDetailsModal(true)
                           }}>
                             <Eye className="h-4 w-4 mr-2" />
-                            View Details
+                            {t('payments.viewDetails')}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => {
                             setSelectedPayment(payment)
                             setShowDetailsModal(true)
                           }}>
                             <Edit className="h-4 w-4 mr-2" />
-                            Edit Payment
+                            {t('payments.editPayment')}
                           </DropdownMenuItem>
                           {payment.status !== 'completed' && (
                             <DropdownMenuItem onClick={() => handleMarkAsCompleted(payment.id)}>
                               <CheckCircle className="h-4 w-4 mr-2" />
-                              Mark as Completed
+                              {t('payments.markCompleted')}
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem 
@@ -436,7 +488,7 @@ export default function PaymentsTab() {
                             className="text-red-600"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
+                            {t('payments.delete')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
