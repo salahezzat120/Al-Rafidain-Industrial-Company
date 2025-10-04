@@ -39,6 +39,8 @@ import {
   checkLateVisits,
   checkExceededTimeVisits
 } from "@/lib/visit-management-single"
+import { getRepresentativeById } from "@/lib/warehouse"
+import { getCustomerById } from "@/lib/customers"
 
 interface VisitManagementRecord {
   id: string
@@ -104,23 +106,131 @@ export function VisitManagementSingleTab() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("visits")
 
+  // Function to generate unique Visit ID
+  const generateVisitId = () => {
+    const timestamp = Date.now().toString().slice(-6) // Last 6 digits of timestamp
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+    return `V${timestamp}${random}`
+  }
+
+  // Function to lookup representative data
+  const lookupRepresentative = async (delegateId: string) => {
+    if (newVisit.delegate_role === 'representative' && delegateId.trim()) {
+      try {
+        console.log('🔍 Looking up representative with ID:', delegateId)
+        const representative = await getRepresentativeById(delegateId)
+        
+        if (representative) {
+          console.log('✅ Found representative:', representative)
+          setNewVisit(prev => ({
+            ...prev,
+            delegate_name: representative.name || '',
+            delegate_email: representative.email || '',
+            delegate_phone: representative.phone || ''
+          }))
+          // Mark fields as auto-filled
+          setAutoFilledFields(prev => ({
+            ...prev,
+            delegate_name: true,
+            delegate_email: true,
+            delegate_phone: true
+          }))
+        } else {
+          console.log('❌ Representative not found with ID:', delegateId)
+          // Clear the fields if representative not found
+          setNewVisit(prev => ({
+            ...prev,
+            delegate_name: '',
+            delegate_email: '',
+            delegate_phone: ''
+          }))
+        }
+      } catch (error) {
+        console.error('❌ Error looking up representative:', error)
+      }
+    }
+  }
+
+  // Function to lookup customer data
+  const lookupCustomer = async (customerId: string) => {
+    if (customerId.trim()) {
+      try {
+        console.log('🔍 Looking up customer with ID:', customerId)
+        const { data: customer, error } = await getCustomerById(customerId)
+        
+        if (customer && !error) {
+          console.log('✅ Found customer:', customer)
+          setNewVisit(prev => ({
+            ...prev,
+            customer_name: customer.name || '',
+            customer_address: customer.address || '',
+            customer_phone: customer.phone || '',
+            customer_email: customer.email || ''
+          }))
+          // Mark fields as auto-filled
+          setAutoFilledFields(prev => ({
+            ...prev,
+            customer_name: true,
+            customer_address: true,
+            customer_phone: true,
+            customer_email: true
+          }))
+        } else {
+          console.log('❌ Customer not found with ID:', customerId, 'Error:', error)
+          
+          // Clear the fields if customer not found
+          setNewVisit(prev => ({
+            ...prev,
+            customer_name: '',
+            customer_address: '',
+            customer_phone: '',
+            customer_email: ''
+          }))
+        }
+      } catch (error) {
+        console.error('❌ Error looking up customer:', error)
+        
+        // Clear fields on error
+        setNewVisit(prev => ({
+          ...prev,
+          customer_name: '',
+          customer_address: '',
+          customer_phone: '',
+          customer_email: ''
+        }))
+      }
+    }
+  }
+
   const [newVisit, setNewVisit] = useState({
-    visit_id: "",
+    visit_id: generateVisitId(),
     delegate_id: "",
     delegate_name: "",
     delegate_email: "",
     delegate_phone: "",
-    delegate_role: "driver",
+    delegate_role: "representative",
     customer_id: "",
     customer_name: "",
     customer_address: "",
     customer_phone: "",
+    customer_email: "",
     scheduled_start_time: "",
     scheduled_end_time: "",
     visit_type: "delivery",
     priority: "medium",
     notes: "",
     allowed_duration_minutes: 60
+  })
+
+  // Track which fields were auto-filled
+  const [autoFilledFields, setAutoFilledFields] = useState({
+    customer_name: false,
+    customer_address: false,
+    customer_phone: false,
+    customer_email: false,
+    delegate_name: false,
+    delegate_email: false,
+    delegate_phone: false
   })
 
   useEffect(() => {
@@ -180,22 +290,33 @@ export function VisitManagementSingleTab() {
       
       setIsCreateModalOpen(false)
       setNewVisit({
-        visit_id: "",
+        visit_id: generateVisitId(),
         delegate_id: "",
         delegate_name: "",
         delegate_email: "",
         delegate_phone: "",
-        delegate_role: "driver",
+        delegate_role: "representative",
         customer_id: "",
         customer_name: "",
         customer_address: "",
         customer_phone: "",
+        customer_email: "",
         scheduled_start_time: "",
         scheduled_end_time: "",
         visit_type: "delivery",
         priority: "medium",
         notes: "",
         allowed_duration_minutes: 60
+      })
+      // Reset auto-filled flags
+      setAutoFilledFields({
+        customer_name: false,
+        customer_address: false,
+        customer_phone: false,
+        customer_email: false,
+        delegate_name: false,
+        delegate_email: false,
+        delegate_phone: false
       })
       loadVisits()
     } catch (error) {
@@ -302,63 +423,91 @@ export function VisitManagementSingleTab() {
               </DialogHeader>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="visit_id">Visit ID</Label>
-                  <Input
-                    id="visit_id"
-                    value={newVisit.visit_id}
-                    onChange={(e) => setNewVisit(prev => ({ ...prev, visit_id: e.target.value }))}
-                    placeholder="V001"
-                  />
+                  <Label htmlFor="visit_id">Visit ID (Auto-generated)</Label>
+                  <div className="flex space-x-2">
+                    <Input
+                      id="visit_id"
+                      value={newVisit.visit_id}
+                      readOnly
+                      className="bg-gray-50 cursor-not-allowed"
+                      placeholder="Auto-generated"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setNewVisit(prev => ({ ...prev, visit_id: generateVisitId() }))}
+                      title="Generate new Visit ID"
+                    >
+                      🔄
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="delegate_id">Delegate ID</Label>
                   <Input
                     id="delegate_id"
                     value={newVisit.delegate_id}
-                    onChange={(e) => setNewVisit(prev => ({ ...prev, delegate_id: e.target.value }))}
-                    placeholder="D001"
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setNewVisit(prev => ({ ...prev, delegate_id: value }))
+                      // Trigger lookup when delegate role is representative
+                      if (newVisit.delegate_role === 'representative') {
+                        lookupRepresentative(value)
+                      }
+                    }}
+                    placeholder="REP001"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="delegate_name">Delegate Name</Label>
+                  <Label htmlFor="delegate_name">Delegate Name {autoFilledFields.delegate_name ? '(Auto-filled)' : ''}</Label>
                   <Input
                     id="delegate_name"
                     value={newVisit.delegate_name}
                     onChange={(e) => setNewVisit(prev => ({ ...prev, delegate_name: e.target.value }))}
                     placeholder="John Doe"
+                    readOnly={autoFilledFields.delegate_name}
+                    className={autoFilledFields.delegate_name ? 'bg-gray-50' : ''}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="delegate_email">Delegate Email</Label>
+                  <Label htmlFor="delegate_email">Delegate Email {autoFilledFields.delegate_email ? '(Auto-filled)' : ''}</Label>
                   <Input
                     id="delegate_email"
                     type="email"
                     value={newVisit.delegate_email}
                     onChange={(e) => setNewVisit(prev => ({ ...prev, delegate_email: e.target.value }))}
                     placeholder="john@company.com"
+                    readOnly={autoFilledFields.delegate_email}
+                    className={autoFilledFields.delegate_email ? 'bg-gray-50' : ''}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="delegate_phone">Delegate Phone</Label>
+                  <Label htmlFor="delegate_phone">Delegate Phone {autoFilledFields.delegate_phone ? '(Auto-filled)' : ''}</Label>
                   <Input
                     id="delegate_phone"
                     value={newVisit.delegate_phone}
                     onChange={(e) => setNewVisit(prev => ({ ...prev, delegate_phone: e.target.value }))}
                     placeholder="+1 (555) 123-4567"
+                    readOnly={autoFilledFields.delegate_phone}
+                    className={autoFilledFields.delegate_phone ? 'bg-gray-50' : ''}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="delegate_role">Delegate Role</Label>
-                  <Select value={newVisit.delegate_role} onValueChange={(value) => setNewVisit(prev => ({ ...prev, delegate_role: value }))}>
+                  <Select value={newVisit.delegate_role} onValueChange={(value) => {
+                    setNewVisit(prev => ({ ...prev, delegate_role: value }))
+                    // Trigger lookup if role is representative and delegate_id is provided
+                    if (value === 'representative' && newVisit.delegate_id.trim()) {
+                      lookupRepresentative(newVisit.delegate_id)
+                    }
+                  }}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="driver">Driver</SelectItem>
                       <SelectItem value="representative">Representative</SelectItem>
                       <SelectItem value="supervisor">Supervisor</SelectItem>
-                      <SelectItem value="technician">Technician</SelectItem>
-                      <SelectItem value="sales_rep">Sales Rep</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -367,35 +516,58 @@ export function VisitManagementSingleTab() {
                   <Input
                     id="customer_id"
                     value={newVisit.customer_id}
-                    onChange={(e) => setNewVisit(prev => ({ ...prev, customer_id: e.target.value }))}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setNewVisit(prev => ({ ...prev, customer_id: value }))
+                      // Trigger customer lookup
+                      lookupCustomer(value)
+                    }}
                     placeholder="C001"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="customer_name">Customer Name</Label>
+                  <Label htmlFor="customer_name">Customer Name {autoFilledFields.customer_name ? '(Auto-filled)' : ''}</Label>
                   <Input
                     id="customer_name"
                     value={newVisit.customer_name}
                     onChange={(e) => setNewVisit(prev => ({ ...prev, customer_name: e.target.value }))}
                     placeholder="ABC Corporation"
+                    readOnly={autoFilledFields.customer_name}
+                    className={autoFilledFields.customer_name ? 'bg-gray-50' : ''}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="customer_address">Customer Address</Label>
+                  <Label htmlFor="customer_address">Customer Address {autoFilledFields.customer_address ? '(Auto-filled)' : ''}</Label>
                   <Input
                     id="customer_address"
                     value={newVisit.customer_address}
                     onChange={(e) => setNewVisit(prev => ({ ...prev, customer_address: e.target.value }))}
                     placeholder="123 Business St, Downtown"
+                    readOnly={autoFilledFields.customer_address}
+                    className={autoFilledFields.customer_address ? 'bg-gray-50' : ''}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="customer_phone">Customer Phone</Label>
+                  <Label htmlFor="customer_phone">Customer Phone {autoFilledFields.customer_phone ? '(Auto-filled)' : ''}</Label>
                   <Input
                     id="customer_phone"
                     value={newVisit.customer_phone}
                     onChange={(e) => setNewVisit(prev => ({ ...prev, customer_phone: e.target.value }))}
                     placeholder="+1 (555) 987-6543"
+                    readOnly={autoFilledFields.customer_phone}
+                    className={autoFilledFields.customer_phone ? 'bg-gray-50' : ''}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="customer_email">Customer Email {autoFilledFields.customer_email ? '(Auto-filled)' : ''}</Label>
+                  <Input
+                    id="customer_email"
+                    type="email"
+                    value={newVisit.customer_email}
+                    onChange={(e) => setNewVisit(prev => ({ ...prev, customer_email: e.target.value }))}
+                    placeholder="customer@example.com"
+                    readOnly={autoFilledFields.customer_email}
+                    className={autoFilledFields.customer_email ? 'bg-gray-50' : ''}
                   />
                 </div>
                 <div className="space-y-2">

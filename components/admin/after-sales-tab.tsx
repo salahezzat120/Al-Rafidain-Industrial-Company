@@ -812,21 +812,6 @@ export function AfterSalesTab() {
             <p className="text-gray-600">{t("manageCustomerSupport")}</p>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="text-xs text-gray-500">
-              آخر تحديث: {lastUpdate.toLocaleTimeString('ar-SA')}
-            </div>
-            <Button variant="outline" onClick={handleLiveTracking}>
-              <Clock className="h-4 w-4 mr-2" />
-              التتبع المباشر
-            </Button>
-            <Button variant="outline" onClick={() => handleAssignTask()}>
-              <Users className="h-4 w-4 mr-2" />
-              تعيين مهام
-            </Button>
-            <Button variant="outline" onClick={() => handleSendMessage()}>
-              <MessageSquare className="h-4 w-4 mr-2" />
-              إرسال رسائل
-            </Button>
             <Dialog open={isNewCaseOpen} onOpenChange={setIsNewCaseOpen}>
               <DialogTrigger asChild>
                 <Button>
@@ -1337,22 +1322,6 @@ export function AfterSalesTab() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => handleAssignTask(inquiry.id, 'inquiry')}
-                        title="تعيين مهمة"
-                      >
-                        <Users className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleSendMessage(inquiry)}
-                        title="إرسال رسالة"
-                      >
-                        <MessageSquare className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
                         onClick={() => handleEditCase(inquiry, 'inquiry')}
                         title="تعديل"
                       >
@@ -1527,22 +1496,6 @@ export function AfterSalesTab() {
                         title="عرض الملف الشخصي"
                       >
                         <User className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleAssignTask(complaint.id, 'complaint')}
-                        title="تعيين مهمة"
-                      >
-                        <Users className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleSendMessage(complaint)}
-                        title="إرسال رسالة"
-                      >
-                        <MessageSquare className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="outline" 
@@ -1733,22 +1686,6 @@ export function AfterSalesTab() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => handleAssignTask(request.id, 'maintenance')}
-                        title="تعيين مهمة"
-                      >
-                        <Users className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleSendMessage(request)}
-                        title="إرسال رسالة"
-                      >
-                        <MessageSquare className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
                         onClick={() => handleEditCase(request, 'maintenance')}
                         title="تعديل"
                       >
@@ -1915,22 +1852,6 @@ export function AfterSalesTab() {
                         title="عرض الملف الشخصي"
                       >
                         <User className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleAssignTask(warranty.id, 'warranty')}
-                        title="تعيين مهمة"
-                      >
-                        <Users className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleSendMessage(warranty)}
-                        title="إرسال رسالة"
-                      >
-                        <MessageSquare className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="outline" 
@@ -2113,22 +2034,6 @@ export function AfterSalesTab() {
                         title="عرض الملف الشخصي"
                       >
                         <User className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleAssignTask(service.id, 'followup')}
-                        title="تعيين مهمة"
-                      >
-                        <Users className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleSendMessage(service)}
-                        title="إرسال رسالة"
-                      >
-                        <MessageSquare className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="outline" 
