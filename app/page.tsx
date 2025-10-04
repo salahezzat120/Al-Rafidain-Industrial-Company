@@ -24,7 +24,7 @@ import LiveMapTab from "@/components/admin/live-map-tab"
 import LoyaltyTab from "@/components/admin/loyalty-tab"
 import { AlertsTab } from "@/components/admin/alerts-tab"
 import { SettingsTab } from "@/components/admin/settings-tab"
-import { VisitsTab } from "@/components/admin/visits-tab"
+import { VisitManagementSingleTab } from "@/components/admin/visit-management-single-tab"
 import { MessagingTab } from "@/components/admin/messaging-tab"
 import { AfterSalesTab } from "@/components/admin/after-sales-tab"
 import { WarehouseTab } from "@/components/admin/warehouse-tab"
@@ -135,7 +135,7 @@ function Dashboard() {
             {activeTab === "reports" && <ReportsTab />}
             {activeTab === "loyalty" && <LoyaltyTab />}
             {activeTab === "alerts" && <AlertsTab />}
-            {activeTab === "visits" && <VisitsTab />}
+            {activeTab === "visits" && <VisitManagementSingleTab />}
             {activeTab === "messaging" && <MessagingTab />}
             {activeTab === "after-sales" && <AfterSalesTab />}
             {activeTab === "settings" && <SettingsTab />}
