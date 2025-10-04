@@ -41,6 +41,7 @@ import { StocktakingModule } from '@/components/warehouse/stocktaking-module';
 import { BulkUpload } from '@/components/warehouse/bulk-upload';
 import { WorkflowIntegration } from '@/components/warehouse/workflow-integration';
 import { WarehouseFormWithMap } from '@/components/warehouse/warehouse-form-with-map';
+import { AddingTab } from '@/components/admin/adding-tab';
 import { useLanguage } from '@/contexts/language-context';
 import type { 
   Warehouse, 
@@ -59,7 +60,7 @@ import type {
 
 export function WarehouseTab() {
   const { t, isRTL } = useLanguage();
-  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'warehouses' | 'products' | 'movements' | 'reports' | 'stocktaking' | 'bulk-upload' | 'workflow'>('dashboard');
+  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'warehouses' | 'products' | 'movements' | 'reports' | 'stocktaking' | 'bulk-upload' | 'workflow' | 'adding'>('dashboard');
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [inventory, setInventory] = useState<InventorySummary[]>([]);
@@ -748,6 +749,9 @@ export function WarehouseTab() {
           </TabsTrigger>
           <TabsTrigger value="workflow" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap flex-shrink-0">
             {t('warehouse.workflow')}
+          </TabsTrigger>
+          <TabsTrigger value="adding" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap flex-shrink-0">
+            إضافة العناصر
           </TabsTrigger>
         </TabsList>
 
@@ -1675,6 +1679,11 @@ export function WarehouseTab() {
         {/* Workflow Integration Tab */}
         <TabsContent value="workflow" className="space-y-6">
           <WorkflowIntegration />
+        </TabsContent>
+
+        {/* Adding Tab */}
+        <TabsContent value="adding" className="space-y-6">
+          <AddingTab />
         </TabsContent>
 
       </Tabs>
