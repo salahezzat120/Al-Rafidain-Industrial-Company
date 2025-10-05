@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { Package, User, AlertCircle, Search, Plus, Minus, ShoppingCart, Warehouse } from "lucide-react"
+import { Package, User, AlertCircle, Search, Plus, Minus, ShoppingCart, Warehouse, X } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
 import { useToast } from "@/hooks/use-toast"
 import { createDeliveryTask } from "@/lib/delivery-tasks"
@@ -464,7 +464,7 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[90vw] h-[80vh] max-w-6xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
@@ -502,7 +502,7 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {activeTab === "details" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
@@ -690,47 +690,51 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
           {activeTab === "products" && (
             <div className="space-y-6">
               {/* Product Search and Filter */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Warehouse className="h-4 w-4" />
-                    Product Search & Filters
+              <Card className="border-2 border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Search className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <span className="text-gray-900">Product Search & Filters</span>
+                      <p className="text-sm text-gray-600 font-normal mt-1">
+                        Find and select products for your delivery task
+                      </p>
+                    </div>
                   </CardTitle>
-                  <p className="text-sm text-gray-600">
-                    Find and select products for your delivery task
-                  </p>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="productSearch" className="text-sm font-medium">
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="space-y-3">
+                      <Label htmlFor="productSearch" className="text-sm font-semibold text-gray-700">
                         Search Products
                       </Label>
                       <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                         <Input
                           id="productSearch"
                           placeholder="Search by name, code, or category..."
                           value={productSearchTerm}
                           onChange={(e) => setProductSearchTerm(e.target.value)}
-                          className="pl-10 h-10"
+                          className="pl-12 h-12 text-base border-2 border-gray-200 focus:border-blue-500 rounded-xl"
                         />
                         {productSearchTerm && (
                           <button
                             onClick={() => setProductSearchTerm('')}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                           >
-                            ✕
+                            <X className="h-5 w-5" />
                           </button>
                         )}
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="warehouseFilter" className="text-sm font-medium">
+                    <div className="space-y-3">
+                      <Label htmlFor="warehouseFilter" className="text-sm font-semibold text-gray-700">
                         Filter by Warehouse
                       </Label>
                       <Select value={selectedWarehouse} onValueChange={setSelectedWarehouse} disabled={isLoadingWarehouses}>
-                        <SelectTrigger className="h-10">
+                        <SelectTrigger className="h-12 text-base border-2 border-gray-200 focus:border-blue-500 rounded-xl">
                           <SelectValue placeholder={isLoadingWarehouses ? "Loading..." : "All Warehouses"} />
                         </SelectTrigger>
                         <SelectContent>
@@ -746,28 +750,34 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
                   </div>
                   
                   {/* Quick Filters */}
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant={productSearchTerm === '' ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setProductSearchTerm('')}
-                    >
-                      All Products
-                    </Button>
-                    <Button
-                      variant={productSearchTerm === 'low stock' ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setProductSearchTerm(productSearchTerm === 'low stock' ? '' : 'low stock')}
-                    >
-                      Low Stock
-                    </Button>
-                    <Button
-                      variant={productSearchTerm === 'out of stock' ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setProductSearchTerm(productSearchTerm === 'out of stock' ? '' : 'out of stock')}
-                    >
-                      Out of Stock
-                    </Button>
+                  <div className="space-y-4">
+                    <Label className="text-sm font-semibold text-gray-700">Quick Filters</Label>
+                    <div className="flex flex-wrap gap-4">
+                      <Button
+                        variant={productSearchTerm === '' ? "default" : "outline"}
+                        size="lg"
+                        onClick={() => setProductSearchTerm('')}
+                        className="px-6 py-3 rounded-xl font-semibold"
+                      >
+                        All Products
+                      </Button>
+                      <Button
+                        variant={productSearchTerm === 'low stock' ? "default" : "outline"}
+                        size="lg"
+                        onClick={() => setProductSearchTerm(productSearchTerm === 'low stock' ? '' : 'low stock')}
+                        className="px-6 py-3 rounded-xl font-semibold"
+                      >
+                        Low Stock
+                      </Button>
+                      <Button
+                        variant={productSearchTerm === 'out of stock' ? "default" : "outline"}
+                        size="lg"
+                        onClick={() => setProductSearchTerm(productSearchTerm === 'out of stock' ? '' : 'out of stock')}
+                        className="px-6 py-3 rounded-xl font-semibold"
+                      >
+                        Out of Stock
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -837,152 +847,171 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
               )}
 
               {/* Available Products */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center justify-between">
-                    <span>Available Products</span>
-                    <Badge variant="outline" className="text-xs">
+              <Card className="overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
+                  <CardTitle className="text-xl flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <Package className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <span className="text-gray-900">Available Products</span>
+                        <p className="text-sm text-gray-600 font-normal mt-1">
+                          Select products for your delivery task
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="secondary" className="text-sm px-3 py-1">
                       {filteredProducts.length} products
                     </Badge>
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-0">
                   {isLoadingProducts ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-2"></div>
-                      Loading products...
+                    <div className="text-center py-12 text-gray-500">
+                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                      <p className="text-lg font-medium">Loading products...</p>
+                      <p className="text-sm">Please wait while we fetch the latest inventory</p>
                     </div>
                   ) : filteredProducts.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      <div className="text-4xl mb-2">📦</div>
-                      <p>No products found</p>
-                      <p className="text-sm">Try adjusting your search or filters</p>
+                    <div className="text-center py-12 text-gray-500">
+                      <div className="text-6xl mb-4">📦</div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">No products found</h3>
+                      <p className="text-sm mb-4">Try adjusting your search or filters</p>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          setProductSearchTerm('');
+                          setSelectedWarehouse('all');
+                        }}
+                      >
+                        Clear Filters
+                      </Button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {filteredProducts.map((product) => {
-                        const isSelected = selectedProducts.some(p => p.id === product.id);
-                        const isOutOfStock = product.stock <= 0;
-                        const isLowStock = product.stock > 0 && product.stock <= 5;
-                        
-                        return (
-                          <div 
-                            key={product.id} 
-                            className={`border rounded-lg p-4 hover:shadow-md transition-all duration-200 ${
-                              isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : ''
-                            } ${isOutOfStock ? 'opacity-60' : ''}`}
-                          >
-                            {/* Product Header */}
-                            <div className="flex justify-between items-start mb-3">
-                              <div className="flex-1">
-                                <h3 className="font-semibold text-sm text-gray-900 line-clamp-1">
-                                  {product.product_name}
-                                </h3>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Code: {product.product_code || 'N/A'}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {product.main_group}
-                                </p>
-                              </div>
-                              <div className="flex flex-col items-end gap-1">
+                    <div className="p-4">
+                      <div className="space-y-2">
+                        {filteredProducts.map((product) => {
+                          const isSelected = selectedProducts.some(p => p.id === product.id);
+                          const isOutOfStock = product.stock <= 0;
+                          const isLowStock = product.stock > 0 && product.stock <= 5;
+                          const selectedProduct = selectedProducts.find(p => p.id === product.id);
+                          const price = product.selling_price || product.cost_price || 0;
+                          
+                            return (
+                              <div 
+                                key={product.id} 
+                                className={`group relative bg-white border rounded-lg p-3 hover:shadow-md transition-all duration-200 ${
+                                  isSelected 
+                                    ? 'border-blue-500 bg-blue-50 shadow-md' 
+                                    : 'border-gray-200 hover:border-blue-300'
+                                } ${isOutOfStock ? 'opacity-60' : ''}`}
+                              >
+                              {/* Selection Indicator */}
+                              {isSelected && (
+                                <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                                  <span className="text-white text-xs font-bold">✓</span>
+                                </div>
+                              )}
+
+                              {/* Product Header */}
+                              <div className="flex justify-between items-center mb-2">
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-semibold text-sm text-gray-900 truncate">
+                                    {product.product_name}
+                                  </h3>
+                                  <p className="text-xs text-gray-500">
+                                    {product.product_code || 'N/A'} • {product.main_group}
+                                  </p>
+                                </div>
                                 <Badge 
                                   variant={
                                     isOutOfStock ? "destructive" : 
                                     isLowStock ? "secondary" : 
                                     "default"
                                   }
-                                  className="text-xs"
+                                  className="text-xs px-2 py-1"
                                 >
                                   {product.stock} {product.unit || 'pcs'}
                                 </Badge>
-                                {isLowStock && !isOutOfStock && (
-                                  <span className="text-xs text-orange-600 font-medium">Low Stock</span>
-                                )}
                               </div>
-                            </div>
 
-                            {/* Product Details */}
-                            <div className="space-y-2 mb-3">
-                              <div className="flex justify-between items-center">
+                              {/* Product Details */}
+                              <div className="flex justify-between items-center mb-2">
                                 <span className="text-xs text-gray-500">Price:</span>
-                                <span className="font-medium text-sm">
-                                  {product.selling_price?.toLocaleString() || product.cost_price?.toLocaleString() || '0'} IQD
+                                <span className="font-semibold text-sm text-green-600">
+                                  {price.toLocaleString()} IQD
                                 </span>
                               </div>
-                              <div className="flex justify-between items-center">
-                                <span className="text-xs text-gray-500">Unit:</span>
-                                <span className="text-xs text-gray-600">{product.unit || 'pcs'}</span>
-                              </div>
-                              {product.warehouses && (
-                                <div className="flex justify-between items-center">
-                                  <span className="text-xs text-gray-500">Warehouse:</span>
-                                  <span className="text-xs text-gray-600 truncate max-w-20">
-                                    {product.warehouses}
+
+                              {/* Action Buttons */}
+                              <div className="flex items-center justify-between">
+                                {isSelected ? (
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleUpdateQuantity(product.id, (selectedProduct?.quantity || 0) - 1)}
+                                      disabled={!selectedProduct || selectedProduct.quantity <= 1}
+                                      className="h-6 w-6 p-0"
+                                    >
+                                      <Minus className="h-3 w-3" />
+                                    </Button>
+                                    <span className="text-xs font-semibold text-blue-800 min-w-[1.5rem] text-center">
+                                      {selectedProduct?.quantity || 0}
+                                    </span>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleUpdateQuantity(product.id, (selectedProduct?.quantity || 0) + 1)}
+                                      disabled={isOutOfStock}
+                                      className="h-6 w-6 p-0"
+                                    >
+                                      <Plus className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleAddProduct(product)}
+                                    disabled={isOutOfStock}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1"
+                                  >
+                                    {isOutOfStock ? 'Out of Stock' : 'Add'}
+                                  </Button>
+                                )}
+                                {isSelected && (
+                                  <span className="text-xs text-blue-600 font-medium">
+                                    {((selectedProduct?.quantity || 0) * price).toLocaleString()} IQD
                                   </span>
+                                )}
+                              </div>
+
+                              {/* Stock Warning */}
+                              {isLowStock && !isOutOfStock && (
+                                <div className="mt-3 p-3 bg-orange-50 border-l-4 border-orange-400 rounded-r-lg">
+                                  <div className="flex items-center">
+                                    <span className="text-orange-600 mr-2">⚠️</span>
+                                    <span className="text-sm text-orange-700 font-medium">
+                                      Only {product.stock} units remaining
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Out of Stock Overlay */}
+                              {isOutOfStock && (
+                                <div className="absolute inset-0 bg-gray-900 bg-opacity-50 rounded-xl flex items-center justify-center">
+                                  <div className="text-center text-white">
+                                    <div className="text-2xl mb-2">❌</div>
+                                    <p className="font-semibold">Out of Stock</p>
+                                  </div>
                                 </div>
                               )}
                             </div>
-
-                            {/* Action Buttons */}
-                            <div className="flex gap-2">
-                              {isSelected ? (
-                                <div className="flex-1 flex items-center justify-center gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleUpdateQuantity(product.id, selectedProducts.find(p => p.id === product.id)?.quantity - 1 || 0)}
-                                    disabled={!selectedProducts.find(p => p.id === product.id) || selectedProducts.find(p => p.id === product.id)?.quantity <= 1}
-                                    className="h-8 w-8 p-0"
-                                  >
-                                    <Minus className="h-3 w-3" />
-                                  </Button>
-                                  <span className="text-sm font-medium min-w-8 text-center">
-                                    {selectedProducts.find(p => p.id === product.id)?.quantity || 0}
-                                  </span>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleUpdateQuantity(product.id, (selectedProducts.find(p => p.id === product.id)?.quantity || 0) + 1)}
-                                    disabled={!selectedProducts.find(p => p.id === product.id) || (selectedProducts.find(p => p.id === product.id)?.quantity || 0) >= product.stock}
-                                    className="h-8 w-8 p-0"
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleAddProduct(product)}
-                                  disabled={isOutOfStock}
-                                  className="flex-1"
-                                >
-                                  <Plus className="h-3 w-3 mr-1" />
-                                  {isOutOfStock ? 'Out of Stock' : 'Add to Order'}
-                                </Button>
-                              )}
-                              
-                              {isSelected && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleRemoveProduct(product.id)}
-                                  className="px-2"
-                                >
-                                  ✕
-                                </Button>
-                              )}
-                            </div>
-
-                            {/* Stock Warning */}
-                            {isLowStock && !isOutOfStock && (
-                              <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
-                                ⚠️ Only {product.stock} units remaining
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </CardContent>

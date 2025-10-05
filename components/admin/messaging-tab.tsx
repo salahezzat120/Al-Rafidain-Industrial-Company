@@ -498,7 +498,7 @@ export function MessagingTab() {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col h-80">
-              <ScrollArea className="flex-1 pr-4">
+              <ScrollArea className="flex-1 pr-4 overflow-y-auto max-h-[300px] chat-scroll-container">
                 <div className="space-y-4">
                   {chatMessages.map(msg => (
                     <div
@@ -514,12 +514,24 @@ export function MessagingTab() {
                             {msg.sender_role === 'Bot' ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}
                           </AvatarFallback>
                         </Avatar>
-                        <div className={`rounded-lg px-3 py-2 ${
+                        <div className={`rounded-lg px-3 py-2 break-words overflow-hidden ${
                           msg.message_type === 'user' 
                             ? 'bg-blue-500 text-white' 
                             : 'bg-gray-100 text-gray-900'
                         }`}>
-                          <p className="text-sm">{msg.message}</p>
+                          <p 
+                            className="text-sm break-words whitespace-pre-wrap"
+                            style={{
+                              wordBreak: 'break-all',
+                              overflowWrap: 'anywhere',
+                              hyphens: 'auto',
+                              whiteSpace: 'normal',
+                              maxWidth: '100%',
+                              overflow: 'hidden'
+                            }}
+                          >
+                            {msg.message}
+                          </p>
                           <p className={`text-xs mt-1 ${
                             msg.message_type === 'user' ? 'text-blue-100' : 'text-gray-500'
                           }`}>

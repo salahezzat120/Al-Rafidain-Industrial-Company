@@ -1,0 +1,138 @@
+/* Chat Message Overflow Fix - AGGRESSIVE VERSION */
+.chat-message {
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+  hyphens: auto;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  white-space: normal !important;
+}
+
+.chat-message p {
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+  hyphens: auto;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  white-space: normal !important;
+}
+
+/* Ensure flex containers don't prevent text wrapping */
+.chat-message-container {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  max-width: 100% !important;
+}
+
+.chat-message-content {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  flex: 1;
+  max-width: 100% !important;
+}
+
+/* Force text wrapping for long words - AGGRESSIVE */
+.force-wrap {
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+  hyphens: auto;
+  white-space: normal !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Specific fixes for chat bubbles - AGGRESSIVE */
+.chat-bubble {
+  max-width: 75% !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+}
+
+.chat-bubble p {
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+  hyphens: auto;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  white-space: normal !important;
+}
+
+/* Additional aggressive fixes */
+.chat-bubble * {
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  white-space: normal !important;
+}
+
+/* Force all text elements to wrap */
+.chat-bubble,
+.chat-bubble p,
+.chat-bubble span,
+.chat-bubble div {
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+/* NUCLEAR OPTION - Force ALL chat text to wrap */
+[class*="chat"] *,
+[class*="message"] *,
+[class*="bubble"] * {
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Force specific chat containers */
+.flex.items-start.gap-2,
+.flex.items-start.gap-3,
+.rounded-lg,
+.rounded-2xl {
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Chat Scrolling Styles */
+.chat-scroll-container {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.chat-scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-scroll-container::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.chat-scroll-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.chat-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Ensure chat containers are scrollable */
+[data-radix-scroll-area-viewport] {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  max-height: 100% !important;
+}

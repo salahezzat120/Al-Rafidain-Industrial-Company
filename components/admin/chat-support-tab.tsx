@@ -148,7 +148,7 @@ export default function ChatSupportTab() {
   }
 
   const getMessageStyle = (message: ChatMessage) => {
-    const baseStyle = "max-w-[75%] rounded-2xl px-4 py-3 mb-2 shadow-sm"
+    const baseStyle = "max-w-[75%] min-w-0 rounded-2xl px-4 py-3 mb-2 shadow-sm break-words overflow-hidden chat-bubble"
     
     switch (message.sender_type) {
       case 'admin':
@@ -207,9 +207,9 @@ export default function ChatSupportTab() {
   }
 
   return (
-    <div className="flex h-[75vh] bg-white rounded-lg shadow-sm border">
+    <div className="flex h-[75vh] bg-white rounded-lg shadow-sm border overflow-hidden">
       {/* Representatives Sidebar */}
-      <div className="w-80 border-r border-gray-200 bg-gray-50/50 flex flex-col">
+      <div className="w-80 border-r border-gray-200 bg-gray-50/50 flex flex-col overflow-hidden">
         {/* Header */}
         <div className="p-4 border-b border-gray-200 bg-white">
           <h3 className="font-semibold text-lg text-gray-900 flex items-center gap-2">
@@ -222,7 +222,7 @@ export default function ChatSupportTab() {
         </div>
 
         {/* Representatives List */}
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 overflow-y-auto max-h-[50vh] chat-scroll-container">
           {repsLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="animate-spin h-8 w-8 text-gray-400" />
@@ -284,7 +284,7 @@ export default function ChatSupportTab() {
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {!selectedRep ? (
           <div className="flex-1 flex items-center justify-center bg-gray-50/30">
             <div className="text-center">
@@ -334,7 +334,7 @@ export default function ChatSupportTab() {
             </div>
 
             {/* Messages Area */}
-            <ScrollArea className="flex-1 p-4">
+            <ScrollArea className="flex-1 p-4 overflow-y-auto max-h-[60vh] chat-scroll-container">
               {loading ? (
                 <div className="flex items-center justify-center h-full">
                   <Loader2 className="animate-spin h-8 w-8 text-gray-400" />
@@ -396,11 +396,23 @@ export default function ChatSupportTab() {
                         )}
                         
                         <div className={`flex flex-col ${msg.sender_type === 'admin' ? 'items-end' : 'items-start'}`}>
-                          <div className={getMessageStyle(msg)}>
-                            <div className="flex items-start gap-2">
+                          <div className={getMessageStyle(msg)} style={{ maxWidth: '75%', overflow: 'hidden', wordBreak: 'break-all' }}>
+                            <div className="flex items-start gap-2 min-w-0 chat-message-container" style={{ maxWidth: '100%', overflow: 'hidden' }}>
                               {getMessageIcon(msg.message_type, msg.sender_type)}
-                              <div className="flex-1">
-                                <p className="text-sm leading-relaxed">{msg.content}</p>
+                              <div className="flex-1 min-w-0 overflow-hidden chat-message-content" style={{ maxWidth: '100%', overflow: 'hidden' }}>
+                                <p 
+                                  className="text-sm leading-relaxed break-words whitespace-pre-wrap chat-message force-wrap"
+                                  style={{
+                                    wordBreak: 'break-all',
+                                    overflowWrap: 'anywhere',
+                                    hyphens: 'auto',
+                                    whiteSpace: 'normal',
+                                    maxWidth: '100%',
+                                    overflow: 'hidden'
+                                  }}
+                                >
+                                  {msg.content}
+                                </p>
                               </div>
                             </div>
                           </div>

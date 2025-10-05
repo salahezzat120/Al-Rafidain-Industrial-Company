@@ -260,7 +260,7 @@ export function ChatBot({ className = "", isMinimized = false, onMinimize, onMax
         </CardHeader>
 
         <CardContent className="flex-1 flex flex-col p-0">
-          <ScrollArea className="flex-1 px-4">
+          <ScrollArea className="flex-1 px-4 overflow-y-auto max-h-[350px] chat-scroll-container">
             <div className="space-y-4 py-4">
               {/* Personalized greeting bubble shown once at top */}
               <div className="flex justify-start">
@@ -291,8 +291,20 @@ export function ChatBot({ className = "", isMinimized = false, onMinimize, onMax
                         {msg.sender_role === 'Bot' ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
                       </AvatarFallback>
                     </Avatar>
-                    <div className={`rounded-lg px-3 py-2 ${msg.message_type === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-900'}`}>
-                      <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
+                    <div className={`rounded-lg px-3 py-2 max-w-[80%] break-words overflow-hidden ${msg.message_type === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-900'}`}>
+                      <p 
+                        className="text-sm whitespace-pre-wrap break-words"
+                        style={{
+                          wordBreak: 'break-all',
+                          overflowWrap: 'anywhere',
+                          hyphens: 'auto',
+                          whiteSpace: 'normal',
+                          maxWidth: '100%',
+                          overflow: 'hidden'
+                        }}
+                      >
+                        {msg.message}
+                      </p>
                       <p className={`text-xs mt-1 ${msg.message_type === 'user' ? 'text-blue-100' : 'text-gray-500'}`}>
                         {new Date(msg.timestamp).toLocaleTimeString()}
                       </p>

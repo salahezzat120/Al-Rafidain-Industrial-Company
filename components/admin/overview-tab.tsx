@@ -4,20 +4,33 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Users, Truck, Package, DollarSign, TrendingUp, AlertTriangle, Clock, CheckCircle, User, DollarSign as DollarIcon } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Users, Truck, Package, DollarSign, TrendingUp, AlertTriangle, Clock, CheckCircle, User, DollarSign as DollarIcon, RefreshCw, X, Check } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
 import { getPerformanceMetrics, getRecentActivity, getDashboardKPIs } from "@/lib/overview-analytics"
+import { getAlerts, getAlertStats, performAlertAction, type Alert, type AlertStats } from "@/lib/alerts"
 
 export function OverviewTab() {
   const { t } = useLanguage()
   const [kpis, setKpis] = useState<any>(null)
   const [performanceMetrics, setPerformanceMetrics] = useState<any>(null)
   const [recentActivity, setRecentActivity] = useState<any[]>([])
+  const [alerts, setAlerts] = useState<Alert[]>([])
+  const [alertStats, setAlertStats] = useState<AlertStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [alertsLoading, setAlertsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     loadDashboardData()
+    loadAlerts()
+    
+    // Set up polling for real-time updates
+    const interval = setInterval(() => {
+      loadAlerts()
+    }, 30000) // Poll every 30 seconds
+
+    return () => clearInterval(interval)
   }, [])
 
   const loadDashboardData = async () => {
@@ -66,6 +79,81 @@ export function OverviewTab() {
     }
   }
 
+  const loadAlerts = async () => {
+    try {
+      setAlertsLoading(true)
+      console.log('🚨 Loading alerts...')
+
+      const [alertsResult, statsResult] = await Promise.all([
+        getAlerts({ limit: 5, status: 'active' }),
+        getAlertStats()
+      ])
+
+      if (alertsResult.error) {
+        console.error('❌ Error loading alerts:', alertsResult.error)
+      } else {
+        setAlerts(alertsResult.data || [])
+      }
+
+      if (statsResult.error) {
+        console.error('❌ Error loading alert stats:', statsResult.error)
+      } else {
+        setAlertStats(statsResult.data)
+      }
+
+      console.log('✅ Alerts loaded successfully')
+    } catch (error) {
+      console.error('❌ Error loading alerts:', error)
+    } finally {
+      setAlertsLoading(false)
+    }
+  }
+
+  const handleAlertAction = async (alertId: string, action: 'mark_read' | 'resolve' | 'dismiss') => {
+    try {
+      const result = await performAlertAction(alertId, action, 'admin')
+      
+      if (result.error) {
+        console.error('❌ Error performing alert action:', result.error)
+      } else {
+        console.log('✅ Alert action performed successfully')
+        // Reload alerts to reflect changes
+        loadAlerts()
+      }
+    } catch (error) {
+      console.error('❌ Error performing alert action:', error)
+    }
+  }
+
+  const createSampleData = async () => {
+    try {
+      setAlertsLoading(true)
+      console.log('📝 Creating sample alerts...')
+
+      const response = await fetch('/api/alerts/sample', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'create' }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        console.log('✅ Sample alerts created successfully')
+        // Reload alerts to show the new data
+        loadAlerts()
+      } else {
+        console.error('❌ Error creating sample alerts:', result.error)
+      }
+    } catch (error) {
+      console.error('❌ Error creating sample alerts:', error)
+    } finally {
+      setAlertsLoading(false)
+    }
+  }
+
   const getActivityIcon = (icon: string) => {
     switch (icon) {
       case 'user':
@@ -91,6 +179,78 @@ export function OverviewTab() {
         return 'bg-purple-500'
       default:
         return 'bg-gray-500'
+    }
+  }
+
+  const getAlertIcon = (alertType: string, severity: string) => {
+    switch (alertType) {
+      case 'vehicle':
+      case 'maintenance':
+        return <AlertTriangle className="h-4 w-4 text-red-600" />
+      case 'delivery':
+        return <Clock className="h-4 w-4 text-yellow-600" />
+      case 'system':
+        return <CheckCircle className="h-4 w-4 text-green-600" />
+      default:
+        return severity === 'critical' || severity === 'high' 
+          ? <AlertTriangle className="h-4 w-4 text-red-600" />
+          : <Clock className="h-4 w-4 text-yellow-600" />
+    }
+  }
+
+  const getAlertBgColor = (severity: string) => {
+    switch (severity) {
+      case 'critical':
+      case 'high':
+        return 'bg-red-50'
+      case 'medium':
+        return 'bg-yellow-50'
+      case 'low':
+        return 'bg-green-50'
+      default:
+        return 'bg-gray-50'
+    }
+  }
+
+  const getAlertTextColor = (severity: string) => {
+    switch (severity) {
+      case 'critical':
+      case 'high':
+        return 'text-red-900'
+      case 'medium':
+        return 'text-yellow-900'
+      case 'low':
+        return 'text-green-900'
+      default:
+        return 'text-gray-900'
+    }
+  }
+
+  const getAlertSubTextColor = (severity: string) => {
+    switch (severity) {
+      case 'critical':
+      case 'high':
+        return 'text-red-700'
+      case 'medium':
+        return 'text-yellow-700'
+      case 'low':
+        return 'text-green-700'
+      default:
+        return 'text-gray-700'
+    }
+  }
+
+  const getSeverityBadgeVariant = (severity: string) => {
+    switch (severity) {
+      case 'critical':
+      case 'high':
+        return 'destructive'
+      case 'medium':
+        return 'secondary'
+      case 'low':
+        return 'outline'
+      default:
+        return 'outline'
     }
   }
 
@@ -223,40 +383,116 @@ export function OverviewTab() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
-              {t("systemAlerts")}
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                {t("systemAlerts")}
+                {alertStats && (
+                  <Badge variant="destructive" className="ml-2">
+                    {alertStats.active} {t("active")}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadAlerts}
+                  disabled={alertsLoading}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${alertsLoading ? 'animate-spin' : ''}`} />
+                  {t("refresh")}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={createSampleData}
+                  disabled={alertsLoading}
+                >
+                  Create Sample
+                </Button>
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 bg-red-50 rounded-lg">
-                <AlertTriangle className="h-4 w-4 text-red-600" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-red-900">Vehicle Maintenance Due</p>
-                  <p className="text-xs text-red-700">Truck #VH-001 needs service</p>
-                </div>
-                <Badge variant="destructive">{t("high")}</Badge>
+            {alertsLoading ? (
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="h-4 w-4 bg-gray-200 rounded animate-pulse"></div>
+                    <div className="flex-1">
+                      <div className="h-4 w-32 bg-gray-200 rounded animate-pulse mb-2"></div>
+                      <div className="h-3 w-48 bg-gray-200 rounded animate-pulse"></div>
+                    </div>
+                    <div className="h-6 w-16 bg-gray-200 rounded animate-pulse"></div>
+                  </div>
+                ))}
               </div>
-
-              <div className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg">
-                <Clock className="h-4 w-4 text-yellow-600" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-yellow-900">{t("delayed")} Delivery</p>
-                  <p className="text-xs text-yellow-700">Order #12345 is 30 mins behind</p>
-                </div>
-                <Badge variant="secondary">{t("medium")}</Badge>
+            ) : alerts.length > 0 ? (
+              <div className="space-y-3">
+                {alerts.map((alert) => (
+                  <div key={alert.id} className={`flex items-center gap-3 p-3 ${getAlertBgColor(alert.severity)} rounded-lg`}>
+                    {getAlertIcon(alert.alert_type, alert.severity)}
+                    <div className="flex-1">
+                      <p className={`text-sm font-medium ${getAlertTextColor(alert.severity)}`}>
+                        {alert.title}
+                      </p>
+                      <p className={`text-xs ${getAlertSubTextColor(alert.severity)}`}>
+                        {alert.message}
+                      </p>
+                      {alert.vehicle_plate && (
+                        <p className={`text-xs ${getAlertSubTextColor(alert.severity)} mt-1`}>
+                          Vehicle: {alert.vehicle_plate}
+                        </p>
+                      )}
+                      {alert.driver_name && (
+                        <p className={`text-xs ${getAlertSubTextColor(alert.severity)}`}>
+                          Driver: {alert.driver_name}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={getSeverityBadgeVariant(alert.severity) as any}>
+                        {alert.severity}
+                      </Badge>
+                      <div className="flex gap-1">
+                        {!alert.is_read && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleAlertAction(alert.id, 'mark_read')}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Check className="h-3 w-3" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleAlertAction(alert.id, 'resolve')}
+                          className="h-6 w-6 p-0"
+                        >
+                          <Check className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleAlertAction(alert.id, 'dismiss')}
+                          className="h-6 w-6 p-0"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-
-              <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-green-900">Route Optimized</p>
-                  <p className="text-xs text-green-700">Saved 45 mins on Route A</p>
-                </div>
-                <Badge variant="outline">Info</Badge>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>No active alerts</p>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
