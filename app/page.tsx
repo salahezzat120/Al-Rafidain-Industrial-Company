@@ -132,7 +132,7 @@ function Dashboard() {
             {activeTab === "overview" && <OverviewTab />}
             {activeTab === "users" && <UsersTabSimple />}
             {activeTab === "employees" && <EmployeesTab />}
-            {activeTab === "representatives" && <RepresentativesTab />}
+            {activeTab === "representatives" && <RepresentativesTab onNavigateToChatSupport={() => setActiveTab("chat-support")} onNavigateToDeliveryTasks={() => setActiveTab("deliveries")} />}
             {activeTab === "customers" && <CustomersTab />}
             {activeTab === "warehouse" && <WarehouseTab />}
             {activeTab === "payments" && <PaymentsTab />}
@@ -225,7 +225,7 @@ function Dashboard() {
                 {activeTab === "overview" && <OverviewTab />}
                 {activeTab === "users" && <UsersTabSimple />}
                 {activeTab === "employees" && <EmployeesTab />}
-                {activeTab === "representatives" && <RepresentativesTab />}
+                {activeTab === "representatives" && <RepresentativesTab onNavigateToChatSupport={() => setActiveTab("chat-support")} onNavigateToDeliveryTasks={() => setActiveTab("deliveries")} />}
                 {activeTab === "customers" && <CustomersTab />}
                 {activeTab === "warehouse" && <WarehouseTab />}
                 {activeTab === "payments" && <PaymentsTab />}
@@ -480,6 +480,7 @@ function Dashboard() {
         isMinimized={isChatBotMinimized}
         onMinimize={() => setIsChatBotMinimized(true)}
         onMaximize={() => setIsChatBotMinimized(false)}
+        onNavigateToChatSupport={() => setActiveTab("chat-support")}
       />
     </div>
   )

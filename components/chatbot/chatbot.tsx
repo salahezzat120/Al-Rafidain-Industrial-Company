@@ -47,9 +47,10 @@ interface ChatBotProps {
   isMinimized?: boolean
   onMinimize?: () => void
   onMaximize?: () => void
+  onNavigateToChatSupport?: () => void
 }
 
-export function ChatBot({ className = "", isMinimized = false, onMinimize, onMaximize }: ChatBotProps) {
+export function ChatBot({ className = "", isMinimized = false, onMinimize, onMaximize, onNavigateToChatSupport }: ChatBotProps) {
   const { user } = useAuth()
   const { language, t } = useLanguage()
   const [feedback, setFeedback] = useState<null | 'up' | 'down'>(null)
@@ -107,6 +108,13 @@ export function ChatBot({ className = "", isMinimized = false, onMinimize, onMax
   const handleSendMessage = async () => {
     if (!input.trim()) return
 
+    // Navigate to chat support tab instead of sending a message
+    if (onNavigateToChatSupport) {
+      onNavigateToChatSupport()
+      return
+    }
+
+    // Fallback to original behavior if navigation function is not provided
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       sender_id: user?.id || "1",
