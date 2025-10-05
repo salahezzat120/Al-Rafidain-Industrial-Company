@@ -6,14 +6,19 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Package, Filter, Download, Star, Navigation, CheckCircle, XCircle, Calendar, Loader2, FileText, FileSpreadsheet, Eye, MessageSquare, History, Trash2, Edit, UserCheck } from "lucide-react"
+import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Package, Filter, Download, Star, Navigation, CheckCircle, XCircle, Calendar, Loader2, FileText, FileSpreadsheet, Eye, MessageSquare, History, Trash2, Edit, UserCheck, X } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from "@/components/ui/dropdown-menu"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { CustomerProfileModal } from "./customer-profile-modal"
 import { AddCustomerModal } from "./add-customer-modal-new"
 import { LocationDisplay, LocationCard } from "@/components/ui/location-display"
 import { useLanguage } from "@/contexts/language-context"
 import { getCustomers, Customer } from "@/lib/customers"
 import { useToast } from "@/hooks/use-toast"
+import { exportCustomersToExcel, exportCustomersToExcelWithSummary } from "@/lib/customer-excel-export"
 
 export function CustomersTab() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -23,6 +28,12 @@ export function CustomersTab() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Filter states
+  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [visitStatusFilter, setVisitStatusFilter] = useState<string>("all")
+  const [orderFilter, setOrderFilter] = useState<string>("all")
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
 
   const { t } = useLanguage()
   const { toast } = useToast()
@@ -100,13 +111,43 @@ export function CustomersTab() {
   }
 
   const filteredCustomers = useMemo(() => {
-    return customers.filter(
-      (customer) =>
+    return customers.filter((customer) => {
+      // Search filter
+      const matchesSearch = 
         customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.customer_id.toLowerCase().includes(searchTerm.toLowerCase()),
-    )
-  }, [customers, searchTerm])
+        customer.customer_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.address.toLowerCase().includes(searchTerm.toLowerCase())
+
+      // Status filter
+      const matchesStatus = statusFilter === "all" || customer.status === statusFilter
+
+      // Visit status filter
+      const matchesVisitStatus = visitStatusFilter === "all" || customer.visit_status === visitStatusFilter
+
+      // Order filter
+      let matchesOrder = true
+      if (orderFilter !== "all") {
+        switch (orderFilter) {
+          case "has_orders":
+            matchesOrder = customer.total_orders > 0
+            break
+          case "no_orders":
+            matchesOrder = customer.total_orders === 0
+            break
+          case "high_value":
+            matchesOrder = customer.total_spent > 100
+            break
+          case "low_value":
+            matchesOrder = customer.total_spent <= 100 && customer.total_spent > 0
+            break
+        }
+      }
+
+      return matchesSearch && matchesStatus && matchesVisitStatus && matchesOrder
+    })
+  }, [customers, searchTerm, statusFilter, visitStatusFilter, orderFilter])
 
   const handleViewProfile = useCallback((customer: any) => {
     setSelectedCustomer(customer)
@@ -163,6 +204,66 @@ export function CustomersTab() {
       setIsAddModalOpen(false)
     }
   }, [toast])
+
+  // Excel export handlers
+  const handleExportToExcel = useCallback(() => {
+    try {
+      const result = exportCustomersToExcel(filteredCustomers)
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: `Customers exported to ${result.filename}`,
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: `Export failed: ${result.error}`,
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error('Error exporting to Excel:', error)
+      toast({
+        title: "Error",
+        description: "Failed to export customers. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }, [filteredCustomers, toast])
+
+  const handleExportToExcelWithSummary = useCallback(() => {
+    try {
+      const result = exportCustomersToExcelWithSummary(filteredCustomers)
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: `Customers exported with summary to ${result.filename}`,
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: `Export failed: ${result.error}`,
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error('Error exporting to Excel with summary:', error)
+      toast({
+        title: "Error",
+        description: "Failed to export customers. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }, [filteredCustomers, toast])
+
+  // Clear filters
+  const clearFilters = useCallback(() => {
+    setStatusFilter("all")
+    setVisitStatusFilter("all")
+    setOrderFilter("all")
+    setSearchTerm("")
+    setIsFilterOpen(false)
+  }, [])
 
   const stats = useMemo(() => {
     const active = customers.filter((c) => c.status === "active").length
@@ -437,9 +538,13 @@ export function CustomersTab() {
                 <FileText className="h-4 w-4 mr-2" />
                 Export as CSV
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={exportToExcel}>
+              <DropdownMenuItem onClick={handleExportToExcel}>
                 <FileSpreadsheet className="h-4 w-4 mr-2" />
                 Export as Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportToExcelWithSummary}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Export as Excel (with Summary)
               </DropdownMenuItem>
               <DropdownMenuItem onClick={exportToPDF}>
                 <FileText className="h-4 w-4 mr-2" />
@@ -526,10 +631,85 @@ export function CustomersTab() {
                 className="pl-10"
               />
             </div>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              {t("filter")}
-            </Button>
+            <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline">
+                  <Filter className="h-4 w-4 mr-2" />
+                  {t("filter")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="end">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Filters</h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="h-8 px-2"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="status-filter">Status</Label>
+                      <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Status</SelectItem>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="vip">VIP</SelectItem>
+                          <SelectItem value="inactive">Inactive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="visit-status-filter">Visit Status</Label>
+                      <Select value={visitStatusFilter} onValueChange={setVisitStatusFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select visit status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Visit Status</SelectItem>
+                          <SelectItem value="visited">Visited</SelectItem>
+                          <SelectItem value="not_visited">Not Visited</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="order-filter">Orders</Label>
+                      <Select value={orderFilter} onValueChange={setOrderFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select order filter" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Orders</SelectItem>
+                          <SelectItem value="has_orders">Has Orders</SelectItem>
+                          <SelectItem value="no_orders">No Orders</SelectItem>
+                          <SelectItem value="high_value">High Value (>$100)</SelectItem>
+                          <SelectItem value="low_value">Low Value (≤$100)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" onClick={clearFilters}>
+                      Clear
+                    </Button>
+                    <Button size="sm" onClick={() => setIsFilterOpen(false)}>
+                      Apply
+                    </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </CardHeader>
         <CardContent>
@@ -595,10 +775,19 @@ export function CustomersTab() {
 
                   <div>
                     <div className="flex items-center gap-1 mb-1">
-                      <Star className="h-3 w-3 text-yellow-500 fill-current" />
-                      <span className="text-sm font-medium">{customer.rating}</span>
+                      {getVisitStatusIcon(customer.visit_status)}
+                      <span className="text-sm font-medium">
+                        {customer.visit_status === "visited" ? "Visited" : "Not Visited"}
+                      </span>
                     </div>
-                    <p className="text-sm text-gray-600">Last: {customer.last_order_date || "Never"}</p>
+                    <div className="space-y-1">
+                      <p className="text-sm text-gray-600">
+                        {customer.last_visit_date ? `Last: ${customer.last_visit_date}` : "No visits yet"}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {customer.visit_notes || "No visit details"}
+                      </p>
+                    </div>
                   </div>
 
                   <div>
@@ -608,12 +797,6 @@ export function CustomersTab() {
                       address={customer.address}
                       className="mb-2"
                     />
-                    <div className="flex items-center gap-1">
-                      {getVisitStatusIcon(customer.visit_status)}
-                      <Badge className={`text-xs ${getVisitStatusColor(customer.visit_status)}`}>
-                        {customer.visit_status === "visited" ? "Visited" : "Not Visited"}
-                      </Badge>
-                    </div>
                   </div>
 
                   <div>

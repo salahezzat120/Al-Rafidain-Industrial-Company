@@ -60,6 +60,7 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
     visit_status: "not_visited" as "visited" | "not_visited",
     last_visit_date: "",
     visit_notes: "",
+    gender: "random" as "male" | "female" | "random",
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -87,7 +88,7 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
         last_order_date: "",
         rating: 0,
         preferred_delivery_time: "Flexible",
-        avatar_url: generateRandomAvatar(), // Automatically generate random avatar
+        avatar_url: generateRandomAvatar("", "random"), // Automatically generate random avatar
         join_date: new Date().toISOString().split('T')[0],
         notes: "",
         latitude: null,
@@ -95,6 +96,7 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
         visit_status: "not_visited",
         last_visit_date: "",
         visit_notes: "",
+        gender: "random",
       })
       setErrors({})
       setSelectedLocation(null)
@@ -153,14 +155,14 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
   }, [errors])
 
   const regenerateAvatar = useCallback(() => {
-    const newAvatar = generateRandomAvatar()
+    const newAvatar = generateRandomAvatar(formData.name, formData.gender)
     setFormData(prev => ({ ...prev, avatar_url: newAvatar }))
     setAvatarKey(prev => prev + 1) // Force avatar re-render
     toast({
       title: "Avatar Updated",
       description: isRTL ? "تم تحديث الصورة الشخصية" : "Avatar regenerated successfully!",
     })
-  }, [isRTL, toast])
+  }, [formData.name, formData.gender, isRTL, toast])
 
   // Debounced email validation
   useEffect(() => {
@@ -227,7 +229,11 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
         setIsSubmitting(false)
         return
       }
+      // Generate a unique customer_id
+      const customer_id = `CUST-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      
       const customerData: CreateCustomerData = {
+        customer_id: customer_id,
         name: formData.name.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim(),
@@ -594,6 +600,22 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
                         <SelectItem value="Morning">{isRTL ? "صباحاً" : "Morning"}</SelectItem>
                         <SelectItem value="Afternoon">{isRTL ? "بعد الظهر" : "Afternoon"}</SelectItem>
                         <SelectItem value="Evening">{isRTL ? "مساءً" : "Evening"}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="gender">
+                      {isRTL ? "الجنس" : "Gender"}
+                    </Label>
+                    <Select value={formData.gender} onValueChange={(value) => handleInputChange("gender", value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="random">{isRTL ? "عشوائي" : "Random"}</SelectItem>
+                        <SelectItem value="male">{isRTL ? "ذكر" : "Male"}</SelectItem>
+                        <SelectItem value="female">{isRTL ? "أنثى" : "Female"}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

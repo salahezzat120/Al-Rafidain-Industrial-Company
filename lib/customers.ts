@@ -1,4 +1,6 @@
 import { supabase } from './supabase'
+import { getMultipleCustomerVisitStatus, hasCustomerBeenVisited, getVisitStatusText, getVisitStatusColor, type CustomerVisitStatus } from './visit-status'
+import { getMultipleCustomerOrderStats, type CustomerOrderStats } from './customer-orders'
 
 export interface Customer {
   id: string
@@ -47,26 +49,192 @@ export interface CreateCustomerData {
   visit_notes?: string
 }
 
+// Generate a random avatar URL using Avatar Placeholder API
+export const generateRandomAvatar = (name: string | null | undefined, gender?: 'male' | 'female' | 'random'): string => {
+  // Handle null, undefined, or empty name
+  if (!name || typeof name !== 'string' || name.trim() === '') {
+    return `https://avatar.iran.liara.run/public`
+  }
+  
+  // Clean the name for URL usage
+  const cleanName = name.trim().replace(/\s+/g, '')
+  
+  // Determine gender for avatar
+  let avatarGender = gender
+  if (!avatarGender || avatarGender === 'random') {
+    // Use name length to determine gender (simple heuristic)
+    avatarGender = cleanName.length % 2 === 0 ? 'female' : 'male'
+  }
+  
+  // Generate avatar URL based on gender
+  const baseUrl = 'https://avatar.iran.liara.run/public'
+  const genderPath = avatarGender === 'male' ? 'boy' : 'girl'
+  
+  return `${baseUrl}/${genderPath}?username=${encodeURIComponent(cleanName)}`
+}
+
+// Check if email already exists
+export const checkEmailExists = async (email: string): Promise<{ exists: boolean; error: string | null }> => {
+  try {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('email')
+      .eq('email', email)
+      .single()
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error checking email existence:', error)
+      return { exists: false, error: error.message }
+    }
+
+    return { exists: !!data, error: null }
+  } catch (error) {
+    console.error('Error checking email existence:', error)
+    return { exists: false, error: 'An unexpected error occurred' }
+  }
+}
+
 export interface UpdateCustomerData extends Partial<CreateCustomerData> {
   id: string
 }
 
-// Get all customers
+// Get all customers with visit status from visit_management table
 export const getCustomers = async (): Promise<{ data: Customer[] | null; error: string | null }> => {
   try {
-    const { data, error } = await supabase
+    console.log('🔍 Fetching customers with visit status...')
+    
+    // First, get all customers
+    const { data: customers, error: customersError } = await supabase
       .from('customers')
       .select('*')
       .order('name', { ascending: true })
 
-    if (error) {
-      console.error('Error fetching customers:', error)
-      return { data: null, error: error.message || 'Failed to fetch customers' }
+    if (customersError) {
+      console.error('❌ Error fetching customers:', customersError)
+      return { data: null, error: customersError.message || 'Failed to fetch customers' }
     }
 
-    return { data, error: null }
+    if (!customers || customers.length === 0) {
+      console.log('📝 No customers found')
+      return { data: [], error: null }
+    }
+
+    console.log(`✅ Found ${customers.length} customers`)
+
+    // Get customer IDs for visit status lookup
+    const customerIds = customers.map(customer => customer.customer_id)
+    
+    // Get visit status for all customers
+    const { data: visitStatuses, error: visitError } = await getMultipleCustomerVisitStatus(customerIds)
+    
+    if (visitError) {
+      console.error('❌ Error fetching visit statuses:', visitError)
+      // Continue without visit status if there's an error
+    }
+
+    // Get order statistics for all customers
+    console.log('🔍 Fetching order statistics for customers:', customerIds.length)
+    let orderStats = null
+    let orderError = null
+    
+    try {
+      const result = await getMultipleCustomerOrderStats(customerIds)
+      orderStats = result.data
+      orderError = result.error
+      
+      if (orderError) {
+        console.error('❌ Error fetching order statistics:', orderError)
+        console.log('⚠️ Continuing without order statistics...')
+      } else {
+        console.log('✅ Order statistics fetched successfully:', orderStats?.length || 0, 'customers')
+      }
+    } catch (error) {
+      console.error('❌ Unexpected error fetching order statistics:', error)
+      console.log('⚠️ Continuing without order statistics...')
+      orderError = 'Unexpected error occurred'
+    }
+
+    // Create a map of visit statuses by customer_id
+    const visitStatusMap = new Map<string, CustomerVisitStatus>()
+    if (visitStatuses) {
+      visitStatuses.forEach(status => {
+        visitStatusMap.set(status.customer_id, status)
+      })
+    }
+
+    // Create a map of order statistics by customer_id
+    const orderStatsMap = new Map<string, CustomerOrderStats>()
+    if (orderStats) {
+      orderStats.forEach(stats => {
+        orderStatsMap.set(stats.customer_id, stats)
+      })
+    }
+
+    // Update customers with visit status and order information
+    const customersWithVisitStatus = customers.map(customer => {
+      const visitStatus = visitStatusMap.get(customer.customer_id)
+      const orderStats = orderStatsMap.get(customer.customer_id)
+      
+      let updatedCustomer = { ...customer }
+      
+      // Update with visit status information
+      if (visitStatus) {
+        const visitInfo = []
+        if (visitStatus.completed_visits > 0) {
+          visitInfo.push(`${visitStatus.completed_visits} completed`)
+        }
+        if (visitStatus.pending_visits > 0) {
+          visitInfo.push(`${visitStatus.pending_visits} pending`)
+        }
+        if (visitStatus.in_progress_visits > 0) {
+          visitInfo.push(`${visitStatus.in_progress_visits} in progress`)
+        }
+        if (visitStatus.late_visits > 0) {
+          visitInfo.push(`${visitStatus.late_visits} late`)
+        }
+        
+        const visitDetails = visitInfo.length > 0 ? visitInfo.join(', ') : 'No visits'
+        
+        updatedCustomer = {
+          ...updatedCustomer,
+          visit_status: hasCustomerBeenVisited(visitStatus) ? 'visited' as const : 'not_visited' as const,
+          last_visit_date: visitStatus.last_visit_date ? visitStatus.last_visit_date.split('T')[0] : null,
+          visit_notes: visitDetails
+        }
+      }
+      
+      // Update with order statistics from delivery_tasks table
+      if (orderStats) {
+        console.log(`📊 Updating customer ${customer.customer_id} with order stats:`, {
+          total_orders: orderStats.total_orders,
+          total_spent: orderStats.total_spent,
+          last_order_date: orderStats.last_order_date
+        })
+        updatedCustomer = {
+          ...updatedCustomer,
+          total_orders: orderStats.total_orders,
+          total_spent: orderStats.total_spent,
+          last_order_date: orderStats.last_order_date ? orderStats.last_order_date.split('T')[0] : null
+        }
+      } else {
+        console.log(`⚠️ No order stats found for customer ${customer.customer_id}, using default values`)
+        // Provide default values when order stats are not available
+        updatedCustomer = {
+          ...updatedCustomer,
+          total_orders: 0,
+          total_spent: 0,
+          last_order_date: null
+        }
+      }
+      
+      return updatedCustomer
+    })
+
+    console.log('✅ Customers updated with visit status from visit_management table')
+    return { data: customersWithVisitStatus, error: null }
+
   } catch (err) {
-    console.error('Unexpected error fetching customers:', err)
+    console.error('❌ Unexpected error fetching customers:', err)
     return { data: null, error: 'An unexpected error occurred' }
   }
 }
@@ -285,7 +453,52 @@ export const getCustomerById = async (id: string): Promise<{ data: Customer | nu
       return { data: null, error: error?.message || 'Failed to fetch customer' }
     }
 
-    console.log('✅ Customer found:', data)
+    // Get visit status for this customer
+    const { data: visitStatus, error: visitError } = await getMultipleCustomerVisitStatus([data.customer_id])
+    
+    if (!visitError && visitStatus && visitStatus.length > 0) {
+      const customerVisitStatus = visitStatus[0]
+      
+      const visitInfo = []
+      if (customerVisitStatus.completed_visits > 0) {
+        visitInfo.push(`${customerVisitStatus.completed_visits} completed`)
+      }
+      if (customerVisitStatus.pending_visits > 0) {
+        visitInfo.push(`${customerVisitStatus.pending_visits} pending`)
+      }
+      if (customerVisitStatus.in_progress_visits > 0) {
+        visitInfo.push(`${customerVisitStatus.in_progress_visits} in progress`)
+      }
+      if (customerVisitStatus.late_visits > 0) {
+        visitInfo.push(`${customerVisitStatus.late_visits} late`)
+      }
+      
+      const visitDetails = visitInfo.length > 0 ? visitInfo.join(', ') : 'No visits'
+      
+      // Update customer with visit status from visit_management table
+      data = {
+        ...data,
+        visit_status: hasCustomerBeenVisited(customerVisitStatus) ? 'visited' as const : 'not_visited' as const,
+        last_visit_date: customerVisitStatus.last_visit_date ? customerVisitStatus.last_visit_date.split('T')[0] : null,
+        visit_notes: visitDetails
+      }
+    }
+
+    // Get order statistics for this customer
+    const { data: orderStats, error: orderError } = await getMultipleCustomerOrderStats([data.customer_id])
+    
+    if (!orderError && orderStats && orderStats.length > 0) {
+      const customerOrderStats = orderStats[0]
+      // Update customer with order statistics from delivery_tasks table
+      data = {
+        ...data,
+        total_orders: customerOrderStats.total_orders,
+        total_spent: customerOrderStats.total_spent,
+        last_order_date: customerOrderStats.last_order_date ? customerOrderStats.last_order_date.split('T')[0] : null
+      }
+    }
+
+    console.log('✅ Customer found with visit status:', data)
     return { data, error: null }
   } catch (err) {
     console.error('❌ Unexpected error fetching customer:', err)
@@ -296,6 +509,13 @@ export const getCustomerById = async (id: string): Promise<{ data: Customer | nu
 // Create customer
 export const createCustomer = async (customerData: CreateCustomerData): Promise<{ data: Customer | null; error: string | null }> => {
   try {
+    console.log('🔍 Creating customer with data:', {
+      name: customerData.name,
+      email: customerData.email,
+      customer_id: customerData.customer_id,
+      status: customerData.status
+    })
+
     const { data, error } = await supabase
       .from('customers')
       .insert([customerData])
@@ -303,13 +523,24 @@ export const createCustomer = async (customerData: CreateCustomerData): Promise<
       .single()
 
     if (error) {
-      console.error('Error creating customer:', error)
+      console.error('❌ Supabase error creating customer:', {
+        errorMessage: error?.message || 'No message',
+        errorCode: error?.code || 'No code',
+        errorDetails: error?.details || 'No details',
+        errorHint: error?.hint || 'No hint',
+        fullError: error
+      })
       return { data: null, error: error.message || 'Failed to create customer' }
     }
 
+    console.log('✅ Customer created successfully:', data)
     return { data, error: null }
   } catch (err) {
-    console.error('Unexpected error creating customer:', err)
+    console.error('❌ Unexpected error creating customer:', {
+      error: err,
+      errorMessage: err instanceof Error ? err.message : 'Unknown error',
+      errorStack: err instanceof Error ? err.stack : 'No stack trace'
+    })
     return { data: null, error: 'An unexpected error occurred' }
   }
 }

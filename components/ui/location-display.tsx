@@ -127,23 +127,6 @@ export function LocationDisplay({
           {isRTL ? "خرائط جوجل" : "Google Maps"}
         </Button>
         
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={openInOSM}
-          className="h-8 px-2 text-xs"
-        >
-          <Globe className="h-3 w-3 mr-1" />
-          {isRTL ? "OSM" : "OSM"}
-        </Button>
-      </div>
-
-      {/* Location Status Badge */}
-      <div className="flex items-center gap-2">
-        <Badge variant="outline" className="text-xs">
-          <MapPin className="h-3 w-3 mr-1" />
-          {isRTL ? "موقع محدد" : "Location Set"}
-        </Badge>
       </div>
     </div>
   )
@@ -249,19 +232,6 @@ export function LocationCard({
           >
             <Navigation className="h-3 w-3 mr-1" />
             {isRTL ? "خرائط جوجل" : "Google Maps"}
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const osmUrl = `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}&zoom=15`
-              window.open(osmUrl, '_blank')
-            }}
-            className="flex-1 h-8 text-xs"
-          >
-            <Globe className="h-3 w-3 mr-1" />
-            {isRTL ? "OSM" : "OSM"}
           </Button>
         </div>
       </CardContent>
