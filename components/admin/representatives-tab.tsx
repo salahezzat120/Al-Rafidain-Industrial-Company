@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Star, Truck, Filter, Download, Navigation } from "lucide-react";
+import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Star, Truck, Filter, Download, Navigation, User, Calendar, Shield, Car, Clock, Copy, X } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { RepresentativeProfileModal } from "./representative-profile-modal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AddRepresentativeModal } from "./add-representative-modal";
 import { LiveTrackingModal } from "./live-tracking-modal";
 import { AssignTaskModal } from "./assign-task-modal";
@@ -25,10 +25,11 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
   const [searchTerm, setSearchTerm] = useState("");
   const [representatives, setRepresentatives] = useState<any[]>([]);
   const [selectedRepresentative, setSelectedRepresentative] = useState<any>(null);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
   const [isAssignTaskModalOpen, setIsAssignTaskModalOpen] = useState(false);
+  const [isProfileInfoModalOpen, setIsProfileInfoModalOpen] = useState(false);
+  const [selectedProfileRepresentative, setSelectedProfileRepresentative] = useState<any>(null);
   const [formData, setFormData] = useState({ id: '' });
   const [errors, setErrors] = useState({ id: '' });
 
@@ -47,18 +48,6 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
     fetchRepresentatives();
   }, []);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-green-100 text-green-800";
-      case "on-route":
-        return "bg-blue-100 text-blue-800";
-      case "offline":
-        return "bg-gray-100 text-gray-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
 
   const handleAddRepresentative = (newRepresentative: any) => {
     setRepresentatives((prev) => [...prev, newRepresentative]);
@@ -66,12 +55,27 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
 
   // New modal handlers
   const handleViewProfile = (representative: any) => {
-    console.log('Opening representative profile for:', representative);
-    console.log('Setting selectedRepresentative to:', representative);
-    setSelectedRepresentative(representative);
-    console.log('Setting isProfileModalOpen to true');
-    setIsProfileModalOpen(true);
-    console.log('Modal should now be open');
+    console.log('Showing representative profile info for:', representative);
+    setSelectedProfileRepresentative(representative);
+    setIsProfileInfoModalOpen(true);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    // You could add a toast notification here
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'on-route':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'offline':
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
   };
 
   const handleLiveTracking = () => {
@@ -379,15 +383,6 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
         onAdd={handleAddRepresentative}
       />
 
-      <RepresentativeProfileModal
-        representative={selectedRepresentative}
-        isOpen={isProfileModalOpen}
-        onClose={() => setIsProfileModalOpen(false)}
-        onSave={(representative) => {
-          // Handle save logic
-          setIsProfileModalOpen(false);
-        }}
-      />
 
       <LiveTrackingModal
         representative={selectedRepresentative}
@@ -403,6 +398,237 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
           setIsAssignTaskModalOpen(false);
         }}
       />
+
+      {/* Enhanced Profile Information Modal */}
+      <Dialog open={isProfileInfoModalOpen} onOpenChange={setIsProfileInfoModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <Avatar className="h-12 w-12">
+                <AvatarImage src={selectedProfileRepresentative?.avatar_url} />
+                <AvatarFallback className="text-lg">
+                  {selectedProfileRepresentative?.name?.charAt(0) || 'R'}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h2 className="text-2xl font-bold">{selectedProfileRepresentative?.name || 'Representative'}</h2>
+                <p className="text-gray-600">ID: {selectedProfileRepresentative?.id || 'N/A'}</p>
+              </div>
+            </DialogTitle>
+            <DialogDescription>
+              Complete profile information for this representative
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Basic Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Basic Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-500">Full Name</Label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">{selectedProfileRepresentative?.name || 'N/A'}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(selectedProfileRepresentative?.name || '')}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-500">Status</Label>
+                    <Badge className={getStatusColor(selectedProfileRepresentative?.status)}>
+                      {selectedProfileRepresentative?.status || 'N/A'}
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-500">Email</Label>
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-gray-400" />
+                      <span className="text-base">{selectedProfileRepresentative?.email || 'N/A'}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(selectedProfileRepresentative?.email || '')}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-500">Phone</Label>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-gray-400" />
+                      <span className="text-base">{selectedProfileRepresentative?.phone || 'N/A'}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(selectedProfileRepresentative?.phone || '')}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Location & Coverage */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Location & Coverage
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-500">Address</Label>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-gray-400" />
+                      <span className="text-base">{selectedProfileRepresentative?.address || 'N/A'}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-500">Current Location</Label>
+                    <div className="flex items-center gap-2">
+                      <Navigation className="h-4 w-4 text-gray-400" />
+                      <span className="text-base">{selectedProfileRepresentative?.location || 'N/A'}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label className="text-sm font-medium text-gray-500">Coverage Areas</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedProfileRepresentative?.coverage_areas?.length > 0 ? (
+                        selectedProfileRepresentative.coverage_areas.map((area: string, index: number) => (
+                          <Badge key={index} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                            {area}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-gray-500">No coverage areas specified</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Professional Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Professional Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-500">License Number</Label>
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-gray-400" />
+                      <span className="text-base">{selectedProfileRepresentative?.license_number || 'N/A'}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-500">Transportation Type</Label>
+                    <div className="flex items-center gap-2">
+                      <Car className="h-4 w-4 text-gray-400" />
+                      <span className="text-base capitalize">{selectedProfileRepresentative?.transportation_type || 'N/A'}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-500">Vehicle</Label>
+                    <div className="flex items-center gap-2">
+                      <Truck className="h-4 w-4 text-gray-400" />
+                      <span className="text-base">{selectedProfileRepresentative?.vehicle || 'N/A'}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-500">Emergency Contact</Label>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-gray-400" />
+                      <span className="text-base">{selectedProfileRepresentative?.emergency_contact || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* System Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  System Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-500">Created At</Label>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-gray-400" />
+                      <span className="text-base">
+                        {selectedProfileRepresentative?.created_at 
+                          ? new Date(selectedProfileRepresentative.created_at).toLocaleString()
+                          : 'N/A'
+                        }
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-500">Last Updated</Label>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-gray-400" />
+                      <span className="text-base">
+                        {selectedProfileRepresentative?.updated_at 
+                          ? new Date(selectedProfileRepresentative.updated_at).toLocaleString()
+                          : 'N/A'
+                        }
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => {
+                const profileText = `
+Representative: ${selectedProfileRepresentative?.name || 'N/A'}
+ID: ${selectedProfileRepresentative?.id || 'N/A'}
+Email: ${selectedProfileRepresentative?.email || 'N/A'}
+Phone: ${selectedProfileRepresentative?.phone || 'N/A'}
+Status: ${selectedProfileRepresentative?.status || 'N/A'}
+Location: ${selectedProfileRepresentative?.location || 'N/A'}
+                `.trim();
+                copyToClipboard(profileText);
+              }}
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copy Profile
+            </Button>
+            <Button onClick={() => setIsProfileInfoModalOpen(false)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
