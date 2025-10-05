@@ -10,14 +10,18 @@ import { RepresentativeProfileModal } from "./representative-profile-modal";
 import { AddRepresentativeModal } from "./add-representative-modal";
 import { LiveTrackingModal } from "./live-tracking-modal";
 import { AssignTaskModal } from "./assign-task-modal";
-import { SendMessageModal } from "./send-message-modal";
 import { useLanguage } from "@/contexts/language-context";
 import { getRepresentatives, generateRepresentativeId, testRepresentativesTable, testSimpleInsert } from "@/lib/supabase-utils";
 import * as XLSX from 'xlsx';
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertCircle } from "@/components/ui/alert";
 
-export function RepresentativesTab() {
+interface RepresentativesTabProps {
+  onNavigateToChatSupport?: () => void
+  onNavigateToDeliveryTasks?: () => void
+}
+
+export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDeliveryTasks }: RepresentativesTabProps = {}) {
   const [searchTerm, setSearchTerm] = useState("");
   const [representatives, setRepresentatives] = useState<any[]>([]);
   const [selectedRepresentative, setSelectedRepresentative] = useState<any>(null);
@@ -25,7 +29,6 @@ export function RepresentativesTab() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
   const [isAssignTaskModalOpen, setIsAssignTaskModalOpen] = useState(false);
-  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
   const [formData, setFormData] = useState({ id: '' });
   const [errors, setErrors] = useState({ id: '' });
 
@@ -77,16 +80,25 @@ export function RepresentativesTab() {
   };
 
   const handleAssignTask = (representativeId?: string) => {
-    console.log('Opening assign task modal for representative:', representativeId);
+    console.log('Navigating to delivery tasks for representative:', representativeId);
+    
+    // Navigate to delivery tasks tab instead of opening assign task modal
+    if (onNavigateToDeliveryTasks) {
+      onNavigateToDeliveryTasks();
+      return;
+    }
+    
+    // Fallback to original behavior if navigation function is not provided
     setIsAssignTaskModalOpen(true);
   };
 
   const handleSendMessage = (representative?: any) => {
-    console.log('Opening send message modal for representative:', representative);
-    if (representative) {
-      setSelectedRepresentative(representative);
+    console.log('Navigating to chat support for representative:', representative);
+    
+    // Navigate to chat support tab
+    if (onNavigateToChatSupport) {
+      onNavigateToChatSupport();
     }
-    setIsMessageModalOpen(true);
   };
 
   const getStatusStats = () => {
@@ -392,15 +404,6 @@ export function RepresentativesTab() {
         }}
       />
 
-      <SendMessageModal
-        isOpen={isMessageModalOpen}
-        onClose={() => setIsMessageModalOpen(false)}
-        onSend={(messageData) => {
-          console.log('Message sent:', messageData);
-          setIsMessageModalOpen(false);
-        }}
-        recipient={selectedRepresentative}
-      />
     </div>
   );
 }
