@@ -25,6 +25,33 @@ import {
   getNotificationSettings,
   type NotificationSettings
 } from "@/lib/notifications"
+import { supabase } from "@/lib/supabase"
+import { 
+  lateVisitMonitor,
+  startLateVisitMonitoring,
+  stopLateVisitMonitoring,
+  updateMonitoringConfig,
+  getMonitoringStatus,
+  type LateVisitAlert,
+  type VisitMonitoringConfig
+} from "@/lib/late-visit-monitor"
+import { initializeAlertsDatabase, createSampleAlerts, checkDatabaseConnection } from "@/lib/init-alerts-database"
+import { 
+  visitAlertsSync,
+  startVisitAlertsSync,
+  stopVisitAlertsSync,
+  syncVisitAlerts,
+  forceSyncAllVisitAlerts,
+  getVisitAlertsSyncStatus
+} from "@/lib/visit-alerts-sync"
+import { 
+  representativeMessageMonitor,
+  startRepresentativeMessageMonitoring,
+  stopRepresentativeMessageMonitoring,
+  checkRepresentativeMessages,
+  forceCheckAllRepresentativeMessages,
+  getRepresentativeMessageMonitoringStatus
+} from "@/lib/representative-message-monitor"
 
 // Mock alerts data
 const alerts = [
@@ -121,6 +148,27 @@ export function AlertsTab() {
   const [activeTab, setActiveTab] = useState('active')
   const [filterType, setFilterType] = useState<string>('all')
   const [filterCategory, setFilterCategory] = useState<string>('all')
+  
+  // Late visit monitoring state
+  const [monitoringStatus, setMonitoringStatus] = useState<{ isActive: boolean; config: VisitMonitoringConfig } | null>(null)
+  const [monitoringConfig, setMonitoringConfig] = useState<VisitMonitoringConfig>({
+    gracePeriodMinutes: 10,
+    escalationThresholdMinutes: 30,
+    checkIntervalMinutes: 2,
+    autoEscalate: true,
+    notifyAdmins: true,
+    notifySupervisors: true,
+    sendPushNotifications: true,
+    sendEmailNotifications: true
+  })
+
+  // Visit alerts sync state
+  const [visitAlertsSyncStatus, setVisitAlertsSyncStatus] = useState<{ isActive: boolean; lastSync: Date | null } | null>(null)
+  const [syncInProgress, setSyncInProgress] = useState(false)
+
+  // Representative message monitoring state
+  const [representativeMessageStatus, setRepresentativeMessageStatus] = useState<{ isActive: boolean; lastCheck: Date | null } | null>(null)
+  const [messageSyncInProgress, setMessageSyncInProgress] = useState(false)
 
   // Notification settings
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
@@ -152,8 +200,51 @@ export function AlertsTab() {
   })
 
   useEffect(() => {
-    loadAllData()
+    const initializeDatabase = async () => {
+      console.log('Initializing alerts database...')
+      
+      // Check database connection
+      const isConnected = await checkDatabaseConnection()
+      if (!isConnected) {
+        console.log('Database not available, using fallback data')
+        loadAllData()
+        return
+      }
+      
+      // Initialize database
+      const isInitialized = await initializeAlertsDatabase()
+      if (!isInitialized) {
+        console.log('Database initialization failed, using fallback data')
+        loadAllData()
+        return
+      }
+      
+      // Check if we have any alerts, if not create sample data
+      const { data: existingAlerts } = await supabase
+        .from('unified_alerts_notifications')
+        .select('count')
+        .limit(1)
+      
+      if (!existingAlerts || existingAlerts.length === 0) {
+        console.log('No alerts found, creating sample data...')
+        await createSampleAlerts()
+      }
+      
+      // Load data from database
+      loadAllData()
+    }
+    
+    initializeDatabase()
     startMonitoring()
+    loadMonitoringStatus()
+    loadVisitAlertsSyncStatus()
+    loadRepresentativeMessageStatus()
+    
+    // Start visit alerts sync automatically
+    handleStartVisitAlertsSync()
+    
+    // Start representative message monitoring automatically
+    handleStartRepresentativeMessageMonitoring()
     
     // Load notification settings safely
     try {
@@ -169,11 +260,13 @@ export function AlertsTab() {
   const loadAllData = async () => {
     setLoading(true)
     try {
+      console.log('Loading all alerts data...')
       await Promise.all([
         loadSystemAlerts(),
         loadVisitAlerts(),
         loadAlertStats()
       ])
+      console.log('All alerts data loaded successfully')
     } catch (error) {
       console.error('Error loading alerts data:', error)
     } finally {
@@ -181,54 +274,353 @@ export function AlertsTab() {
     }
   }
 
+  const loadMonitoringStatus = () => {
+    try {
+      const status = getMonitoringStatus()
+      setMonitoringStatus(status)
+      if (status) {
+        setMonitoringConfig(status.config)
+      }
+    } catch (error) {
+      console.error('Error loading monitoring status:', error)
+    }
+  }
+
+  const loadVisitAlertsSyncStatus = () => {
+    try {
+      const status = getVisitAlertsSyncStatus()
+      setVisitAlertsSyncStatus(status)
+    } catch (error) {
+      console.error('Error loading visit alerts sync status:', error)
+    }
+  }
+
+  const handleStartVisitAlertsSync = () => {
+    try {
+      startVisitAlertsSync(2) // Sync every 2 minutes
+      loadVisitAlertsSyncStatus()
+    } catch (error) {
+      console.error('Error starting visit alerts sync:', error)
+    }
+  }
+
+  const handleStopVisitAlertsSync = () => {
+    try {
+      stopVisitAlertsSync()
+      loadVisitAlertsSyncStatus()
+    } catch (error) {
+      console.error('Error stopping visit alerts sync:', error)
+    }
+  }
+
+  const handleSyncVisitAlerts = async () => {
+    setSyncInProgress(true)
+    try {
+      console.log('Manually syncing visit alerts...')
+      const result = await syncVisitAlerts()
+      console.log(`Visit alerts sync result: ${result.synced} synced, ${result.errors} errors`)
+      
+      // Reload data after sync
+      await loadAllData()
+      loadVisitAlertsSyncStatus()
+    } catch (error) {
+      console.error('Error syncing visit alerts:', error)
+    } finally {
+      setSyncInProgress(false)
+    }
+  }
+
+  const handleForceSyncAllVisitAlerts = async () => {
+    setSyncInProgress(true)
+    try {
+      console.log('Force syncing all visit alerts...')
+      const result = await forceSyncAllVisitAlerts()
+      console.log(`Force sync result: ${result.synced} synced, ${result.errors} errors`)
+      
+      // Reload data after sync
+      await loadAllData()
+      loadVisitAlertsSyncStatus()
+    } catch (error) {
+      console.error('Error force syncing visit alerts:', error)
+    } finally {
+      setSyncInProgress(false)
+    }
+  }
+
+  const loadRepresentativeMessageStatus = () => {
+    try {
+      const status = getRepresentativeMessageMonitoringStatus()
+      setRepresentativeMessageStatus(status)
+    } catch (error) {
+      console.error('Error loading representative message status:', error)
+    }
+  }
+
+  const handleStartRepresentativeMessageMonitoring = () => {
+    try {
+      startRepresentativeMessageMonitoring(1) // Monitor every 1 minute
+      loadRepresentativeMessageStatus()
+    } catch (error) {
+      console.error('Error starting representative message monitoring:', error)
+    }
+  }
+
+  const handleStopRepresentativeMessageMonitoring = () => {
+    try {
+      stopRepresentativeMessageMonitoring()
+      loadRepresentativeMessageStatus()
+    } catch (error) {
+      console.error('Error stopping representative message monitoring:', error)
+    }
+  }
+
+  const handleCheckRepresentativeMessages = async () => {
+    setMessageSyncInProgress(true)
+    try {
+      console.log('Checking representative messages...')
+      const result = await checkRepresentativeMessages()
+      console.log(`Representative message check result: ${result.processed} processed, ${result.errors} errors`)
+      
+      // Reload data after check
+      await loadAllData()
+      loadRepresentativeMessageStatus()
+    } catch (error) {
+      console.error('Error checking representative messages:', error)
+    } finally {
+      setMessageSyncInProgress(false)
+    }
+  }
+
+  const handleForceCheckAllRepresentativeMessages = async () => {
+    setMessageSyncInProgress(true)
+    try {
+      console.log('Force checking all representative messages...')
+      const result = await forceCheckAllRepresentativeMessages()
+      console.log(`Force check result: ${result.processed} processed, ${result.errors} errors`)
+      
+      // Reload data after check
+      await loadAllData()
+      loadRepresentativeMessageStatus()
+    } catch (error) {
+      console.error('Error force checking representative messages:', error)
+    } finally {
+      setMessageSyncInProgress(false)
+    }
+  }
+
   const loadSystemAlerts = async () => {
     try {
-      const alerts = getAlerts({ resolved: false })
-      setSystemAlerts(alerts)
+      console.log('Loading system alerts from database...')
+      
+      const { data: alerts, error } = await supabase
+        .from('unified_alerts_notifications')
+        .select('*')
+        .eq('status', 'active')
+        .eq('is_resolved', false)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Database error loading system alerts:', error)
+        console.log('Falling back to mock data...')
+        
+        // Fallback to mock data if database fails
+        const mockAlerts: SystemAlert[] = [
+          {
+            id: 'mock-1',
+            type: 'warning',
+            category: 'system',
+            title: 'Test Alert',
+            message: 'This is a test alert to verify the system is working',
+            timestamp: new Date().toISOString(),
+            resolved: false,
+            priority: 'medium',
+            metadata: {}
+          }
+        ]
+        setSystemAlerts(mockAlerts)
+        return
+      }
+
+      console.log('Database alerts loaded:', alerts?.length || 0)
+
+      // Transform database alerts to SystemAlert format
+      const transformedAlerts: SystemAlert[] = alerts?.map(alert => ({
+        id: alert.id,
+        type: alert.category as 'critical' | 'warning' | 'info' | 'success',
+        category: alert.alert_type as 'delivery' | 'vehicle' | 'warehouse' | 'visit' | 'system' | 'maintenance' | 'stock' | 'user',
+        title: alert.title,
+        message: alert.message,
+        timestamp: alert.created_at,
+        driver: alert.delegate_name || alert.driver_name,
+        vehicle: alert.vehicle_plate,
+        location: alert.location,
+        resolved: alert.is_resolved,
+        resolved_at: alert.resolved_at,
+        resolved_by: alert.resolved_by,
+        priority: alert.priority as 'low' | 'medium' | 'high' | 'critical',
+        metadata: alert.metadata || {}
+      })) || []
+
+      console.log('Transformed alerts:', transformedAlerts.length)
+      setSystemAlerts(transformedAlerts)
     } catch (error) {
-      console.log('System alerts not available. Using empty array.')
-      setSystemAlerts([])
+      console.error('Error loading system alerts:', error)
+      console.log('Using fallback mock data...')
+      
+      // Fallback mock data
+      const mockAlerts: SystemAlert[] = [
+        {
+          id: 'fallback-1',
+          type: 'warning',
+          category: 'system',
+          title: 'Fallback Alert',
+          message: 'Database connection failed, using mock data',
+          timestamp: new Date().toISOString(),
+          resolved: false,
+          priority: 'medium',
+          metadata: {}
+        }
+      ]
+      setSystemAlerts(mockAlerts)
     }
   }
 
   const loadVisitAlerts = async () => {
     try {
+      console.log('Loading visit alerts from database...')
+      
+      const { data: alerts, error } = await supabase
+        .from('unified_alerts_notifications')
+        .select('*')
+        .in('alert_type', ['visit', 'late_visit'])
+        .eq('status', 'active')
+        .eq('is_resolved', false)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Database error loading visit alerts:', error)
+        console.log('Falling back to mock visit alerts...')
+        
+        // Fallback to mock data
+        const mockVisitAlerts: VisitAlert[] = [
+          {
+            id: "mock-visit-1",
+            visit_id: "V123",
+            delegate_id: "REP-001",
+            alert_type: "late_arrival",
+            severity: "high",
+            message: "Delegate Ahmed Ibrahim is late for visit at Nile Supplies",
+            is_read: false,
+            created_at: new Date().toISOString(),
+            admin_notified: false
+          }
+        ]
+        setVisitAlerts(mockVisitAlerts)
+        return
+      }
+
+      console.log('Database visit alerts loaded:', alerts?.length || 0)
+
+      // Transform database alerts to VisitAlert format
+      const transformedAlerts: VisitAlert[] = alerts?.map(alert => ({
+        id: alert.id,
+        visit_id: alert.visit_id || '',
+        delegate_id: alert.delegate_id || '',
+        alert_type: alert.alert_type === 'late_visit' ? 'late_arrival' : 'visit_update',
+        severity: alert.severity as 'low' | 'medium' | 'high' | 'critical',
+        message: alert.message,
+        is_read: alert.is_read,
+        created_at: alert.created_at,
+        admin_notified: alert.admin_notified
+      })) || []
+
+      console.log('Transformed visit alerts:', transformedAlerts.length)
+      setVisitAlerts(transformedAlerts)
+    } catch (error) {
+      console.error('Error loading visit alerts:', error)
+      console.log('Using fallback mock visit alerts...')
+      
+      // Fallback mock data
       const mockVisitAlerts: VisitAlert[] = [
         {
-          id: "1",
-          visit_id: "2",
-          delegate_id: "2",
+          id: "fallback-visit-1",
+          visit_id: "V999",
+          delegate_id: "REP-999",
           alert_type: "late_arrival",
           severity: "high",
-          message: "Delegate Sarah Wilson is late for visit at XYZ Industries",
-          is_read: false,
-          created_at: new Date().toISOString(),
-          admin_notified: false
-        },
-        {
-          id: "2",
-          visit_id: "3",
-          delegate_id: "3",
-          alert_type: "time_exceeded",
-          severity: "medium",
-          message: "Delegate David Chen has exceeded allowed time for visit at Tech Solutions Ltd",
+          message: "Database connection failed, using mock visit alert",
           is_read: false,
           created_at: new Date().toISOString(),
           admin_notified: false
         }
       ]
       setVisitAlerts(mockVisitAlerts)
-    } catch (error) {
-      console.error('Error loading visit alerts:', error)
     }
   }
 
   const loadAlertStats = async () => {
     try {
-      const stats = getAlertStats()
-      setAlertStats(stats)
+      // Get alert statistics from database
+      const { data: stats, error } = await supabase
+        .rpc('get_alert_statistics')
+
+      if (error) {
+        console.error('Error loading alert stats:', error)
+        // Fallback to manual calculation
+        const { data: alerts, error: alertsError } = await supabase
+          .from('unified_alerts_notifications')
+          .select('severity, status, created_at')
+
+        if (alertsError) {
+          console.error('Error loading alerts for stats:', alertsError)
+          setAlertStats({
+            total: 0,
+            critical: 0,
+            warning: 0,
+            info: 0,
+            resolved: 0,
+            unresolved: 0,
+            today: 0,
+            thisWeek: 0
+          })
+          return
+        }
+
+        const now = new Date()
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+        const calculatedStats = {
+          total: alerts?.length || 0,
+          critical: alerts?.filter(a => a.severity === 'critical').length || 0,
+          warning: alerts?.filter(a => a.severity === 'high').length || 0,
+          info: alerts?.filter(a => a.severity === 'medium').length || 0,
+          resolved: alerts?.filter(a => a.status === 'resolved').length || 0,
+          unresolved: alerts?.filter(a => a.status === 'active').length || 0,
+          today: alerts?.filter(a => new Date(a.created_at) >= today).length || 0,
+          thisWeek: alerts?.filter(a => new Date(a.created_at) >= weekAgo).length || 0
+        }
+
+        setAlertStats(calculatedStats)
+        return
+      }
+
+      // Use database function results
+      if (stats && stats.length > 0) {
+        const stat = stats[0]
+        setAlertStats({
+          total: Number(stat.total_alerts) || 0,
+          critical: Number(stat.critical_alerts) || 0,
+          warning: Number(stat.warning_alerts) || 0,
+          info: Number(stat.info_alerts) || 0,
+          resolved: Number(stat.resolved_alerts) || 0,
+          unresolved: Number(stat.active_alerts) || 0,
+          today: Number(stat.today_alerts) || 0,
+          thisWeek: Number(stat.this_week_alerts) || 0
+        })
+      }
     } catch (error) {
-      console.log('Alert stats not available. Using default values.')
+      console.error('Error loading alert stats:', error)
       setAlertStats({
         total: 0,
         critical: 0,
@@ -268,6 +660,7 @@ export function AlertsTab() {
     setRefreshing(true)
     try {
       await loadAllData()
+      loadMonitoringStatus()
     } catch (error) {
       console.error('Error refreshing alerts:', error)
     } finally {
@@ -275,9 +668,53 @@ export function AlertsTab() {
     }
   }
 
+  const handleStartMonitoring = () => {
+    try {
+      startLateVisitMonitoring()
+      loadMonitoringStatus()
+    } catch (error) {
+      console.error('Error starting monitoring:', error)
+    }
+  }
+
+  const handleStopMonitoring = () => {
+    try {
+      stopLateVisitMonitoring()
+      loadMonitoringStatus()
+    } catch (error) {
+      console.error('Error stopping monitoring:', error)
+    }
+  }
+
+  const handleUpdateMonitoringConfig = (newConfig: Partial<VisitMonitoringConfig>) => {
+    try {
+      const updatedConfig = { ...monitoringConfig, ...newConfig }
+      setMonitoringConfig(updatedConfig)
+      updateMonitoringConfig(newConfig)
+      loadMonitoringStatus()
+    } catch (error) {
+      console.error('Error updating monitoring config:', error)
+    }
+  }
+
   const handleResolveAlert = async (alertId: string) => {
     try {
-      await resolveAlert(alertId, 'admin')
+      const { error } = await supabase
+        .from('unified_alerts_notifications')
+        .update({
+          status: 'resolved',
+          is_resolved: true,
+          resolved_at: new Date().toISOString(),
+          resolved_by: 'admin',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', alertId)
+
+      if (error) {
+        console.error('Error resolving alert:', error)
+        return
+      }
+
       await loadAllData()
     } catch (error) {
       console.error('Error resolving alert:', error)
@@ -286,7 +723,16 @@ export function AlertsTab() {
 
   const handleDeleteAlert = async (alertId: string) => {
     try {
-      await deleteAlert(alertId)
+      const { error } = await supabase
+        .from('unified_alerts_notifications')
+        .delete()
+        .eq('id', alertId)
+
+      if (error) {
+        console.error('Error deleting alert:', error)
+        return
+      }
+
       await loadAllData()
     } catch (error) {
       console.error('Error deleting alert:', error)
@@ -295,17 +741,35 @@ export function AlertsTab() {
 
   const handleCreateTestAlert = async () => {
     try {
-      await createAlert({
-        type: 'warning',
-        category: 'system',
-        title: 'Test Alert',
-        message: 'This is a test alert to verify the system is working',
-        priority: 'medium'
-      })
+      const { error } = await supabase
+        .from('unified_alerts_notifications')
+        .insert({
+          alert_id: `TEST_${Date.now()}`,
+          alert_type: 'system',
+          category: 'warning',
+          severity: 'medium',
+          priority: 'medium',
+          title: 'Test Alert',
+          message: 'This is a test alert to verify the system is working',
+          description: 'System test alert for verification purposes',
+          status: 'active',
+          is_read: false,
+          is_resolved: false,
+          notify_admins: true,
+          send_push_notification: true,
+          tags: ['test', 'system'],
+          source_system: 'alert_system',
+          created_by: 'admin'
+        })
+
+      if (error) {
+        console.error('Error creating test alert:', error)
+        return
+      }
+
       await loadAllData()
     } catch (error) {
-      console.log('Test alert creation not available. Using mock alert.')
-      // Create a mock alert for demonstration
+      console.error('Error creating test alert:', error)
       const mockAlert = {
         id: `test_${Date.now()}`,
         type: 'warning' as const,
@@ -486,6 +950,15 @@ export function AlertsTab() {
           <TabsTrigger value="visit-alerts">
             Visit Alerts ({unreadVisitAlerts.length})
           </TabsTrigger>
+          <TabsTrigger value="late-visit-monitoring">
+            Late Visit Monitoring
+          </TabsTrigger>
+          <TabsTrigger value="visit-alerts-sync">
+            Visit Alerts Sync
+          </TabsTrigger>
+          <TabsTrigger value="representative-messages">
+            Representative Messages
+          </TabsTrigger>
           <TabsTrigger value="resolved">{t("resolved")}</TabsTrigger>
           <TabsTrigger value="settings">{t("notificationSettings")}</TabsTrigger>
         </TabsList>
@@ -664,6 +1137,190 @@ export function AlertsTab() {
           </div>
         </TabsContent>
 
+        <TabsContent value="representative-messages" className="space-y-4">
+          <div className="space-y-6">
+            {/* Representative Message Monitoring Status Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5" />
+                  Representative Message Monitoring
+                </CardTitle>
+                <CardDescription>
+                  Monitor messages from representatives and create notifications automatically
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-base font-medium">Monitoring Status</Label>
+                    <p className="text-sm text-gray-500">
+                      {representativeMessageStatus?.isActive ? 'Active' : 'Inactive'}
+                    </p>
+                    {representativeMessageStatus?.lastCheck && (
+                      <p className="text-xs text-gray-400">
+                        Last check: {new Date(representativeMessageStatus.lastCheck).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    {representativeMessageStatus?.isActive ? (
+                      <Button 
+                        variant="destructive" 
+                        onClick={handleStopRepresentativeMessageMonitoring}
+                        size="sm"
+                      >
+                        Stop Monitoring
+                      </Button>
+                    ) : (
+                      <Button 
+                        onClick={handleStartRepresentativeMessageMonitoring}
+                        size="sm"
+                      >
+                        Start Monitoring
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 border rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">
+                      Auto Monitor
+                    </div>
+                    <div className="text-sm text-gray-500">Every 1 minute</div>
+                  </div>
+                  <div className="p-4 border rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">
+                      {representativeMessageStatus?.isActive ? 'Running' : 'Stopped'}
+                    </div>
+                    <div className="text-sm text-gray-500">Monitoring Status</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Manual Message Check Controls Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Manual Message Check
+                </CardTitle>
+                <CardDescription>
+                  Manually check for new representative messages and create notifications
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap gap-4">
+                  <Button 
+                    onClick={handleCheckRepresentativeMessages}
+                    disabled={messageSyncInProgress}
+                    variant="outline"
+                  >
+                    {messageSyncInProgress ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Checking...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Check Messages
+                      </>
+                    )}
+                  </Button>
+
+                  <Button 
+                    onClick={handleForceCheckAllRepresentativeMessages}
+                    disabled={messageSyncInProgress}
+                    variant="outline"
+                  >
+                    {messageSyncInProgress ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Force Checking...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Force Check All
+                      </>
+                    )}
+                  </Button>
+
+                  <Button 
+                    onClick={handleRefresh}
+                    variant="outline"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh Status
+                  </Button>
+                </div>
+
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-medium text-blue-900 mb-2">How Representative Message Monitoring Works</h4>
+                  <ul className="text-sm text-blue-800 space-y-1">
+                    <li>• Monitors messages from representatives in chat support</li>
+                    <li>• Automatically creates notifications for new messages</li>
+                    <li>• Analyzes message content for priority and urgency</li>
+                    <li>• Maps message types to appropriate alert categories</li>
+                    <li>• Runs every 1 minute automatically</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Message Statistics Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Message Statistics
+                </CardTitle>
+                <CardDescription>
+                  View representative message monitoring statistics and performance metrics
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 border rounded-lg text-center">
+                    <div className="text-2xl font-bold text-green-600">
+                      {systemAlerts.filter(a => a.category === 'user' && a.metadata?.source_system === 'chat_support').length}
+                    </div>
+                    <div className="text-sm text-gray-500">Message Notifications</div>
+                  </div>
+                  
+                  <div className="p-4 border rounded-lg text-center">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {systemAlerts.filter(a => a.metadata?.is_urgent === true).length}
+                    </div>
+                    <div className="text-sm text-gray-500">Urgent Messages</div>
+                  </div>
+                  
+                  <div className="p-4 border rounded-lg text-center">
+                    <div className="text-2xl font-bold text-orange-600">
+                      {representativeMessageStatus?.isActive ? '1 min' : 'Off'}
+                    </div>
+                    <div className="text-sm text-gray-500">Check Interval</div>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <h4 className="font-medium text-green-900 mb-2">Message Monitoring Benefits</h4>
+                  <ul className="text-sm text-green-800 space-y-1">
+                    <li>• Real-time notification of representative messages</li>
+                    <li>• Automatic priority detection based on content</li>
+                    <li>• Centralized alert management for all communications</li>
+                    <li>• Escalation for urgent messages</li>
+                    <li>• Historical tracking of representative communications</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
         <TabsContent value="resolved" className="space-y-4">
           <div className="space-y-4">
             {resolvedAlerts.map((alert) => {
@@ -839,6 +1496,490 @@ export function AlertsTab() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="late-visit-monitoring" className="space-y-4">
+          <div className="space-y-6">
+            {/* Monitoring Status Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Late Visit Monitoring Status
+                </CardTitle>
+                <CardDescription>
+                  Monitor and manage late visit alerts with automatic notifications and escalation
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-base font-medium">Monitoring Status</Label>
+                    <p className="text-sm text-gray-500">
+                      {monitoringStatus?.isActive ? 'Active' : 'Inactive'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    {monitoringStatus?.isActive ? (
+                      <Button 
+                        variant="destructive" 
+                        onClick={handleStopMonitoring}
+                        size="sm"
+                      >
+                        Stop Monitoring
+                      </Button>
+                    ) : (
+                      <Button 
+                        onClick={handleStartMonitoring}
+                        size="sm"
+                      >
+                        Start Monitoring
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 border rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {monitoringConfig.gracePeriodMinutes}
+                    </div>
+                    <div className="text-sm text-gray-500">Grace Period (minutes)</div>
+                  </div>
+                  <div className="p-4 border rounded-lg">
+                    <div className="text-2xl font-bold text-orange-600">
+                      {monitoringConfig.escalationThresholdMinutes}
+                    </div>
+                    <div className="text-sm text-gray-500">Escalation Threshold (minutes)</div>
+                  </div>
+                  <div className="p-4 border rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">
+                      {monitoringConfig.checkIntervalMinutes}
+                    </div>
+                    <div className="text-sm text-gray-500">Check Interval (minutes)</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Configuration Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Monitoring Configuration
+                </CardTitle>
+                <CardDescription>
+                  Configure grace periods, escalation thresholds, and notification settings
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="gracePeriod" className="text-base font-medium">
+                        Grace Period (minutes)
+                      </Label>
+                      <p className="text-sm text-gray-500">
+                        Time allowed before considering a visit late
+                      </p>
+                      <input
+                        id="gracePeriod"
+                        type="number"
+                        min="1"
+                        max="60"
+                        value={monitoringConfig.gracePeriodMinutes}
+                        onChange={(e) => handleUpdateMonitoringConfig({ 
+                          gracePeriodMinutes: parseInt(e.target.value) 
+                        })}
+                        className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="escalationThreshold" className="text-base font-medium">
+                        Escalation Threshold (minutes)
+                      </Label>
+                      <p className="text-sm text-gray-500">
+                        Time before escalating to supervisors
+                      </p>
+                      <input
+                        id="escalationThreshold"
+                        type="number"
+                        min="5"
+                        max="120"
+                        value={monitoringConfig.escalationThresholdMinutes}
+                        onChange={(e) => handleUpdateMonitoringConfig({ 
+                          escalationThresholdMinutes: parseInt(e.target.value) 
+                        })}
+                        className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="checkInterval" className="text-base font-medium">
+                        Check Interval (minutes)
+                      </Label>
+                      <p className="text-sm text-gray-500">
+                        How often to check for late visits
+                      </p>
+                      <input
+                        id="checkInterval"
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={monitoringConfig.checkIntervalMinutes}
+                        onChange={(e) => handleUpdateMonitoringConfig({ 
+                          checkIntervalMinutes: parseInt(e.target.value) 
+                        })}
+                        className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="autoEscalate" className="text-base font-medium">
+                          Auto Escalate
+                        </Label>
+                        <p className="text-sm text-gray-500">
+                          Automatically escalate persistent delays
+                        </p>
+                      </div>
+                      <Switch
+                        id="autoEscalate"
+                        checked={monitoringConfig.autoEscalate}
+                        onCheckedChange={(checked) => handleUpdateMonitoringConfig({ 
+                          autoEscalate: checked 
+                        })}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="notifyAdmins" className="text-base font-medium">
+                          Notify Admins
+                        </Label>
+                        <p className="text-sm text-gray-500">
+                          Send notifications to administrators
+                        </p>
+                      </div>
+                      <Switch
+                        id="notifyAdmins"
+                        checked={monitoringConfig.notifyAdmins}
+                        onCheckedChange={(checked) => handleUpdateMonitoringConfig({ 
+                          notifyAdmins: checked 
+                        })}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="notifySupervisors" className="text-base font-medium">
+                          Notify Supervisors
+                        </Label>
+                        <p className="text-sm text-gray-500">
+                          Send escalated alerts to supervisors
+                        </p>
+                      </div>
+                      <Switch
+                        id="notifySupervisors"
+                        checked={monitoringConfig.notifySupervisors}
+                        onCheckedChange={(checked) => handleUpdateMonitoringConfig({ 
+                          notifySupervisors: checked 
+                        })}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="pushNotifications" className="text-base font-medium">
+                          Push Notifications
+                        </Label>
+                        <p className="text-sm text-gray-500">
+                          Send push notifications to mobile devices
+                        </p>
+                      </div>
+                      <Switch
+                        id="pushNotifications"
+                        checked={monitoringConfig.sendPushNotifications}
+                        onCheckedChange={(checked) => handleUpdateMonitoringConfig({ 
+                          sendPushNotifications: checked 
+                        })}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label htmlFor="emailNotifications" className="text-base font-medium">
+                          Email Notifications
+                        </Label>
+                        <p className="text-sm text-gray-500">
+                          Send email notifications
+                        </p>
+                      </div>
+                      <Switch
+                        id="emailNotifications"
+                        checked={monitoringConfig.sendEmailNotifications}
+                        onCheckedChange={(checked) => handleUpdateMonitoringConfig({ 
+                          sendEmailNotifications: checked 
+                        })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t">
+                  <div className="flex gap-2">
+                    <Button onClick={handleRefresh} variant="outline">
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Refresh Status
+                    </Button>
+                    <Button onClick={() => {
+                      // Test late visit alert
+                      createAlert({
+                        type: 'warning',
+                        category: 'visit',
+                        title: 'Test Late Visit Alert',
+                        message: 'This is a test alert for late visit monitoring system',
+                        priority: 'medium',
+                        driver: 'Test Agent',
+                        location: 'Test Location',
+                        metadata: { test: true }
+                      })
+                    }}>
+                      Test Alert
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Alert Examples Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5" />
+                  Alert Examples
+                </CardTitle>
+                <CardDescription>
+                  Examples of notifications that will be sent for late visits
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="p-4 border-l-4 border-yellow-400 bg-yellow-50 rounded">
+                    <div className="font-medium text-yellow-800">Dashboard Notification</div>
+                    <div className="text-sm text-yellow-700">
+                      Late Visit Alert: Agent Ahmed Ibrahim hasn't arrived for Visit #V123 (Client: Nile Supplies). 
+                      Scheduled: 11:00 — Current: 11:10 — Delay: 10 min. Action: Call agent or reassign.
+                    </div>
+                  </div>
+
+                  <div className="p-4 border-l-4 border-red-400 bg-red-50 rounded">
+                    <div className="font-medium text-red-800">Push/Email Subject</div>
+                    <div className="text-sm text-red-700">
+                      Late Visit — Visit #V123 — Agent Ahmed Ibrahim — 10 minutes late
+                    </div>
+                  </div>
+
+                  <div className="p-4 border-l-4 border-blue-400 bg-blue-50 rounded">
+                    <div className="font-medium text-blue-800">Email Body</div>
+                    <div className="text-sm text-blue-700">
+                      Agent Ahmed Ibrahim is 10 minutes late for Visit #V123 at Nile Supplies (scheduled 11:00). 
+                      Last known status: Location not updated. Please call the agent or reassign. 
+                      [Open Visit] [Call Agent]
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="visit-alerts-sync" className="space-y-4">
+          <div className="space-y-6">
+            {/* Visit Alerts Sync Status Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5" />
+                  Visit Alerts Sync Status
+                </CardTitle>
+                <CardDescription>
+                  Synchronize alerts from visit management table to unified alerts system
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-base font-medium">Sync Status</Label>
+                    <p className="text-sm text-gray-500">
+                      {visitAlertsSyncStatus?.isActive ? 'Active' : 'Inactive'}
+                    </p>
+                    {visitAlertsSyncStatus?.lastSync && (
+                      <p className="text-xs text-gray-400">
+                        Last sync: {new Date(visitAlertsSyncStatus.lastSync).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    {visitAlertsSyncStatus?.isActive ? (
+                      <Button 
+                        variant="destructive" 
+                        onClick={handleStopVisitAlertsSync}
+                        size="sm"
+                      >
+                        Stop Sync
+                      </Button>
+                    ) : (
+                      <Button 
+                        onClick={handleStartVisitAlertsSync}
+                        size="sm"
+                      >
+                        Start Sync
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-4 border rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">
+                      Auto Sync
+                    </div>
+                    <div className="text-sm text-gray-500">Every 2 minutes</div>
+                  </div>
+                  <div className="p-4 border rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">
+                      {visitAlertsSyncStatus?.isActive ? 'Running' : 'Stopped'}
+                    </div>
+                    <div className="text-sm text-gray-500">Sync Status</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Manual Sync Controls Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Manual Sync Controls
+                </CardTitle>
+                <CardDescription>
+                  Manually trigger synchronization of visit alerts
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap gap-4">
+                  <Button 
+                    onClick={handleSyncVisitAlerts}
+                    disabled={syncInProgress}
+                    variant="outline"
+                  >
+                    {syncInProgress ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Sync Now
+                      </>
+                    )}
+                  </Button>
+
+                  <Button 
+                    onClick={handleForceSyncAllVisitAlerts}
+                    disabled={syncInProgress}
+                    variant="outline"
+                  >
+                    {syncInProgress ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Force Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Force Sync All
+                      </>
+                    )}
+                  </Button>
+
+                  <Button 
+                    onClick={handleRefresh}
+                    variant="outline"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh Status
+                  </Button>
+                </div>
+
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-medium text-blue-900 mb-2">How Visit Alerts Sync Works</h4>
+                  <ul className="text-sm text-blue-800 space-y-1">
+                    <li>• Reads alerts from the <code>visit_management</code> table</li>
+                    <li>• Syncs them to the <code>unified_alerts_notifications</code> table</li>
+                    <li>• Automatically maps alert types and severities</li>
+                    <li>• Updates existing alerts or creates new ones</li>
+                    <li>• Runs every 2 minutes automatically</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Sync Statistics Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Sync Statistics
+                </CardTitle>
+                <CardDescription>
+                  View synchronization statistics and performance metrics
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 border rounded-lg text-center">
+                    <div className="text-2xl font-bold text-green-600">
+                      {systemAlerts.filter(a => a.category === 'visit' || a.category === 'late_visit').length}
+                    </div>
+                    <div className="text-sm text-gray-500">Synced Visit Alerts</div>
+                  </div>
+                  
+                  <div className="p-4 border rounded-lg text-center">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {visitAlerts.length}
+                    </div>
+                    <div className="text-sm text-gray-500">Active Visit Alerts</div>
+                  </div>
+                  
+                  <div className="p-4 border rounded-lg text-center">
+                    <div className="text-2xl font-bold text-orange-600">
+                      {visitAlertsSyncStatus?.isActive ? '2 min' : 'Off'}
+                    </div>
+                    <div className="text-sm text-gray-500">Sync Interval</div>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <h4 className="font-medium text-green-900 mb-2">Sync Benefits</h4>
+                  <ul className="text-sm text-green-800 space-y-1">
+                    <li>• Centralized alert management across all systems</li>
+                    <li>• Real-time synchronization of visit alerts</li>
+                    <li>• Automatic mapping of alert types and priorities</li>
+                    <li>• Unified notification system for all alerts</li>
+                    <li>• Historical tracking of alert synchronization</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
