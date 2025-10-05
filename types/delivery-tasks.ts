@@ -29,6 +29,16 @@ export interface DeliveryTask {
     uploaded_at?: string;
   })[]; // Array of image URLs or photo objects
   
+  // Location fields
+  start_latitude?: number;
+  start_longitude?: number;
+  start_address?: string;
+  start_timestamp?: string;
+  end_latitude?: number;
+  end_longitude?: number;
+  end_address?: string;
+  end_timestamp?: string;
+  
   // Related data
   items?: TaskItem[];
   status_history?: TaskStatusHistory[];

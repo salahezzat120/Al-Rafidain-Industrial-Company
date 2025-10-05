@@ -888,6 +888,7 @@ const translations = {
     "taskDetails.taskCreated": "Task created",
     "taskDetails.driverAssigned": "Driver assigned",
     "taskDetails.taskStarted": "Task started",
+    "taskDetails.locationInfo": "Location Information",
 
     // Supervisor
     "supervisor.assignNewDelivery": "Assign New Delivery",
@@ -2028,6 +2029,7 @@ const translations = {
     "taskDetails.taskCreated": "تم إنشاء المهمة",
     "taskDetails.driverAssigned": "تم تعيين السائق",
     "taskDetails.taskStarted": "تم بدء المهمة",
+    "taskDetails.locationInfo": "معلومات الموقع",
 
     // Supervisor
     "supervisor.assignNewDelivery": "تعيين توصيل جديد",

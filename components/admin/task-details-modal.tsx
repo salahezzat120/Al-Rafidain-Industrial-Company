@@ -10,12 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Package, User, AlertCircle, Edit, Trash2, Save, X } from "lucide-react"
+import { Package, User, AlertCircle, Edit, Trash2, Save, X, MapPin } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
 import { useToast } from "@/hooks/use-toast"
 import { updateDeliveryTask, deleteDeliveryTask } from "@/lib/delivery-tasks"
 import { getRepresentatives } from "@/lib/supabase-utils"
 import { ProofPhotosDisplay } from "@/components/ui/proof-photos-display"
+import { OpenStreetMapDisplay } from "@/components/ui/openstreetmap-display"
 import type { DeliveryTask, UpdateDeliveryTaskData } from "@/types/delivery-tasks"
 
 interface TaskDetailsModalProps {
@@ -492,6 +493,36 @@ export function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: TaskDetail
               </div>
             </CardContent>
           </Card>
+
+          {/* Location Information */}
+          {(task.start_latitude && task.start_longitude) || (task.end_latitude && task.end_longitude) ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  {t('taskDetails.locationInfo')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <OpenStreetMapDisplay
+                  startLocation={task.start_latitude && task.start_longitude ? {
+                    latitude: task.start_latitude,
+                    longitude: task.start_longitude,
+                    address: task.start_address,
+                    timestamp: task.start_timestamp,
+                    label: 'Start Location'
+                  } : undefined}
+                  endLocation={task.end_latitude && task.end_longitude ? {
+                    latitude: task.end_latitude,
+                    longitude: task.end_longitude,
+                    address: task.end_address,
+                    timestamp: task.end_timestamp,
+                    label: 'End Location'
+                  } : undefined}
+                />
+              </CardContent>
+            </Card>
+          ) : null}
 
           {/* Task Items */}
           {task.items && task.items.length > 0 && (
