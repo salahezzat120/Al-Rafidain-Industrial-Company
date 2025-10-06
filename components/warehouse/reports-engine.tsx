@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, Download, Filter, Calendar, TrendingUp, AlertTriangle, Package, DollarSign, BarChart3, Eye, Settings } from 'lucide-react';
+import { FileText, Download, Filter, Calendar, TrendingUp, AlertTriangle, Package, DollarSign, BarChart3, Eye, Settings, X } from 'lucide-react';
 import { useLanguage } from '@/contexts/language-context';
 import { 
   generateReport,
@@ -45,6 +45,7 @@ export function ReportsEngine() {
   const [selectedReport, setSelectedReport] = useState<string>('');
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<any>({ warehouse_id: '', date_range: '' });
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -57,6 +58,8 @@ export function ReportsEngine() {
 
   const loadData = async () => {
     try {
+      setLoading(true);
+      setError(null);
       const [warehousesData, productsData] = await Promise.all([
         getWarehouses(),
         getProductsWithWarehouseInfo()
@@ -65,6 +68,9 @@ export function ReportsEngine() {
       setProducts(productsData);
     } catch (error) {
       console.error('Error loading data:', error);
+      setError('Failed to load data. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -73,6 +79,7 @@ export function ReportsEngine() {
 
     try {
       setLoading(true);
+      setError(null);
       const data = await generateReport(selectedReport, filters);
       setReportData({
         ...data,
@@ -80,8 +87,9 @@ export function ReportsEngine() {
       });
       setDialogOpen(false);
       setConfirmDialogOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating report:', error);
+      setError(error.message || 'Failed to generate report. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -198,6 +206,36 @@ export function ReportsEngine() {
 
   return (
     <div className={`space-y-6 ${isRTL ? 'text-right' : 'text-left'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+            <p className="text-sm text-red-800">{error}</p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setError(null)}
+              className="ml-auto"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center p-8">
+          <div className="flex items-center gap-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+            <span className="text-sm text-muted-foreground">
+              {isRTL ? 'جاري التحميل...' : 'Loading...'}
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
