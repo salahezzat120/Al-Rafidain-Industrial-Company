@@ -225,8 +225,8 @@ export function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: TaskDetail
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2">
               <Package className="h-5 w-5" />
@@ -260,7 +260,8 @@ export function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: TaskDetail
           </div>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+          <div className="space-y-6">
           {/* Task Overview */}
           <Card>
             <CardHeader>
@@ -590,6 +591,7 @@ export function TaskDetailsModal({ task, isOpen, onClose, onUpdate }: TaskDetail
               </CardContent>
             </Card>
           )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -21,6 +21,7 @@ import {
   Headphones,
   DollarSign,
   Warehouse,
+  Star,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useLanguage } from "@/contexts/language-context"
@@ -44,6 +45,7 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
     { id: "customers", label: t("nav.customerManagement"), icon: UserCheck },
     { id: "warehouse", label: t("nav.warehouseManagement"), icon: Warehouse },
     { id: "payments", label: t("nav.paymentTracking"), icon: DollarSign },
+    { id: "simple-loyalty", label: t("nav.simpleLoyalty"), icon: Star },
     { id: "attendance", label: t("nav.attendance"), icon: Calendar },
     { id: "chat-support", label: t("nav.chatSupport"), icon: MessageSquare },
     { id: "live-map", label: t("nav.liveMap"), icon: MapPin },

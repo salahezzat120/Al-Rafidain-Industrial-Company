@@ -31,6 +31,7 @@ import { VisitManagementSingleTab } from "@/components/admin/visit-management-si
 import { MessagingTab } from "@/components/admin/messaging-tab"
 import { AfterSalesTab } from "@/components/admin/after-sales-tab"
 import { WarehouseTab } from "@/components/admin/warehouse-tab"
+import SimpleLoyaltyTab from "@/components/admin/simple-loyalty-tab"
 import { ChatBot } from "@/components/chatbot/chatbot"
 import { AssignDeliveryModal } from "@/components/supervisor/assign-delivery-modal"
 import { ManageRepresentativesModal } from "@/components/supervisor/manage-representatives-modal";
@@ -135,6 +136,7 @@ function Dashboard() {
             {activeTab === "representatives" && <RepresentativesTab onNavigateToChatSupport={() => setActiveTab("chat-support")} onNavigateToDeliveryTasks={() => setActiveTab("deliveries")} />}
             {activeTab === "customers" && <CustomersTab />}
             {activeTab === "warehouse" && <WarehouseTab />}
+            {activeTab === "simple-loyalty" && <SimpleLoyaltyTab />}
             {activeTab === "payments" && <PaymentsTab />}
             {activeTab === "deliveries" && <DeliveriesTab />}
             {activeTab === "vehicles" && <VehiclesTab />}
@@ -228,6 +230,7 @@ function Dashboard() {
                 {activeTab === "representatives" && <RepresentativesTab onNavigateToChatSupport={() => setActiveTab("chat-support")} onNavigateToDeliveryTasks={() => setActiveTab("deliveries")} />}
                 {activeTab === "customers" && <CustomersTab />}
                 {activeTab === "warehouse" && <WarehouseTab />}
+                {activeTab === "simple-loyalty" && <SimpleLoyaltyTab />}
                 {activeTab === "payments" && <PaymentsTab />}
                 {activeTab === "deliveries" && <DeliveriesTab />}
                 {activeTab === "vehicles" && <VehiclesTab />}

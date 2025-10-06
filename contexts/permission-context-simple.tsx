@@ -56,6 +56,7 @@ export function PermissionProviderSimple({ children }: { children: React.ReactNo
           { pageId: 'customers', pageName: 'Customer Management', permission: 'admin' },
           { pageId: 'warehouse', pageName: 'Warehouse Management', permission: 'admin' },
           { pageId: 'payments', pageName: 'Payment Tracking', permission: 'admin' },
+          { pageId: 'simple-loyalty', pageName: 'Simple Loyalty', permission: 'admin' },
           { pageId: 'attendance', pageName: 'Attendance', permission: 'admin' },
           { pageId: 'chat-support', pageName: 'Chat Support', permission: 'admin' },
           { pageId: 'live-map', pageName: 'Live Map', permission: 'admin' },

@@ -464,7 +464,7 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[90vw] h-[80vh] max-w-6xl overflow-y-auto">
+      <DialogContent className="w-[85vw] max-w-5xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
@@ -500,7 +500,8 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="max-h-[70vh] overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+          <form onSubmit={handleSubmit} className="space-y-6">
           {activeTab === "details" && (
             <div className="space-y-3">
               <Card>
@@ -1091,6 +1092,7 @@ export function CreateTaskModal({ isOpen, onClose, onCreate }: CreateTaskModalPr
             </div>
           </div>
         </form>
+        </div>
       </DialogContent>
     </Dialog>
   )
