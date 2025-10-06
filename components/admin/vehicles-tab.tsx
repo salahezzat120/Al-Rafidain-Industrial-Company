@@ -55,20 +55,37 @@ export function VehiclesTab() {
 
   const loadData = async () => {
     setLoading(true)
+    console.log('🚗 Loading vehicle data...')
     try {
       // Try to load real data first
       const [vehiclesData, driversData, statsData] = await Promise.all([
-        getVehicles().catch(() => ({ data: mockVehicleData.vehicles, pagination: { total: mockVehicleData.vehicles.length } })),
-        getDrivers().catch(() => ({ data: mockVehicleData.drivers, pagination: { total: mockVehicleData.drivers.length } })),
-        getVehicleStats().catch(() => mockVehicleData.stats)
+        getVehicles().catch((err) => {
+          console.log('⚠️ Vehicles API failed, using mock data:', err)
+          return { data: mockVehicleData.vehicles, pagination: { total: mockVehicleData.vehicles.length } }
+        }),
+        getDrivers().catch((err) => {
+          console.log('⚠️ Drivers API failed, using mock data:', err)
+          return { data: mockVehicleData.drivers, pagination: { total: mockVehicleData.drivers.length } }
+        }),
+        getVehicleStats().catch((err) => {
+          console.log('⚠️ Stats API failed, using mock data:', err)
+          return mockVehicleData.stats
+        })
       ])
+
+      console.log('✅ Data loaded successfully:', {
+        vehicles: vehiclesData.data?.length || 0,
+        drivers: driversData.data?.length || 0,
+        stats: !!statsData
+      })
 
       setVehicles(vehiclesData.data || [])
       setDrivers(driversData.data || [])
       setStats(statsData)
     } catch (error) {
-      console.error('Error loading data:', error)
+      console.error('❌ Error loading data:', error)
       // Fallback to mock data
+      console.log('🔄 Using fallback mock data')
       setVehicles(mockVehicleData.vehicles)
       setDrivers(mockVehicleData.drivers)
       setStats(mockVehicleData.stats)
@@ -93,6 +110,12 @@ export function VehiclesTab() {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
+      ACTIVE: { color: 'bg-green-100 text-green-800', icon: CheckCircle },
+      INACTIVE: { color: 'bg-gray-100 text-gray-800', icon: XCircle },
+      MAINTENANCE: { color: 'bg-yellow-100 text-yellow-800', icon: Wrench },
+      REPAIR: { color: 'bg-red-100 text-red-800', icon: AlertTriangle },
+      RETIRED: { color: 'bg-gray-100 text-gray-800', icon: XCircle },
+      // Fallback for lowercase statuses
       active: { color: 'bg-green-100 text-green-800', icon: CheckCircle },
       inactive: { color: 'bg-gray-100 text-gray-800', icon: XCircle },
       maintenance: { color: 'bg-yellow-100 text-yellow-800', icon: Wrench },
@@ -100,13 +123,13 @@ export function VehiclesTab() {
       retired: { color: 'bg-gray-100 text-gray-800', icon: XCircle }
     }
 
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.inactive
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.INACTIVE
     const Icon = config.icon
 
     return (
       <Badge className={`${config.color} flex items-center gap-1`}>
         <Icon className="h-3 w-3" />
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()}
       </Badge>
     )
   }
@@ -153,6 +176,10 @@ export function VehiclesTab() {
           <Button onClick={() => setShowDataDisplay(true)} variant="outline">
             <Database className="h-4 w-4 mr-2" />
             View All Data
+          </Button>
+          <Button onClick={() => window.open('/debug', '_blank')} variant="outline">
+            <AlertTriangle className="h-4 w-4 mr-2" />
+            Debug Data
           </Button>
           <Button onClick={() => setIsAddVehicleOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -265,12 +292,12 @@ export function VehiclesTab() {
                     <TableCell>{getStatusBadge(vehicle.status)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Progress value={vehicle.fuel_level_percent} className="w-16" />
-                        <span className="text-sm text-gray-600">{vehicle.fuel_level_percent}%</span>
+                        <Progress value={vehicle.current_fuel_level || vehicle.fuel_level_percent || 0} className="w-16" />
+                        <span className="text-sm text-gray-600">{vehicle.current_fuel_level || vehicle.fuel_level_percent || 0}%</span>
                       </div>
                     </TableCell>
                     <TableCell>{vehicle.current_location || 'Unknown'}</TableCell>
-                    <TableCell>{vehicle.mileage_km.toLocaleString()} km</TableCell>
+                    <TableCell>{(vehicle.mileage || vehicle.mileage_km || 0).toLocaleString()} km</TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
