@@ -1786,8 +1786,8 @@ async function generateCostSalesReport(filters: any): Promise<ReportData> {
 
     if (!products || products.length === 0) {
       return {
-        title: 'Cost & Sales Price Report',
-        headers: ['Product Code', 'Product Name', 'Cost Price', 'Sales Price', 'Margin %', 'Stock Level'],
+        title: 'تقرير التكلفة وسعر البيع',
+        headers: ['كود المنتج', 'اسم المنتج', 'سعر التكلفة', 'سعر البيع', 'هامش الربح %', 'مستوى المخزون'],
         rows: [],
         summary: { totalProducts: 0, averageMargin: '0.00%' }
       };
@@ -1803,7 +1803,7 @@ async function generateCostSalesReport(filters: any): Promise<ReportData> {
     }
 
     // Manually join the data
-  const headers = ['Product Code', 'Product Name', 'Cost Price', 'Sales Price', 'Margin %', 'Stock Level'];
+  const headers = ['كود المنتج', 'اسم المنتج', 'سعر التكلفة', 'سعر البيع', 'هامش الربح %', 'مستوى المخزون'];
     const rows = products.map(product => {
       const productInventory = inventory?.find(inv => inv.product_id === product.id);
       const stockLevel = productInventory?.available_quantity || '0';
@@ -1833,7 +1833,7 @@ async function generateCostSalesReport(filters: any): Promise<ReportData> {
       : '0.00%';
 
   return {
-    title: 'Cost & Sales Price Report',
+    title: 'تقرير التكلفة وسعر البيع',
     headers,
     rows,
     summary: {
@@ -1860,7 +1860,7 @@ async function generateConsignmentReport(filters: any): Promise<ReportData> {
 
     if (!inventory || inventory.length === 0) {
       return {
-        title: 'تقرير توفر المخزون',
+        title: 'تقرير مخزون الوكالة',
         headers: ['المنتج', 'المستودع', 'الكمية المتاحة', 'الحد الأدنى للمخزون', 'الحالة'],
         rows: [],
         summary: { 'إجمالي الأصناف': 0, 'الأصناف المتوفرة في المخزون': 0 }
@@ -1887,12 +1887,12 @@ async function generateConsignmentReport(filters: any): Promise<ReportData> {
         warehouse?.warehouse_name || 'مستودع غير معروف',
         item.available_quantity || '0',
         item.minimum_stock_level || '0',
-        item.available_quantity > 0 ? 'متوفر في المخزون' : 'نفد من المخزون'
+        item.available_quantity > 0 ? 'متوفر' : 'نفد'
       ];
     });
 
   return {
-      title: 'تقرير توفر المخزون',
+      title: 'تقرير مخزون الوكالة',
     headers,
     rows,
     summary: {
@@ -1920,8 +1920,8 @@ async function generateDamagedGoodsReport(filters: any): Promise<ReportData> {
 
     if (!movements || movements.length === 0) {
       return {
-        title: 'Damaged Goods Report',
-        headers: ['Date', 'Product', 'Warehouse', 'Damaged Quantity', 'Reason', 'Value'],
+        title: 'تقرير البضائع التالفة',
+        headers: ['التاريخ', 'المنتج', 'المستودع', 'الكمية التالفة', 'السبب', 'القيمة'],
         rows: [],
         summary: { totalDamaged: 0, totalValue: '0.00' }
       };
@@ -1937,15 +1937,15 @@ async function generateDamagedGoodsReport(filters: any): Promise<ReportData> {
     const warehouses = warehousesResult.data || [];
 
     // Manually join the data
-  const headers = ['Date', 'Product', 'Warehouse', 'Damaged Quantity', 'Reason', 'Value'];
+  const headers = ['التاريخ', 'المنتج', 'المستودع', 'الكمية التالفة', 'السبب', 'القيمة'];
     const rows = movements.map(movement => {
       const product = products.find(p => p.id === movement.product_id);
       const warehouse = warehouses.find(w => w.id === movement.warehouse_id);
       
       return [
     new Date(movement.created_at).toLocaleDateString(),
-        product?.product_name || 'Unknown Product',
-        warehouse?.warehouse_name || 'Unknown Warehouse',
+        product?.product_name || 'منتج غير معروف',
+        warehouse?.warehouse_name || 'مستودع غير معروف',
     movement.quantity || '0',
     movement.notes || '',
         ((movement.quantity || 0) * (movement.unit_price || 0)).toFixed(2)
@@ -1953,7 +1953,7 @@ async function generateDamagedGoodsReport(filters: any): Promise<ReportData> {
     });
 
   return {
-    title: 'Damaged Goods Report',
+    title: 'تقرير البضائع التالفة',
     headers,
     rows,
     summary: {
@@ -1971,285 +1971,837 @@ async function generateDamagedGoodsReport(filters: any): Promise<ReportData> {
 
 // Expiry Report
 async function generateExpiryReport(filters: any): Promise<ReportData> {
-  const { data, error } = await supabase
-    .from('products')
-    .select(`
-      *,
-      inventory:inventory(*)
-    `)
-    .not('expiry_date', 'is', null)
-    .order('expiry_date');
+  try {
+    // Get products with expiry dates
+    const { data: products, error: productsError } = await supabase
+      .from('products')
+      .select('*')
+      .not('expiry_date', 'is', null)
+      .order('expiry_date');
 
-  if (error) throw error;
+    if (productsError) throw productsError;
 
-  const headers = ['Product', 'Expiry Date', 'Days Until Expiry', 'Quantity', 'Status'];
-  const rows = data?.map(product => {
-    const expiryDate = new Date(product.expiry_date);
-    const today = new Date();
-    const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    
-    let status = 'Good';
-    if (daysUntilExpiry < 0) status = 'Expired';
-    else if (daysUntilExpiry <= 30) status = 'Expiring Soon';
-    else if (daysUntilExpiry <= 60) status = 'Warning';
-
-    return [
-      product.product_name || '',
-      expiryDate.toLocaleDateString(),
-      daysUntilExpiry.toString(),
-      product.inventory?.[0]?.available_quantity || '0',
-      status
-    ];
-  }) || [];
-
-  return {
-    title: 'Expiry Report',
-    headers,
-    rows,
-    summary: {
-      totalProducts: data?.length || 0,
-      expiringSoon: rows.filter(row => row[4] === 'Expiring Soon').length,
-      expired: rows.filter(row => row[4] === 'Expired').length
+    if (!products || products.length === 0) {
+      return {
+        title: 'تقرير انتهاء الصلاحية',
+        headers: ['المنتج', 'تاريخ الانتهاء', 'الأيام المتبقية', 'الكمية', 'الحالة'],
+        rows: [],
+        summary: { totalProducts: 0, expiringSoon: 0, expired: 0 }
+      };
     }
-  };
+
+    // Get inventory data separately
+    const { data: inventory, error: inventoryError } = await supabase
+      .from('inventory')
+      .select('*');
+
+    if (inventoryError) {
+      console.warn('Error fetching inventory data:', inventoryError);
+    }
+
+    const headers = ['المنتج', 'تاريخ الانتهاء', 'الأيام المتبقية', 'الكمية', 'الحالة'];
+    const rows = products.map(product => {
+      const expiryDate = new Date(product.expiry_date);
+      const today = new Date();
+      const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      
+      let status = 'جيد';
+      if (daysUntilExpiry < 0) status = 'منتهي الصلاحية';
+      else if (daysUntilExpiry <= 30) status = 'ينتهي قريباً';
+      else if (daysUntilExpiry <= 60) status = 'تحذير';
+
+      const productInventory = inventory?.find(inv => inv.product_id === product.id);
+      const quantity = productInventory?.available_quantity || '0';
+
+      return [
+        product.product_name || '',
+        expiryDate.toLocaleDateString(),
+        daysUntilExpiry.toString(),
+        quantity,
+        status
+      ];
+    });
+
+    return {
+      title: 'تقرير انتهاء الصلاحية',
+      headers,
+      rows,
+      summary: {
+        totalProducts: products.length,
+        expiringSoon: rows.filter(row => row[4] === 'ينتهي قريباً').length,
+        expired: rows.filter(row => row[4] === 'منتهي الصلاحية').length
+      }
+    };
+  } catch (error) {
+    console.error('Error generating expiry report:', error);
+    throw error;
+  }
 }
 
 // Serial Number Tracking Report
 async function generateSerialTrackingReport(filters: any): Promise<ReportData> {
-  const { data, error } = await supabase
-    .from('products')
-    .select(`
-      *,
-      inventory:inventory(*)
-    `)
-    .not('serial_number', 'is', null)
-    .order('created_at', { ascending: false });
+  try {
+    // Try to get from serial_numbers table first, fallback to products
+    const { data: serialNumbers, error: serialError } = await supabase
+      .from('serial_numbers')
+      .select(`
+        *,
+        product:products(*),
+        warehouse:warehouses(*)
+      `)
+      .order('created_at', { ascending: false });
 
-  if (error) throw error;
+    if (serialError) {
+      console.warn('Serial numbers table not found, using products table:', serialError);
+      
+      // Fallback to products table
+      const { data: products, error: productsError } = await supabase
+        .from('products')
+        .select('*')
+        .not('serial_number', 'is', null)
+        .order('created_at', { ascending: false });
 
-  const headers = ['Product Code', 'Product Name', 'Serial Number', 'Status', 'Created Date', 'Description'];
-  const rows = data?.map(product => [
-    product.product_code || '',
-    product.product_name || '',
-    product.serial_number || '',
-    product.inventory?.[0]?.available_quantity > 0 ? 'In Stock' : 'Out of Stock',
-    new Date(product.created_at).toLocaleDateString(),
-    product.description || ''
-  ]) || [];
+      if (productsError) throw productsError;
 
-  return {
-    title: 'Serial Number Tracking Report',
-    headers,
-    rows,
-    summary: {
-      totalProducts: data?.length || 0,
-      inStockProducts: data?.filter(product => product.inventory?.[0]?.available_quantity > 0).length || 0
+      if (!products || products.length === 0) {
+        return {
+          title: 'تتبع الأرقام التسلسلية',
+          headers: ['كود المنتج', 'اسم المنتج', 'الرقم التسلسلي', 'الحالة', 'تاريخ الإنشاء', 'الوصف'],
+          rows: [],
+          summary: { totalProducts: 0, inStockProducts: 0 }
+        };
+      }
+
+      // Get inventory data separately
+      const { data: inventory, error: inventoryError } = await supabase
+        .from('inventory')
+        .select('*');
+
+      if (inventoryError) {
+        console.warn('Error fetching inventory data:', inventoryError);
+      }
+
+      const headers = ['كود المنتج', 'اسم المنتج', 'الرقم التسلسلي', 'الحالة', 'تاريخ الإنشاء', 'الوصف'];
+      const rows = products.map(product => {
+        const productInventory = inventory?.find(inv => inv.product_id === product.id);
+        const inStock = productInventory?.available_quantity > 0;
+
+        return [
+          product.product_code || '',
+          product.product_name || '',
+          product.serial_number || '',
+          inStock ? 'متوفر' : 'نفد',
+          new Date(product.created_at).toLocaleDateString(),
+          product.description || ''
+        ];
+      });
+
+      return {
+        title: 'تتبع الأرقام التسلسلية',
+        headers,
+        rows,
+        summary: {
+          totalProducts: products.length,
+          inStockProducts: rows.filter(row => row[3] === 'متوفر').length
+        }
+      };
     }
-  };
+
+    if (!serialNumbers || serialNumbers.length === 0) {
+      return {
+        title: 'تتبع الأرقام التسلسلية',
+        headers: ['كود المنتج', 'اسم المنتج', 'الرقم التسلسلي', 'الحالة', 'تاريخ الإنشاء', 'ملاحظات'],
+        rows: [],
+        summary: { totalProducts: 0, inStockProducts: 0 }
+      };
+    }
+
+    const headers = ['كود المنتج', 'اسم المنتج', 'الرقم التسلسلي', 'الحالة', 'تاريخ الإنشاء', 'ملاحظات'];
+    const rows = serialNumbers.map(serial => [
+      serial.product?.product_code || '',
+      serial.product?.product_name || '',
+      serial.serial_number || '',
+      serial.status || 'نشط',
+      new Date(serial.created_at).toLocaleDateString(),
+      serial.notes || ''
+    ]);
+
+    return {
+      title: 'تتبع الأرقام التسلسلية',
+      headers,
+      rows,
+      summary: {
+        totalProducts: serialNumbers.length,
+        inStockProducts: serialNumbers.filter(s => s.status === 'نشط').length
+      }
+    };
+  } catch (error) {
+    console.error('Error generating serial tracking report:', error);
+    throw error;
+  }
 }
 
 // Product Card Report
 async function generateProductCardReport(filters: any): Promise<ReportData> {
-  const { data, error } = await supabase
-    .from('products')
-    .select(`
-      *,
-      inventory:inventory(*),
-      stock_movements:stock_movements(*)
-    `)
-    .order('product_name');
+  try {
+    // Get products data
+    const { data: products, error: productsError } = await supabase
+      .from('products')
+      .select('*')
+      .order('product_name');
 
-  if (error) throw error;
+    if (productsError) throw productsError;
 
-  const headers = ['Product Code', 'Product Name', 'Description', 'Category', 'Current Stock', 'Last Movement'];
-  const rows = data?.map(product => [
-    product.product_code || '',
-    product.product_name || '',
-    product.description || '',
-    product.category || '',
-    product.inventory?.[0]?.available_quantity || '0',
-    product.stock_movements?.[0] ? new Date(product.stock_movements[0].created_at).toLocaleDateString() : 'Never'
-  ]) || [];
-
-  return {
-    title: 'Product Card Report',
-    headers,
-    rows,
-    summary: {
-      totalProducts: data?.length || 0
+    if (!products || products.length === 0) {
+      return {
+        title: 'بطاقة المنتج',
+        headers: ['كود المنتج', 'اسم المنتج', 'الوصف', 'الفئة', 'المخزون الحالي', 'آخر حركة'],
+        rows: [],
+        summary: { totalProducts: 0 }
+      };
     }
-  };
+
+    // Get inventory and stock movements data separately
+    const [inventoryResult, movementsResult] = await Promise.all([
+      supabase.from('inventory').select('*'),
+      supabase.from('stock_movements').select('*').order('created_at', { ascending: false })
+    ]);
+
+    const inventory = inventoryResult.data || [];
+    const movements = movementsResult.data || [];
+
+    const headers = ['كود المنتج', 'اسم المنتج', 'الوصف', 'الفئة', 'المخزون الحالي', 'آخر حركة'];
+    const rows = products.map(product => {
+      const productInventory = inventory.find(inv => inv.product_id === product.id);
+      const productMovements = movements.filter(mov => mov.product_id === product.id);
+      const lastMovement = productMovements[0];
+
+      return [
+        product.product_code || '',
+        product.product_name || '',
+        product.description || '',
+        product.category || '',
+        productInventory?.available_quantity || '0',
+        lastMovement ? new Date(lastMovement.created_at).toLocaleDateString() : 'لم يحدث'
+      ];
+    });
+
+    return {
+      title: 'بطاقة المنتج',
+      headers,
+      rows,
+      summary: {
+        totalProducts: products.length
+      }
+    };
+  } catch (error) {
+    console.error('Error generating product card report:', error);
+    throw error;
+  }
 }
 
 // Product Monitoring Card Report
 async function generateMonitoringCardReport(filters: any): Promise<ReportData> {
-  const { data, error } = await supabase
-    .from('stock_movements')
-    .select(`
-      *,
-      product:products(*),
-      warehouse:warehouses(*)
-    `)
-    .order('created_at', { ascending: false })
-    .limit(100);
+  try {
+    // Get stock movements data
+    const { data: movements, error: movementsError } = await supabase
+      .from('stock_movements')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
 
-  if (error) throw error;
+    if (movementsError) throw movementsError;
 
-  const headers = ['Date', 'Product', 'Warehouse', 'Movement Type', 'Quantity', 'Reference'];
-  const rows = data?.map(movement => [
-    new Date(movement.created_at).toLocaleDateString(),
-    movement.product?.product_name || '',
-    movement.warehouse?.warehouse_name || '',
-    movement.movement_type || '',
-    movement.quantity || '0',
-    movement.reference_number || ''
-  ]) || [];
-
-  return {
-    title: 'Product Monitoring Card Report',
-    headers,
-    rows,
-    summary: {
-      totalMovements: data?.length || 0
+    if (!movements || movements.length === 0) {
+      return {
+        title: 'بطاقة مراقبة المنتج',
+        headers: ['التاريخ', 'المنتج', 'المستودع', 'نوع الحركة', 'الكمية', 'المرجع'],
+        rows: [],
+        summary: { totalMovements: 0 }
+      };
     }
-  };
+
+    // Get products and warehouses data separately
+    const [productsResult, warehousesResult] = await Promise.all([
+      supabase.from('products').select('*'),
+      supabase.from('warehouses').select('*')
+    ]);
+
+    const products = productsResult.data || [];
+    const warehouses = warehousesResult.data || [];
+
+    const headers = ['التاريخ', 'المنتج', 'المستودع', 'نوع الحركة', 'الكمية', 'المرجع'];
+    const rows = movements.map(movement => {
+      const product = products.find(p => p.id === movement.product_id);
+      const warehouse = warehouses.find(w => w.id === movement.warehouse_id);
+
+      return [
+        new Date(movement.created_at).toLocaleDateString(),
+        product?.product_name || 'منتج غير معروف',
+        warehouse?.warehouse_name || 'مستودع غير معروف',
+        movement.movement_type || '',
+        movement.quantity || '0',
+        movement.reference_number || ''
+      ];
+    });
+
+    return {
+      title: 'بطاقة مراقبة المنتج',
+      headers,
+      rows,
+      summary: {
+        totalMovements: movements.length
+      }
+    };
+  } catch (error) {
+    console.error('Error generating monitoring card report:', error);
+    throw error;
+  }
 }
 
 // Aging Report
 async function generateAgingReport(filters: any): Promise<ReportData> {
-  const { data, error } = await supabase
-    .from('aging_items')
-    .select(`
-      *,
-      product:products(*),
-      warehouse:warehouses(*)
-    `)
-    .order('days_in_stock', { ascending: false });
+  try {
+    // Try to get from aging_items table first
+    const { data: agingItems, error: agingError } = await supabase
+      .from('aging_items')
+      .select('*')
+      .order('days_in_stock', { ascending: false });
 
-  if (error) throw error;
+    if (agingError) {
+      console.warn('Aging items table not found, generating from stock movements:', agingError);
+      
+      // Fallback: generate aging report from stock movements
+      const { data: movements, error: movementsError } = await supabase
+        .from('stock_movements')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-  const headers = ['Product', 'Warehouse', 'Quantity', 'Days in Stock', 'Age Category', 'Last Movement'];
-  const rows = data?.map(item => [
-    item.product?.product_name || '',
-    item.warehouse?.warehouse_name || '',
-    item.quantity || '0',
-    item.days_in_stock || '0',
-    item.age_category || '',
-    item.last_movement_date ? new Date(item.last_movement_date).toLocaleDateString() : 'Never'
-  ]) || [];
+      if (movementsError) throw movementsError;
 
-  return {
-    title: 'Aging Report',
-    headers,
-    rows,
-    summary: {
-      totalItems: data?.length || 0,
-      oldItems: rows.filter(row => row[4] === 'OLD').length
+      if (!movements || movements.length === 0) {
+        return {
+          title: 'تقرير التقادم',
+          headers: ['المنتج', 'المستودع', 'الكمية', 'الأيام في المخزون', 'فئة العمر', 'آخر حركة'],
+          rows: [],
+          summary: { totalItems: 0, oldItems: 0 }
+        };
+      }
+
+      // Get products and warehouses data
+      const [productsResult, warehousesResult] = await Promise.all([
+        supabase.from('products').select('*'),
+        supabase.from('warehouses').select('*')
+      ]);
+
+      const products = productsResult.data || [];
+      const warehouses = warehousesResult.data || [];
+
+      // Calculate aging from movements
+      const productAging = new Map();
+      const today = new Date();
+
+      movements.forEach(movement => {
+        const key = `${movement.product_id}-${movement.warehouse_id}`;
+        if (!productAging.has(key)) {
+          productAging.set(key, {
+            product_id: movement.product_id,
+            warehouse_id: movement.warehouse_id,
+            quantity: 0,
+            last_movement_date: movement.created_at,
+            days_in_stock: 0
+          });
+        }
+
+        const aging = productAging.get(key);
+        if (movement.movement_type === 'IN') {
+          aging.quantity += parseFloat(movement.quantity || 0);
+        } else if (movement.movement_type === 'OUT') {
+          aging.quantity -= parseFloat(movement.quantity || 0);
+        }
+
+        if (new Date(movement.created_at) > new Date(aging.last_movement_date)) {
+          aging.last_movement_date = movement.created_at;
+        }
+      });
+
+      // Calculate days in stock
+      productAging.forEach(aging => {
+        const lastMovementDate = new Date(aging.last_movement_date);
+        aging.days_in_stock = Math.floor((today.getTime() - lastMovementDate.getTime()) / (1000 * 60 * 60 * 24));
+      });
+
+      const headers = ['Product', 'Warehouse', 'Quantity', 'Days in Stock', 'Age Category', 'Last Movement'];
+      const rows = Array.from(productAging.values()).map(aging => {
+        const product = products.find(p => p.id === aging.product_id);
+        const warehouse = warehouses.find(w => w.id === aging.warehouse_id);
+        
+        let ageCategory = 'جديد';
+        if (aging.days_in_stock > 180) ageCategory = 'قديم';
+        else if (aging.days_in_stock > 90) ageCategory = 'متقادم';
+        else if (aging.days_in_stock > 30) ageCategory = 'حديث';
+
+        return [
+          product?.product_name || 'Unknown Product',
+          warehouse?.warehouse_name || 'Unknown Warehouse',
+          aging.quantity.toFixed(2),
+          aging.days_in_stock.toString(),
+          ageCategory,
+          new Date(aging.last_movement_date).toLocaleDateString()
+        ];
+      });
+
+        return {
+          title: 'تقرير التقادم',
+          headers,
+          rows,
+          summary: {
+            totalItems: rows.length,
+            oldItems: rows.filter(row => row[4] === 'قديم').length
+          }
+        };
     }
-  };
+
+    if (!agingItems || agingItems.length === 0) {
+      return {
+        title: 'تقرير التقادم',
+        headers: ['المنتج', 'المستودع', 'الكمية', 'الأيام في المخزون', 'فئة العمر', 'آخر حركة'],
+        rows: [],
+        summary: { totalItems: 0, oldItems: 0 }
+      };
+    }
+
+    // Get products and warehouses data
+    const [productsResult, warehousesResult] = await Promise.all([
+      supabase.from('products').select('*'),
+      supabase.from('warehouses').select('*')
+    ]);
+
+    const products = productsResult.data || [];
+    const warehouses = warehousesResult.data || [];
+
+    const headers = ['المنتج', 'المستودع', 'الكمية', 'الأيام في المخزون', 'فئة العمر', 'آخر حركة'];
+    const rows = agingItems.map(item => {
+      const product = products.find(p => p.id === item.product_id);
+      const warehouse = warehouses.find(w => w.id === item.warehouse_id);
+
+      return [
+        product?.product_name || 'منتج غير معروف',
+        warehouse?.warehouse_name || 'مستودع غير معروف',
+        item.quantity || '0',
+        item.days_in_stock || '0',
+        item.age_category || 'جديد',
+        item.last_movement_date ? new Date(item.last_movement_date).toLocaleDateString() : 'لم يحدث'
+      ];
+    });
+
+    return {
+      title: 'تقرير التقادم',
+      headers,
+      rows,
+      summary: {
+        totalItems: agingItems.length,
+        oldItems: rows.filter(row => row[4] === 'قديم').length
+      }
+    };
+  } catch (error) {
+    console.error('Error generating aging report:', error);
+    throw error;
+  }
 }
 
 // Stock Analysis Report
 async function generateStockAnalysisReport(filters: any): Promise<ReportData> {
-  const { data, error } = await supabase
-    .from('stock_analysis')
-    .select(`
-      *,
-      product:products(*)
-    `)
-    .order('analysis_date', { ascending: false });
+  try {
+    // Try to get from stock_analysis table first
+    const { data: stockAnalysis, error: analysisError } = await supabase
+      .from('stock_analysis')
+      .select('*')
+      .order('analysis_date', { ascending: false });
 
-  if (error) throw error;
+    if (analysisError) {
+      console.warn('Stock analysis table not found, generating from stock movements:', analysisError);
+      
+      // Fallback: generate analysis from stock movements
+      const { data: movements, error: movementsError } = await supabase
+        .from('stock_movements')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-  const headers = ['Product', 'Analysis Date', 'Total In', 'Total Out', 'Net Movement', 'Current Stock', 'Turnover Rate'];
-  const rows = data?.map(analysis => [
-    analysis.product?.product_name || '',
-    new Date(analysis.analysis_date).toLocaleDateString(),
-    analysis.total_in || '0',
-    analysis.total_out || '0',
-    analysis.net_movement || '0',
-    analysis.current_stock || '0',
-    analysis.turnover_rate ? analysis.turnover_rate.toFixed(2) + '%' : '0.00%'
-  ]) || [];
+      if (movementsError) throw movementsError;
 
-  return {
-    title: 'Stock Analysis Report',
-    headers,
-    rows,
-    summary: {
-      totalAnalyses: data?.length || 0
+      if (!movements || movements.length === 0) {
+        return {
+          title: 'تحليل المخزون',
+          headers: ['المنتج', 'تاريخ التحليل', 'إجمالي الداخل', 'إجمالي الخارج', 'الحركة الصافية', 'المخزون الحالي', 'معدل الدوران'],
+          rows: [],
+          summary: { totalAnalyses: 0 }
+        };
+      }
+
+      // Get products and inventory data
+      const [productsResult, inventoryResult] = await Promise.all([
+        supabase.from('products').select('*'),
+        supabase.from('inventory').select('*')
+      ]);
+
+      const products = productsResult.data || [];
+      const inventory = inventoryResult.data || [];
+
+      // Calculate analysis for each product
+      const productAnalysis = new Map();
+      const today = new Date();
+
+      movements.forEach(movement => {
+        const key = movement.product_id;
+        if (!productAnalysis.has(key)) {
+          productAnalysis.set(key, {
+            product_id: movement.product_id,
+            total_in: 0,
+            total_out: 0,
+            net_movement: 0,
+            current_stock: 0,
+            turnover_rate: 0
+          });
+        }
+
+        const analysis = productAnalysis.get(key);
+        if (movement.movement_type === 'IN') {
+          analysis.total_in += parseFloat(movement.quantity || 0);
+        } else if (movement.movement_type === 'OUT') {
+          analysis.total_out += parseFloat(movement.quantity || 0);
+        }
+      });
+
+      // Calculate net movement and current stock
+      productAnalysis.forEach(analysis => {
+        analysis.net_movement = analysis.total_in - analysis.total_out;
+        const productInventory = inventory.find(inv => inv.product_id === analysis.product_id);
+        analysis.current_stock = productInventory?.available_quantity || 0;
+        
+        // Calculate turnover rate (simplified)
+        if (analysis.current_stock > 0) {
+          analysis.turnover_rate = (analysis.total_out / analysis.current_stock) * 100;
+        }
+      });
+
+      const headers = ['المنتج', 'تاريخ التحليل', 'إجمالي الداخل', 'إجمالي الخارج', 'الحركة الصافية', 'المخزون الحالي', 'معدل الدوران'];
+      const rows = Array.from(productAnalysis.values()).map(analysis => {
+        const product = products.find(p => p.id === analysis.product_id);
+
+        return [
+          product?.product_name || 'منتج غير معروف',
+          today.toLocaleDateString(),
+          analysis.total_in.toFixed(2),
+          analysis.total_out.toFixed(2),
+          analysis.net_movement.toFixed(2),
+          analysis.current_stock.toFixed(2),
+          analysis.turnover_rate.toFixed(2) + '%'
+        ];
+      });
+
+      return {
+        title: 'تحليل المخزون',
+        headers,
+        rows,
+        summary: {
+          totalAnalyses: rows.length
+        }
+      };
     }
-  };
+
+    if (!stockAnalysis || stockAnalysis.length === 0) {
+      return {
+        title: 'تحليل المخزون',
+        headers: ['المنتج', 'تاريخ التحليل', 'إجمالي الداخل', 'إجمالي الخارج', 'الحركة الصافية', 'المخزون الحالي', 'معدل الدوران'],
+        rows: [],
+        summary: { totalAnalyses: 0 }
+      };
+    }
+
+    // Get products data
+    const { data: products, error: productsError } = await supabase
+      .from('products')
+      .select('*');
+
+    if (productsError) {
+      console.warn('Error fetching products data:', productsError);
+    }
+
+    const productsData = products || [];
+
+    const headers = ['المنتج', 'تاريخ التحليل', 'إجمالي الداخل', 'إجمالي الخارج', 'الحركة الصافية', 'المخزون الحالي', 'معدل الدوران'];
+    const rows = stockAnalysis.map(analysis => {
+      const product = productsData.find(p => p.id === analysis.product_id);
+
+      return [
+        product?.product_name || 'منتج غير معروف',
+        new Date(analysis.analysis_date).toLocaleDateString(),
+        analysis.total_in || '0',
+        analysis.total_out || '0',
+        analysis.net_movement || '0',
+        analysis.current_stock || '0',
+        analysis.turnover_rate ? analysis.turnover_rate.toFixed(2) + '%' : '0.00%'
+      ];
+    });
+
+    return {
+      title: 'تحليل المخزون',
+      headers,
+      rows,
+      summary: {
+        totalAnalyses: stockAnalysis.length
+      }
+    };
+  } catch (error) {
+    console.error('Error generating stock analysis report:', error);
+    throw error;
+  }
 }
 
 // Valuation Report
 async function generateValuationReport(filters: any): Promise<ReportData> {
-  const { data, error } = await supabase
-    .from('valuation_items')
-    .select(`
-      *,
-      product:products(*),
-      warehouse:warehouses(*)
-    `)
-    .order('valuation_date', { ascending: false });
+  try {
+    // Try to get from valuation_items table first
+    const { data: valuationItems, error: valuationError } = await supabase
+      .from('valuation_items')
+      .select('*')
+      .order('valuation_date', { ascending: false });
 
-  if (error) throw error;
+    if (valuationError) {
+      console.warn('Valuation items table not found, generating from inventory:', valuationError);
+      
+      // Fallback: generate valuation from inventory and products
+      const [inventoryResult, productsResult] = await Promise.all([
+        supabase.from('inventory').select('*'),
+        supabase.from('products').select('*')
+      ]);
 
-  const headers = ['Product', 'Warehouse', 'Quantity', 'Unit Cost', 'Total Value', 'Valuation Date'];
-  const rows = data?.map(item => [
-    item.product?.product_name || '',
-    item.warehouse?.warehouse_name || '',
-    item.quantity || '0',
-    item.unit_cost || '0.00',
-    item.total_value || '0.00',
-    new Date(item.valuation_date).toLocaleDateString()
-  ]) || [];
+      if (inventoryResult.error) throw inventoryResult.error;
+      if (productsResult.error) throw productsResult.error;
 
-  return {
-    title: 'Valuation Report',
-    headers,
-    rows,
-    summary: {
-      totalValue: data?.reduce((sum, item) => sum + (parseFloat(item.total_value) || 0), 0).toFixed(2),
-      totalItems: data?.length || 0
+      const inventory = inventoryResult.data || [];
+      const products = productsResult.data || [];
+
+      if (inventory.length === 0) {
+        return {
+          title: 'تقرير التقييم',
+          headers: ['المنتج', 'المستودع', 'الكمية', 'تكلفة الوحدة', 'القيمة الإجمالية', 'تاريخ التقييم'],
+          rows: [],
+          summary: { totalValue: '0.00', totalItems: 0 }
+        };
+      }
+
+      // Get warehouses data
+      const { data: warehouses, error: warehousesError } = await supabase
+        .from('warehouses')
+        .select('*');
+
+      if (warehousesError) {
+        console.warn('Error fetching warehouses data:', warehousesError);
+      }
+
+      const warehousesData = warehouses || [];
+
+      const headers = ['المنتج', 'المستودع', 'الكمية', 'تكلفة الوحدة', 'القيمة الإجمالية', 'تاريخ التقييم'];
+      const rows = inventory.map(item => {
+        const product = products.find(p => p.id === item.product_id);
+        const warehouse = warehousesData.find(w => w.id === item.warehouse_id);
+        const unitCost = parseFloat(product?.cost_price || '0');
+        const quantity = parseFloat(item.available_quantity || '0');
+        const totalValue = unitCost * quantity;
+
+        return [
+          product?.product_name || 'منتج غير معروف',
+          warehouse?.warehouse_name || 'مستودع غير معروف',
+          quantity.toFixed(2),
+          unitCost.toFixed(2),
+          totalValue.toFixed(2),
+          new Date().toLocaleDateString()
+        ];
+      });
+
+      const totalValue = rows.reduce((sum, row) => sum + parseFloat(row[4]), 0);
+
+      return {
+        title: 'تقرير التقييم',
+        headers,
+        rows,
+        summary: {
+          totalValue: totalValue.toFixed(2),
+          totalItems: rows.length
+        }
+      };
     }
-  };
+
+    if (!valuationItems || valuationItems.length === 0) {
+      return {
+        title: 'تقرير التقييم',
+        headers: ['المنتج', 'المستودع', 'الكمية', 'تكلفة الوحدة', 'القيمة الإجمالية', 'تاريخ التقييم'],
+        rows: [],
+        summary: { totalValue: '0.00', totalItems: 0 }
+      };
+    }
+
+    // Get products and warehouses data
+    const [productsResult, warehousesResult] = await Promise.all([
+      supabase.from('products').select('*'),
+      supabase.from('warehouses').select('*')
+    ]);
+
+    const products = productsResult.data || [];
+    const warehouses = warehousesResult.data || [];
+
+    const headers = ['المنتج', 'المستودع', 'الكمية', 'تكلفة الوحدة', 'القيمة الإجمالية', 'تاريخ التقييم'];
+    const rows = valuationItems.map(item => {
+      const product = products.find(p => p.id === item.product_id);
+      const warehouse = warehouses.find(w => w.id === item.warehouse_id);
+
+      return [
+        product?.product_name || 'منتج غير معروف',
+        warehouse?.warehouse_name || 'مستودع غير معروف',
+        item.quantity || '0',
+        item.unit_cost || '0.00',
+        item.total_value || '0.00',
+        new Date(item.valuation_date).toLocaleDateString()
+      ];
+    });
+
+    const totalValue = valuationItems.reduce((sum, item) => sum + (parseFloat(item.total_value) || 0), 0);
+
+    return {
+      title: 'تقرير التقييم',
+      headers,
+      rows,
+      summary: {
+        totalValue: totalValue.toFixed(2),
+        totalItems: valuationItems.length
+      }
+    };
+  } catch (error) {
+    console.error('Error generating valuation report:', error);
+    throw error;
+  }
 }
 
 // Issued Items Report
 async function generateIssuedItemsReport(filters: any): Promise<ReportData> {
-  const { data, error } = await supabase
-    .from('stock_movements')
-    .select(`
-      *,
-      product:products(*),
-      warehouse:warehouses(*)
-    `)
-    .eq('movement_type', 'ISSUE')
-    .order('created_at', { ascending: false });
+  try {
+    // Try to get from issued_items table first
+    const { data: issuedItems, error: issuedError } = await supabase
+      .from('issued_items')
+      .select('*')
+      .order('issued_date', { ascending: false });
 
-  if (error) throw error;
+    if (issuedError) {
+      console.warn('Issued items table not found, using stock movements:', issuedError);
+      
+      // Fallback: get from stock movements
+      const { data: movements, error: movementsError } = await supabase
+        .from('stock_movements')
+        .select('*')
+        .eq('movement_type', 'ISSUE')
+        .order('created_at', { ascending: false });
 
-  const headers = ['Date', 'Product', 'Warehouse', 'Quantity', 'Issued To', 'Reference', 'Notes'];
-  const rows = data?.map(movement => [
-    new Date(movement.created_at).toLocaleDateString(),
-    movement.product?.product_name || '',
-    movement.warehouse?.warehouse_name || '',
-    movement.quantity || '0',
-    movement.issued_to || '',
-    movement.reference_number || '',
-    movement.notes || ''
-  ]) || [];
+      if (movementsError) throw movementsError;
 
-  return {
-    title: 'Issued Items Report',
-    headers,
-    rows,
-    summary: {
-      totalIssued: data?.length || 0,
-      totalQuantity: data?.reduce((sum, movement) => sum + (parseInt(movement.quantity) || 0), 0)
+      if (!movements || movements.length === 0) {
+        return {
+          title: 'تقرير العناصر المصروفة',
+          headers: ['التاريخ', 'المنتج', 'المستودع', 'الكمية', 'صرف إلى', 'المرجع', 'ملاحظات'],
+          rows: [],
+          summary: { totalIssued: 0, totalQuantity: 0 }
+        };
+      }
+
+      // Get products and warehouses data
+      const [productsResult, warehousesResult] = await Promise.all([
+        supabase.from('products').select('*'),
+        supabase.from('warehouses').select('*')
+      ]);
+
+      const products = productsResult.data || [];
+      const warehouses = warehousesResult.data || [];
+
+      const headers = ['التاريخ', 'المنتج', 'المستودع', 'الكمية', 'صرف إلى', 'المرجع', 'ملاحظات'];
+      const rows = movements.map(movement => {
+        const product = products.find(p => p.id === movement.product_id);
+        const warehouse = warehouses.find(w => w.id === movement.warehouse_id);
+
+        return [
+          new Date(movement.created_at).toLocaleDateString(),
+          product?.product_name || 'منتج غير معروف',
+          warehouse?.warehouse_name || 'مستودع غير معروف',
+          movement.quantity || '0',
+          movement.issued_to || '',
+          movement.reference_number || '',
+          movement.notes || ''
+        ];
+      });
+
+      const totalQuantity = movements.reduce((sum, movement) => sum + (parseInt(movement.quantity) || 0), 0);
+
+      return {
+        title: 'تقرير العناصر المصروفة',
+        headers,
+        rows,
+        summary: {
+          totalIssued: movements.length,
+          totalQuantity
+        }
+      };
     }
-  };
+
+    if (!issuedItems || issuedItems.length === 0) {
+      return {
+        title: 'تقرير العناصر المصروفة',
+        headers: ['التاريخ', 'المنتج', 'المستودع', 'الكمية', 'صرف إلى', 'القسم', 'الحالة', 'ملاحظات'],
+        rows: [],
+        summary: { totalIssued: 0, totalQuantity: 0 }
+      };
+    }
+
+    // Get products and warehouses data
+    const [productsResult, warehousesResult] = await Promise.all([
+      supabase.from('products').select('*'),
+      supabase.from('warehouses').select('*')
+    ]);
+
+    const products = productsResult.data || [];
+    const warehouses = warehousesResult.data || [];
+
+    const headers = ['التاريخ', 'المنتج', 'المستودع', 'الكمية', 'صرف إلى', 'القسم', 'الحالة', 'ملاحظات'];
+    const rows = issuedItems.map(item => {
+      const product = products.find(p => p.id === item.product_id);
+      const warehouse = warehouses.find(w => w.id === item.warehouse_id);
+
+      return [
+        new Date(item.issued_date).toLocaleDateString(),
+        product?.product_name || 'منتج غير معروف',
+        warehouse?.warehouse_name || 'مستودع غير معروف',
+        item.issued_quantity || '0',
+        item.issued_to || '',
+        item.department || '',
+        item.status || 'مصروف',
+        item.notes || ''
+      ];
+    });
+
+    const totalQuantity = issuedItems.reduce((sum, item) => sum + (parseFloat(item.issued_quantity) || 0), 0);
+
+    return {
+      title: 'تقرير العناصر المصروفة',
+      headers,
+      rows,
+      summary: {
+        totalIssued: issuedItems.length,
+        totalQuantity: totalQuantity.toFixed(2)
+      }
+    };
+  } catch (error) {
+    console.error('Error generating issued items report:', error);
+    throw error;
+  }
 }
 
 // Custom Report Generator
@@ -2347,7 +2899,7 @@ async function generateCustomReport(config: any): Promise<ReportData> {
     ) || [];
     
     return {
-      title: config.name || 'Custom Report',
+      title: config.name || 'تقرير مخصص',
       headers,
       rows,
       summary: {
