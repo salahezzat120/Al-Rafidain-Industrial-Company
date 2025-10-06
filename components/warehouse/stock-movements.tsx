@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Edit, Trash2, Search, Filter, Package, ArrowUpDown, ArrowUp, ArrowDown, RotateCcw, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Filter, Package, ArrowUpDown, ArrowUp, ArrowDown, RotateCcw, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { useLanguage } from '@/contexts/language-context';
 import { 
   getStockMovements, 
@@ -19,6 +19,7 @@ import {
   getProducts,
   getWarehouses
 } from '@/lib/warehouse';
+import { supabase } from '@/lib/supabase';
 import type { 
   StockMovement, 
   Product, 
@@ -32,6 +33,7 @@ export function StockMovements() {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -82,12 +84,58 @@ export function StockMovements() {
       setMovements(movementsData);
       setProducts(productsData);
       setWarehouses(warehousesData);
+      setFilteredProducts([]); // Initially no products until warehouse is selected
       
       console.log('✅ Stock movements data loaded successfully');
     } catch (error) {
       console.error('❌ Error loading data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Filter products based on selected warehouse
+  const filterProductsByWarehouse = async (warehouseId: number) => {
+    if (!warehouseId || warehouseId === 0) {
+      setFilteredProducts([]);
+      return;
+    }
+
+    try {
+      console.log(`🔍 Filtering products for warehouse ${warehouseId}...`);
+      
+      // First, try to get products from inventory table
+      const { data: inventory, error: inventoryError } = await supabase
+        .from('inventory')
+        .select(`
+          product_id,
+          products!inner(*)
+        `)
+        .eq('warehouse_id', warehouseId)
+        .not('available_quantity', 'is', null)
+        .gt('available_quantity', 0);
+
+      if (inventoryError) {
+        console.log('📦 No inventory data found, falling back to all products');
+        // Fallback: if no inventory data, show all products
+        setFilteredProducts(products);
+        return;
+      }
+
+      if (inventory && inventory.length > 0) {
+        // Extract unique products from inventory
+        const uniqueProducts = inventory.map(item => item.products).filter(Boolean);
+        setFilteredProducts(uniqueProducts);
+        console.log(`📦 Found ${uniqueProducts.length} products in warehouse ${warehouseId}`);
+      } else {
+        console.log('📦 No products found in inventory, showing all products');
+        // If no inventory data, show all products as fallback
+        setFilteredProducts(products);
+      }
+    } catch (error) {
+      console.error('Error filtering products by warehouse:', error);
+      // Fallback: show all products if filtering fails
+      setFilteredProducts(products);
     }
   };
 
@@ -107,11 +155,30 @@ export function StockMovements() {
         created_by: 'System',
         created_by_ar: 'النظام'
       });
+      setFilteredProducts([]); // Clear filtered products
       setDialogOpen(false);
       loadData();
     } catch (error) {
       console.error('Error creating movement:', error);
     }
+  };
+
+  const handleDialogClose = () => {
+    setDialogOpen(false);
+    setFormData({
+      product_id: 0,
+      warehouse_id: 0,
+      movement_type: activeTab.toUpperCase() as any,
+      quantity: 0,
+      unit_price: 0,
+      reference_number: '',
+      reference_number_ar: '',
+      notes: '',
+      notes_ar: '',
+      created_by: 'System',
+      created_by_ar: 'النظام'
+    });
+    setFilteredProducts([]); // Clear filtered products
   };
 
   const getMovementTypeIcon = (type: string) => {
@@ -172,7 +239,10 @@ export function StockMovements() {
             {isRTL ? 'إدارة حركات المخزون (الإضافة، الصرف، التحويل، الارتجاع)' : 'Manage stock movements (Receipt, Issue, Transfer, Return)'}
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(open) => {
+          if (!open) handleDialogClose();
+          else setDialogOpen(open);
+        }}>
           <DialogTrigger asChild>
             <Button onClick={() => setDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
@@ -195,6 +265,7 @@ export function StockMovements() {
                 <p><strong>Debug Info:</strong></p>
                 <p>Products loaded: {products.length}</p>
                 <p>Warehouses loaded: {warehouses.length}</p>
+                <p>Filtered products: {filteredProducts.length}</p>
                 <p>Loading: {loading ? 'Yes' : 'No'}</p>
                 {products.length > 0 && (
                   <p>Sample product: {products[0].product_name}</p>
@@ -202,6 +273,36 @@ export function StockMovements() {
                 {warehouses.length > 0 && (
                   <p>Sample warehouse: {warehouses[0].warehouse_name}</p>
                 )}
+              </div>
+            )}
+
+            {/* Warehouse Selection Notice */}
+            {!loading && !formData.warehouse_id && (
+              <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  <span className="text-sm text-yellow-800">
+                    {isRTL 
+                      ? 'يجب اختيار المستودع أولاً لعرض المنتجات المتاحة'
+                      : 'Please select a warehouse first to see available products'
+                    }
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Products Count Info */}
+            {!loading && formData.warehouse_id && (
+              <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4 text-green-600" />
+                  <span className="text-sm text-green-800">
+                    {isRTL 
+                      ? `تم العثور على ${filteredProducts.length} منتج في هذا المستودع`
+                      : `Found ${filteredProducts.length} products in this warehouse`
+                    }
+                  </span>
+                </div>
               </div>
             )}
 
@@ -231,37 +332,21 @@ export function StockMovements() {
               <TabsContent value={activeTab} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="product">{isRTL ? 'المنتج' : 'Product'}</Label>
-                    <Select
-                      value={formData.product_id.toString()}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, product_id: parseInt(value) }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={isRTL ? 'اختر المنتج' : 'Select product'} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products.length > 0 ? (
-                          products.map((product) => (
-                            <SelectItem key={product.id} value={product.id.toString()}>
-                              {isRTL ? (product.product_name_ar || product.product_name) : product.product_name}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="no-data" disabled>
-                            {loading ? 'Loading products...' : 'No products found - check database'}
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="warehouse">{isRTL ? 'المستودع' : 'Warehouse'}</Label>
+                    <Label htmlFor="warehouse">{isRTL ? 'المستودع' : 'Warehouse'} <span className="text-red-500">*</span></Label>
                     <Select
                       value={formData.warehouse_id.toString()}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, warehouse_id: parseInt(value) }))}
+                      onValueChange={async (value) => {
+                        const warehouseId = parseInt(value);
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          warehouse_id: warehouseId,
+                          product_id: 0 // Reset product when warehouse changes
+                        }));
+                        await filterProductsByWarehouse(warehouseId);
+                      }}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder={isRTL ? 'اختر المستودع' : 'Select warehouse'} />
+                        <SelectValue placeholder={isRTL ? 'اختر المستودع أولاً' : 'Select warehouse first'} />
                       </SelectTrigger>
                       <SelectContent>
                         {warehouses.length > 0 ? (
@@ -273,6 +358,38 @@ export function StockMovements() {
                         ) : (
                           <SelectItem value="no-data" disabled>
                             {loading ? 'Loading warehouses...' : 'No warehouses found - check database'}
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="product">{isRTL ? 'المنتج' : 'Product'} <span className="text-red-500">*</span></Label>
+                    <Select
+                      value={formData.product_id.toString()}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, product_id: parseInt(value) }))}
+                      disabled={!formData.warehouse_id || filteredProducts.length === 0}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={
+                          !formData.warehouse_id 
+                            ? (isRTL ? 'اختر المستودع أولاً' : 'Select warehouse first')
+                            : (isRTL ? 'اختر المنتج' : 'Select product')
+                        } />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredProducts.length > 0 ? (
+                          filteredProducts.map((product) => (
+                            <SelectItem key={product.id} value={product.id.toString()}>
+                              {isRTL ? (product.product_name_ar || product.product_name) : product.product_name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="no-data" disabled>
+                            {!formData.warehouse_id 
+                              ? (isRTL ? 'اختر المستودع أولاً' : 'Select warehouse first')
+                              : (isRTL ? 'لا توجد منتجات في هذا المستودع' : 'No products in this warehouse')
+                            }
                           </SelectItem>
                         )}
                       </SelectContent>
@@ -327,7 +444,7 @@ export function StockMovements() {
             </Tabs>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              <Button variant="outline" onClick={handleDialogClose}>
                 {t('common.cancel')}
               </Button>
               <Button onClick={handleSubmit}>
