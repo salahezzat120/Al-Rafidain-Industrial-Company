@@ -165,7 +165,10 @@ export default function SimpleLoyaltyTab() {
     setSubmitting(true)
     try {
       for (const [key, value] of Object.entries(settingsForm)) {
-        await updateLoyaltySetting(key, value)
+        // Find the setting description from the loaded settings
+        const setting = loyaltySettings.find(s => s.setting_key === key)
+        const description = setting?.description || ''
+        await updateLoyaltySetting(key, value, description)
       }
       await loadAllData()
       setSettingsOpen(false)
@@ -280,7 +283,7 @@ export default function SimpleLoyaltyTab() {
                 {isRTL ? "الإعدادات" : "Settings"}
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{isRTL ? "إعدادات نظام الولاء" : "Loyalty System Settings"}</DialogTitle>
               </DialogHeader>

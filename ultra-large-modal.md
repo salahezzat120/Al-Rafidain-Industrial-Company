@@ -242,3 +242,5 @@ The "Create New Delivery Task" modal now features:
 
 The modal is now ultra-large and very rectangular, providing a near full-screen experience with maximum product visibility! 🎉
 
+
+

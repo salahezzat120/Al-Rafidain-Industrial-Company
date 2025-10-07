@@ -206,3 +206,5 @@ async function testLoyaltySystem() {
 
 // Run the test
 testLoyaltySystem()
+
+

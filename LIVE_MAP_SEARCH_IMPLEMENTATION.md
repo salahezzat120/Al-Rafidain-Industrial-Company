@@ -309,3 +309,5 @@ placeholder={isRTL ? "ابحث عن المندوبين أو العملاء..." :
 - ✅ **Performance**: Fast and responsive search
 
 The Live Map now provides comprehensive search functionality that allows users to quickly find and navigate to specific representatives and customers on the map, significantly improving the user experience and operational efficiency.
+
+

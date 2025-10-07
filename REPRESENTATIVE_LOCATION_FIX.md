@@ -205,3 +205,5 @@ interface RepresentativeWithLocation {
 5. **Visual Design**: Proper indicators for location status
 
 The fix ensures that representatives without location data are handled gracefully with clear messaging, while representatives with valid location data work perfectly for map focusing.
+
+

@@ -287,3 +287,5 @@ title={rep.latitude && rep.longitude ?
 - ✅ **Cross-browser**: Works consistently across all browsers
 
 The Live Map now provides an exceptional location focusing experience that allows users to seamlessly navigate to specific representatives and customers with smooth animations, clear visual feedback, and comprehensive error handling.
+
+
