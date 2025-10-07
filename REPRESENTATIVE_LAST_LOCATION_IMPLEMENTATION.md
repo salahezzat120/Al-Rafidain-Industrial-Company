@@ -442,3 +442,4 @@ const fetchData = async () => {
 - ✅ **Error Messages**: Helpful error messages for missing location data
 
 The implementation successfully retrieves and displays the last known locations of representatives from the `representative_live_locations` table, providing a comprehensive view of representative locations on the Live Map with optimal performance and user experience.
+

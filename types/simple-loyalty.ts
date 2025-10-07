@@ -101,3 +101,4 @@ export interface UpdateLoyaltySettings {
   setting_value: string
   description?: string
 }
+
