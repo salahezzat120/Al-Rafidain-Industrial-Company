@@ -290,3 +290,4 @@ If you encounter any issues:
 
 The simple loyalty system is now ready to enhance your customer and representative engagement! 🎯
 
+

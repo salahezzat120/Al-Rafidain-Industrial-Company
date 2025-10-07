@@ -31,7 +31,7 @@ import {
 } from "lucide-react"
 import { AttendanceLocationMap } from "@/components/ui/attendance-location-map"
 import { useLanguage } from "@/contexts/language-context"
-import { format, isToday, isYesterday, parseISO, differenceInHours, differenceInMinutes } from "date-fns"
+import { format, isToday, isYesterday, parseISO, differenceInHours, differenceInMinutes, isThisWeek, isThisMonth, isWithinInterval } from "date-fns"
 import { cn } from "@/lib/utils"
 
 // Helper function to check if two dates are the same day
@@ -48,6 +48,10 @@ export default function AttendanceTab() {
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [representativeFilter, setRepresentativeFilter] = useState("all")
+  const [dateRangeFilter, setDateRangeFilter] = useState("all")
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined)
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined)
   const [selectedRecord, setSelectedRecord] = useState<AttendanceWithRepresentative | null>(null)
   const [showDetails, setShowDetails] = useState(false)
 
@@ -80,9 +84,34 @@ export default function AttendanceTab() {
       
       const matchesStatus = statusFilter === "all" || record.status === statusFilter
       
-      return matchesSearch && matchesStatus
+      const matchesRepresentative = representativeFilter === "all" || record.representative_id === representativeFilter
+      
+      const matchesDateRange = (() => {
+        if (dateRangeFilter === "all") return true
+        if (!record.check_in_time) return false
+        
+        const recordDate = parseISO(record.check_in_time)
+        
+        switch (dateRangeFilter) {
+          case "today":
+            return isToday(recordDate)
+          case "yesterday":
+            return isYesterday(recordDate)
+          case "this_week":
+            return isThisWeek(recordDate)
+          case "this_month":
+            return isThisMonth(recordDate)
+          case "custom":
+            if (!startDate || !endDate) return true
+            return isWithinInterval(recordDate, { start: startDate, end: endDate })
+          default:
+            return true
+        }
+      })()
+      
+      return matchesSearch && matchesStatus && matchesRepresentative && matchesDateRange
     })
-  }, [records, searchTerm, statusFilter])
+  }, [records, searchTerm, statusFilter, representativeFilter, dateRangeFilter, startDate, endDate])
 
   const stats = useMemo(() => {
     const total = records.length
@@ -93,6 +122,28 @@ export default function AttendanceTab() {
     
     return { total, checkedIn, checkedOut, onBreak, totalHours }
   }, [records])
+
+  const uniqueRepresentatives = useMemo(() => {
+    const reps = new Map()
+    records.forEach(record => {
+      if (record.representative_id && record.representative_name) {
+        reps.set(record.representative_id, {
+          id: record.representative_id,
+          name: record.representative_name
+        })
+      }
+    })
+    return Array.from(reps.values())
+  }, [records])
+
+  const clearAllFilters = () => {
+    setSearchTerm("")
+    setStatusFilter("all")
+    setRepresentativeFilter("all")
+    setDateRangeFilter("all")
+    setStartDate(undefined)
+    setEndDate(undefined)
+  }
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -248,9 +299,22 @@ export default function AttendanceTab() {
 
       {/* Filters */}
       <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              {isRTL ? "فلاتر البحث" : "Search Filters"}
+            </CardTitle>
+            <Button variant="outline" size="sm" onClick={clearAllFilters}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              {isRTL ? "مسح الكل" : "Clear All"}
+            </Button>
+          </div>
+        </CardHeader>
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Search */}
+            <div className="lg:col-span-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
@@ -262,8 +326,9 @@ export default function AttendanceTab() {
               </div>
             </div>
             
+            {/* Status Filter */}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-48">
+              <SelectTrigger>
                 <SelectValue placeholder={isRTL ? "فلترة حسب الحالة" : "Filter by status"} />
               </SelectTrigger>
               <SelectContent>
@@ -273,8 +338,63 @@ export default function AttendanceTab() {
                 <SelectItem value="break">{isRTL ? "استراحة" : "On Break"}</SelectItem>
               </SelectContent>
             </Select>
-            
+
+            {/* Representative Filter */}
+            <Select value={representativeFilter} onValueChange={setRepresentativeFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder={isRTL ? "اختر المندوب" : "Select Representative"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{isRTL ? "جميع المندوبين" : "All Representatives"}</SelectItem>
+                {uniqueRepresentatives.map(rep => (
+                  <SelectItem key={rep.id} value={rep.id}>
+                    {rep.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Date Range Filter */}
+            <Select value={dateRangeFilter} onValueChange={setDateRangeFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder={isRTL ? "اختر الفترة" : "Select Date Range"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{isRTL ? "جميع التواريخ" : "All Dates"}</SelectItem>
+                <SelectItem value="today">{isRTL ? "اليوم" : "Today"}</SelectItem>
+                <SelectItem value="yesterday">{isRTL ? "أمس" : "Yesterday"}</SelectItem>
+                <SelectItem value="this_week">{isRTL ? "هذا الأسبوع" : "This Week"}</SelectItem>
+                <SelectItem value="this_month">{isRTL ? "هذا الشهر" : "This Month"}</SelectItem>
+                <SelectItem value="custom">{isRTL ? "فترة مخصصة" : "Custom Range"}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+
+          {/* Custom Date Range */}
+          {dateRangeFilter === "custom" && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  {isRTL ? "تاريخ البداية" : "Start Date"}
+                </label>
+                <Input
+                  type="date"
+                  value={startDate ? format(startDate, 'yyyy-MM-dd') : ''}
+                  onChange={(e) => setStartDate(e.target.value ? new Date(e.target.value) : undefined)}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  {isRTL ? "تاريخ النهاية" : "End Date"}
+                </label>
+                <Input
+                  type="date"
+                  value={endDate ? format(endDate, 'yyyy-MM-dd') : ''}
+                  onChange={(e) => setEndDate(e.target.value ? new Date(e.target.value) : undefined)}
+                />
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

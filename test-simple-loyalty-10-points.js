@@ -232,3 +232,4 @@ async function testLoyaltySystem10Points() {
 // Run the test
 testLoyaltySystem10Points()
 
+

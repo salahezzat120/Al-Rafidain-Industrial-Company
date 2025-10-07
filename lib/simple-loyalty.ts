@@ -176,22 +176,29 @@ export async function getLoyaltySettings(): Promise<LoyaltySettings[]> {
 }
 
 export async function updateLoyaltySetting(settingKey: string, settingValue: string, description?: string): Promise<LoyaltySettings> {
-  const { data, error } = await supabase
-    .from('loyalty_settings')
-    .upsert({
-      setting_key: settingKey,
-      setting_value: settingValue,
-      description: description
-    })
-    .select('*')
-    .single()
+  try {
+    const { data, error } = await supabase
+      .from('loyalty_settings')
+      .upsert({
+        setting_key: settingKey,
+        setting_value: settingValue,
+        description: description
+      }, {
+        onConflict: 'setting_key'
+      })
+      .select('*')
+      .single()
 
-  if (error) {
+    if (error) {
+      console.error('Error updating loyalty setting:', error)
+      throw new Error(`Failed to update setting ${settingKey}: ${error.message}`)
+    }
+
+    return data
+  } catch (error) {
     console.error('Error updating loyalty setting:', error)
-    throw error
+    throw new Error(`Failed to update loyalty setting: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
-
-  return data
 }
 
 // Manual Point Management
@@ -331,4 +338,5 @@ export function getTierColor(tier: string): string {
     default: return 'text-gray-500 bg-gray-50'
   }
 }
+
 
