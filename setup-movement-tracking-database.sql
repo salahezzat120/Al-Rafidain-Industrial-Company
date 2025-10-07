@@ -80,15 +80,23 @@ CREATE TABLE IF NOT EXISTS representative_daily_summaries (
 CREATE INDEX IF NOT EXISTS idx_movements_representative_id ON representative_movements(representative_id);
 CREATE INDEX IF NOT EXISTS idx_movements_created_at ON representative_movements(created_at);
 CREATE INDEX IF NOT EXISTS idx_movements_activity_type ON representative_movements(activity_type);
-CREATE INDEX IF NOT EXISTS idx_movements_date ON representative_movements(DATE(created_at));
 
 CREATE INDEX IF NOT EXISTS idx_visits_representative_id ON representative_visits(representative_id);
 CREATE INDEX IF NOT EXISTS idx_visits_scheduled_start ON representative_visits(scheduled_start_time);
 CREATE INDEX IF NOT EXISTS idx_visits_status ON representative_visits(status);
-CREATE INDEX IF NOT EXISTS idx_visits_date ON representative_visits(DATE(created_at));
+CREATE INDEX IF NOT EXISTS idx_visits_created_at ON representative_visits(created_at);
 
 CREATE INDEX IF NOT EXISTS idx_summaries_representative_id ON representative_daily_summaries(representative_id);
 CREATE INDEX IF NOT EXISTS idx_summaries_date ON representative_daily_summaries(date);
+
+-- Create updated_at trigger function if it doesn't exist
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
 
 -- Create triggers for updated_at
 CREATE TRIGGER update_movements_updated_at 
