@@ -48,9 +48,9 @@ export async function getRepresentativeLiveLocations(): Promise<{
           console.warn(`Error fetching location for representative ${rep.id}:`, locError)
         }
 
-        // Calculate online status (within last 5 minutes)
+        // Calculate online status (within last 30 minutes - more lenient)
         const isOnline = latestLocation ? 
-          ((new Date().getTime() - new Date(latestLocation.timestamp).getTime()) / (1000 * 60) <= 5) : 
+          ((new Date().getTime() - new Date(latestLocation.timestamp).getTime()) / (1000 * 60) <= 30) : 
           false
 
         return {
@@ -178,7 +178,7 @@ export async function getRepresentativesWithLastLocation(): Promise<{
     const results: RepresentativeWithLocation[] = reps.map(rep => {
       const latestLocation = locationMap.get(rep.id)
       const isOnline = latestLocation ? 
-        ((new Date().getTime() - new Date(latestLocation.timestamp).getTime()) / (1000 * 60) <= 5) : 
+        ((new Date().getTime() - new Date(latestLocation.timestamp).getTime()) / (1000 * 60) <= 30) : 
         false
 
       return {
@@ -436,7 +436,7 @@ export async function getChatRepresentatives(): Promise<{ data: { id: string; na
         .limit(1)
         .maybeSingle()
       
-      const is_online = loc ? ((new Date().getTime() - new Date(loc.timestamp).getTime()) / (1000 * 60) <= 5) : false
+      const is_online = loc ? ((new Date().getTime() - new Date(loc.timestamp).getTime()) / (1000 * 60) <= 30) : false
       
       results.push({
         ...rep,

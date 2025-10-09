@@ -22,6 +22,7 @@ import {
   Package
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useLanguage } from '@/contexts/language-context'
 import type { Payment, CreatePaymentData } from '@/types/payments'
 import { createPayment } from '@/lib/payments'
 import { getCustomers, type Customer } from '@/lib/customers'
@@ -34,6 +35,7 @@ interface AddPaymentModalProps {
 }
 
 export default function AddPaymentModal({ open, onOpenChange, onAdd }: AddPaymentModalProps) {
+  const { t, isRTL } = useLanguage()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -103,10 +105,10 @@ export default function AddPaymentModal({ open, onOpenChange, onAdd }: AddPaymen
   const validateForm = (): boolean => {
     const newErrors: { [key: string]: string } = {}
 
-    if (!selectedCustomer) newErrors.customer = 'Please select a customer'
-    if (!formData.order_id || !formData.order_id.trim()) newErrors.order_id = 'Please select an order'
-    if (!formData.amount || formData.amount <= 0) newErrors.amount = 'Amount must be greater than 0'
-    if (!formData.payment_date || !formData.payment_date.trim()) newErrors.payment_date = 'Payment date is required'
+    if (!selectedCustomer) newErrors.customer = isRTL ? 'يرجى اختيار عميل' : 'Please select a customer'
+    if (!formData.order_id || !formData.order_id.trim()) newErrors.order_id = isRTL ? 'يرجى اختيار طلب' : 'Please select an order'
+    if (!formData.amount || formData.amount <= 0) newErrors.amount = isRTL ? 'يجب أن يكون المبلغ أكبر من 0' : 'Amount must be greater than 0'
+    if (!formData.payment_date || !formData.payment_date.trim()) newErrors.payment_date = isRTL ? 'تاريخ الدفع مطلوب' : 'Payment date is required'
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -172,54 +174,63 @@ export default function AddPaymentModal({ open, onOpenChange, onAdd }: AddPaymen
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      <DialogContent className={`max-w-2xl max-h-[90vh] overflow-hidden flex flex-col ${isRTL ? 'text-right' : 'text-left'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+        <DialogHeader className="flex-shrink-0">
+          <DialogTitle className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
             <DollarSign className="h-5 w-5" />
-            Add New Payment
+            {isRTL ? 'إضافة دفعة جديدة' : 'Add New Payment'}
           </DialogTitle>
-          <DialogDescription>
-            Record a new client payment with comprehensive tracking information
+          <DialogDescription className={isRTL ? 'text-right' : 'text-left'}>
+            {isRTL ? 'تسجيل دفعة عميل جديدة مع معلومات تتبع شاملة' : 'Record a new client payment with comprehensive tracking information'}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="flex-1 overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+          <form onSubmit={handleSubmit} className="space-y-6">
           {/* Customer Selection */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                 <User className="h-5 w-5 text-blue-600" />
-                Customer Selection
+                {isRTL ? 'اختيار العميل' : 'Customer Selection'}
               </CardTitle>
-              <CardDescription>Select the customer for this payment</CardDescription>
+              <CardDescription className={isRTL ? 'text-right' : 'text-left'}>
+                {isRTL ? 'اختر العميل لهذه الدفعة' : 'Select the customer for this payment'}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="customer">Customer *</Label>
+                <Label htmlFor="customer" className={isRTL ? 'text-right' : 'text-left'}>
+                  {isRTL ? 'العميل *' : 'Customer *'}
+                </Label>
                 <Select 
                   value={selectedCustomer?.id || ''} 
                   onValueChange={handleCustomerChange}
                   disabled={loadingCustomers}
                 >
-                  <SelectTrigger className={errors.customer ? 'border-red-500' : ''}>
-                    <SelectValue placeholder={loadingCustomers ? "Loading customers..." : "Select a customer"} />
+                  <SelectTrigger className={`${errors.customer ? 'border-red-500' : ''} ${isRTL ? 'text-right' : 'text-left'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+                    <SelectValue placeholder={
+                      loadingCustomers 
+                        ? (isRTL ? "جاري تحميل العملاء..." : "Loading customers...")
+                        : (isRTL ? "اختر عميل" : "Select a customer")
+                    } />
                   </SelectTrigger>
                   <SelectContent>
                     {customers.map((customer) => (
                       <SelectItem key={customer.id} value={customer.id}>
-                        <div className="flex items-center gap-2">
+                        <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                           <User className="h-4 w-4" />
-                          <span>{customer.name}</span>
-                          <span className="text-sm text-muted-foreground">({customer.customer_id})</span>
+                          <span className={isRTL ? 'text-right' : 'text-left'}>{customer.name}</span>
+                          <span className={`text-sm text-muted-foreground ${isRTL ? 'text-right' : 'text-left'}`}>({customer.customer_id})</span>
                         </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 {errors.customer && (
-                  <Alert variant="destructive" className="py-2">
+                  <Alert variant="destructive" className={`py-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                     <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{errors.customer}</AlertDescription>
+                    <AlertDescription className={isRTL ? 'text-right' : 'text-left'}>{errors.customer}</AlertDescription>
                   </Alert>
                 )}
               </div>
@@ -229,29 +240,33 @@ export default function AddPaymentModal({ open, onOpenChange, onAdd }: AddPaymen
           {/* Order Selection */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                 <Package className="h-5 w-5 text-green-600" />
-                Order Selection
+                {isRTL ? 'اختيار الطلب' : 'Order Selection'}
               </CardTitle>
-              <CardDescription>Select the delivery task/order for this payment</CardDescription>
+              <CardDescription className={isRTL ? 'text-right' : 'text-left'}>
+                {isRTL ? 'اختر مهمة التوصيل/الطلب لهذه الدفعة' : 'Select the delivery task/order for this payment'}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="order">Order *</Label>
+                <Label htmlFor="order" className={isRTL ? 'text-right' : 'text-left'}>
+                  {isRTL ? 'الطلب *' : 'Order *'}
+                </Label>
                 <Select 
                   value={formData.order_id} 
                   onValueChange={handleOrderChange}
                   disabled={!selectedCustomer || loadingTasks}
                 >
-                  <SelectTrigger className={errors.order_id ? 'border-red-500' : ''}>
+                  <SelectTrigger className={`${errors.order_id ? 'border-red-500' : ''} ${isRTL ? 'text-right' : 'text-left'}`} dir={isRTL ? 'rtl' : 'ltr'}>
                     <SelectValue placeholder={
                       !selectedCustomer 
-                        ? "Please select a customer first" 
+                        ? (isRTL ? "يرجى اختيار عميل أولاً" : "Please select a customer first")
                         : loadingTasks 
-                          ? "Loading orders..." 
+                          ? (isRTL ? "جاري تحميل الطلبات..." : "Loading orders...")
                           : deliveryTasks.length === 0 
-                            ? "No orders found for this customer"
-                            : "Select an order"
+                            ? (isRTL ? "لا توجد طلبات لهذا العميل" : "No orders found for this customer")
+                            : (isRTL ? "اختر طلب" : "Select an order")
                     }>
                       {formData.order_id && (() => {
                         const selectedTask = deliveryTasks.find(task => task.id === formData.order_id)
@@ -328,9 +343,9 @@ export default function AddPaymentModal({ open, onOpenChange, onAdd }: AddPaymen
                   </SelectContent>
                 </Select>
                 {errors.order_id && (
-                  <Alert variant="destructive" className="py-2">
+                  <Alert variant="destructive" className={`py-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                     <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{errors.order_id}</AlertDescription>
+                    <AlertDescription className={isRTL ? 'text-right' : 'text-left'}>{errors.order_id}</AlertDescription>
                   </Alert>
                 )}
               </div>
@@ -340,74 +355,81 @@ export default function AddPaymentModal({ open, onOpenChange, onAdd }: AddPaymen
           {/* Payment Details */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                 <DollarSign className="h-5 w-5 text-green-600" />
-                Payment Details
+                {isRTL ? 'تفاصيل الدفعة' : 'Payment Details'}
               </CardTitle>
-              <CardDescription>Payment amount, method, and status</CardDescription>
+              <CardDescription className={isRTL ? 'text-right' : 'text-left'}>
+                {isRTL ? 'مبلغ الدفعة والطريقة والحالة' : 'Payment amount, method, and status'}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="amount">Amount *</Label>
+                  <Label htmlFor="amount" className={isRTL ? 'text-right' : 'text-left'}>
+                    {isRTL ? 'المبلغ *' : 'Amount *'}
+                  </Label>
                   <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <DollarSign className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground`} />
                     <Input
                       id="amount"
                       type="number"
                       value={formData.amount || ''}
                       onChange={(e) => setFormData(prev => ({ ...prev, amount: Number(e.target.value) }))}
                       placeholder="1000.00"
-                      className={`pl-10 ${errors.amount ? 'border-red-500' : ''}`}
+                      className={`${isRTL ? 'pr-10 text-right' : 'pl-10 text-left'} ${errors.amount ? 'border-red-500' : ''}`}
                       step="0.01"
                       min="0"
+                      dir={isRTL ? 'rtl' : 'ltr'}
                     />
                   </div>
                   {errors.amount && (
-                    <Alert variant="destructive" className="py-2">
+                    <Alert variant="destructive" className={`py-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                       <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{errors.amount}</AlertDescription>
+                      <AlertDescription className={isRTL ? 'text-right' : 'text-left'}>{errors.amount}</AlertDescription>
                     </Alert>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="payment_method">Payment Method *</Label>
+                  <Label htmlFor="payment_method" className={isRTL ? 'text-right' : 'text-left'}>
+                    {isRTL ? 'طريقة الدفع *' : 'Payment Method *'}
+                  </Label>
                   <Select 
                     value={formData.payment_method} 
                     onValueChange={(value) => setFormData(prev => ({ ...prev, payment_method: value }))}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select payment method" />
+                    <SelectTrigger className={isRTL ? 'text-right' : 'text-left'} dir={isRTL ? 'rtl' : 'ltr'}>
+                      <SelectValue placeholder={isRTL ? "اختر طريقة الدفع" : "Select payment method"} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="cash">
-                        <div className="flex items-center gap-2">
+                        <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                           <DollarSign className="h-4 w-4" />
-                          Cash
+                          {isRTL ? 'نقداً' : 'Cash'}
                         </div>
                       </SelectItem>
                       <SelectItem value="card">
-                        <div className="flex items-center gap-2">
+                        <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                           <CreditCard className="h-4 w-4" />
-                          Card
+                          {isRTL ? 'بطاقة' : 'Card'}
                         </div>
                       </SelectItem>
                       <SelectItem value="transfer">
-                        <div className="flex items-center gap-2">
+                        <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                           <Building className="h-4 w-4" />
-                          Bank Transfer
+                          {isRTL ? 'تحويل بنكي' : 'Bank Transfer'}
                         </div>
                       </SelectItem>
                       <SelectItem value="check">
-                        <div className="flex items-center gap-2">
+                        <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                           <FileText className="h-4 w-4" />
-                          Check
+                          {isRTL ? 'شيك' : 'Check'}
                         </div>
                       </SelectItem>
                       <SelectItem value="other">
-                        <div className="flex items-center gap-2">
+                        <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                           <AlertCircle className="h-4 w-4" />
-                          Other
+                          {isRTL ? 'أخرى' : 'Other'}
                         </div>
                       </SelectItem>
                     </SelectContent>
@@ -417,56 +439,61 @@ export default function AddPaymentModal({ open, onOpenChange, onAdd }: AddPaymen
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="payment_date">Payment Date *</Label>
+                  <Label htmlFor="payment_date" className={isRTL ? 'text-right' : 'text-left'}>
+                    {isRTL ? 'تاريخ الدفع *' : 'Payment Date *'}
+                  </Label>
                   <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Calendar className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground`} />
                     <Input
                       id="payment_date"
                       type="date"
                       value={formData.payment_date}
                       onChange={(e) => setFormData(prev => ({ ...prev, payment_date: e.target.value }))}
-                      className={`pl-10 ${errors.payment_date ? 'border-red-500' : ''}`}
+                      className={`${isRTL ? 'pr-10 text-right' : 'pl-10 text-left'} ${errors.payment_date ? 'border-red-500' : ''}`}
+                      dir={isRTL ? 'rtl' : 'ltr'}
                     />
                   </div>
                   {errors.payment_date && (
-                    <Alert variant="destructive" className="py-2">
+                    <Alert variant="destructive" className={`py-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                       <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{errors.payment_date}</AlertDescription>
+                      <AlertDescription className={isRTL ? 'text-right' : 'text-left'}>{errors.payment_date}</AlertDescription>
                     </Alert>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="status">Status *</Label>
+                  <Label htmlFor="status" className={isRTL ? 'text-right' : 'text-left'}>
+                    {isRTL ? 'الحالة *' : 'Status *'}
+                  </Label>
                   <Select 
                     value={formData.status} 
                     onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as any }))}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
+                    <SelectTrigger className={isRTL ? 'text-right' : 'text-left'} dir={isRTL ? 'rtl' : 'ltr'}>
+                      <SelectValue placeholder={isRTL ? "اختر الحالة" : "Select status"} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="pending">
-                        <div className="flex items-center gap-2">
+                        <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                           <AlertCircle className="h-4 w-4" />
-                          Pending
+                          {isRTL ? 'معلق' : 'Pending'}
                         </div>
                       </SelectItem>
                       <SelectItem value="completed">
-                        <div className="flex items-center gap-2">
+                        <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                           <CheckCircle className="h-4 w-4" />
-                          Completed
+                          {isRTL ? 'مكتمل' : 'Completed'}
                         </div>
                       </SelectItem>
                       <SelectItem value="failed">
-                        <div className="flex items-center gap-2">
+                        <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                           <AlertCircle className="h-4 w-4" />
-                          Failed
+                          {isRTL ? 'فشل' : 'Failed'}
                         </div>
                       </SelectItem>
                       <SelectItem value="refunded">
-                        <div className="flex items-center gap-2">
+                        <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                           <DollarSign className="h-4 w-4" />
-                          Refunded
+                          {isRTL ? 'مسترد' : 'Refunded'}
                         </div>
                       </SelectItem>
                     </SelectContent>
@@ -479,50 +506,58 @@ export default function AddPaymentModal({ open, onOpenChange, onAdd }: AddPaymen
           {/* Additional Information */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
                 <FileText className="h-5 w-5 text-orange-600" />
-                Additional Information
+                {isRTL ? 'معلومات إضافية' : 'Additional Information'}
               </CardTitle>
-              <CardDescription>Notes and additional payment details</CardDescription>
+              <CardDescription className={isRTL ? 'text-right' : 'text-left'}>
+                {isRTL ? 'ملاحظات وتفاصيل الدفعة الإضافية' : 'Notes and additional payment details'}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
+                <Label htmlFor="notes" className={isRTL ? 'text-right' : 'text-left'}>
+                  {isRTL ? 'ملاحظات' : 'Notes'}
+                </Label>
                 <Textarea
                   id="notes"
                   value={formData.notes || ''}
                   onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Additional notes about the payment..."
+                  placeholder={isRTL ? "ملاحظات إضافية حول الدفعة..." : "Additional notes about the payment..."}
                   rows={3}
+                  className={isRTL ? 'text-right' : 'text-left'}
+                  dir={isRTL ? 'rtl' : 'ltr'}
                 />
               </div>
             </CardContent>
           </Card>
 
           {/* Submit Buttons */}
-          <div className="flex justify-end space-x-2">
+          <div className={`flex ${isRTL ? 'justify-start space-x-reverse space-x-2' : 'justify-end space-x-2'} flex-shrink-0 border-t bg-background p-4`}>
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
+              className={isRTL ? 'flex-row-reverse' : ''}
             >
-              Cancel
+              {isRTL ? 'إلغاء' : 'Cancel'}
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting} className={isRTL ? 'flex-row-reverse' : ''}>
               {isSubmitting ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Adding Payment...
+                  <Loader2 className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'} animate-spin`} />
+                  {isRTL ? 'جاري الإضافة...' : 'Adding Payment...'}
                 </>
               ) : (
                 <>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Add Payment
+                  <CheckCircle className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                  {isRTL ? 'إضافة دفعة' : 'Add Payment'}
                 </>
               )}
             </Button>
           </div>
-        </form>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   )

@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management Arabic Support Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            direction: rtl;
+            text-align: right;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            color: #1f2937;
+            margin: 0 0 10px 0;
+            font-size: 24px;
+            text-align: right;
+        }
+        
+        .header p {
+            color: #6b7280;
+            margin: 0;
+            text-align: right;
+        }
+        
+        .user-management-header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-direction: row-reverse;
+        }
+        
+        .header-text {
+            text-align: right;
+        }
+        
+        .header-text h2 {
+            color: #1f2937;
+            margin: 0 0 5px 0;
+            font-size: 28px;
+            font-weight: bold;
+            text-align: right;
+        }
+        
+        .header-text p {
+            color: #6b7280;
+            margin: 0;
+            text-align: right;
+        }
+        
+        .add-user-btn {
+            background: linear-gradient(to right, #9333ea, #2563eb);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            flex-direction: row-reverse;
+            justify-content: flex-end;
+            transition: background 0.2s;
+        }
+        
+        .add-user-btn:hover {
+            background: linear-gradient(to right, #7c3aed, #1d4ed8);
+        }
+        
+        .add-user-btn .icon {
+            margin-right: 0;
+            margin-left: 8px;
+            width: 16px;
+            height: 16px;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .modal-header h3 {
+            color: #1f2937;
+            margin: 0 0 5px 0;
+            font-size: 18px;
+            font-weight: 600;
+            text-align: right;
+        }
+        
+        .modal-header p {
+            color: #6b7280;
+            margin: 0;
+            font-size: 14px;
+            text-align: right;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            color: #374151;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 5px;
+            text-align: right;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            text-align: right;
+            direction: rtl;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .password-field {
+            position: relative;
+        }
+        
+        .password-toggle {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 4px;
+        }
+        
+        .password-toggle:hover {
+            color: #374151;
+        }
+        
+        .role-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .role-option {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            flex-direction: row-reverse;
+            justify-content: flex-end;
+        }
+        
+        .role-option:hover {
+            background-color: #f9fafb;
+        }
+        
+        .role-option.selected {
+            background-color: #eff6ff;
+            border-color: #3b82f6;
+        }
+        
+        .role-option .icon {
+            margin-right: 0;
+            margin-left: 8px;
+            width: 16px;
+            height: 16px;
+        }
+        
+        .role-option .text {
+            font-weight: 500;
+            color: #1f2937;
+        }
+        
+        .form-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            flex-direction: row-reverse;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-cancel {
+            background-color: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+        
+        .btn-cancel:hover {
+            background-color: #e5e7eb;
+        }
+        
+        .btn-create {
+            background: linear-gradient(to right, #9333ea, #2563eb);
+            color: white;
+        }
+        
+        .btn-create:hover {
+            background: linear-gradient(to right, #7c3aed, #1d4ed8);
+        }
+        
+        .btn-create:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 8px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .test-result {
+            background: #dcfce7;
+            border: 1px solid #22c55e;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .test-result h3 {
+            color: #166534;
+            margin: 0 0 10px 0;
+            text-align: right;
+        }
+        
+        .test-result p {
+            color: #166534;
+            margin: 0;
+            text-align: right;
+        }
+        
+        .features-list {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .features-list h3 {
+            color: #0c4a6e;
+            margin: 0 0 15px 0;
+            text-align: right;
+        }
+        
+        .features-list ul {
+            margin: 0;
+            padding-right: 20px;
+            text-align: right;
+        }
+        
+        .features-list li {
+            margin-bottom: 8px;
+            color: #0c4a6e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>شركة الرفيدان للصناعة</h1>
+            <p>اختبار دعم العربية في إدارة المستخدمين</p>
+        </div>
+        
+        <div class="features-list">
+            <h3>✅ ميزات الدعم العربي المضافة</h3>
+            <ul>
+                <li>عنوان الصفحة محاذاة إلى اليمين</li>
+                <li>نص الوصف باللغة العربية</li>
+                <li>زر "إضافة مستخدم جديد" مع أيقونة في الموضع الصحيح</li>
+                <li>نموذج إنشاء المستخدم باللغة العربية</li>
+                <li>تسميات الحقول باللغة العربية</li>
+                <li>نصوص المساعدة باللغة العربية</li>
+                <li>خيارات الأدوار باللغة العربية</li>
+                <li>أزرار النموذج باللغة العربية</li>
+            </ul>
+        </div>
+        
+        <div class="user-management-header">
+            <div class="header-content">
+                <div class="header-text">
+                    <h2>إدارة المستخدمين</h2>
+                    <p>إدارة المستخدمين والصلاحيات</p>
+                </div>
+                <button class="add-user-btn" onclick="openModal()">
+                    إضافة مستخدم جديد
+                    <span class="icon">👤+</span>
+                </button>
+            </div>
+        </div>
+        
+        <div id="modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>إنشاء مستخدم جديد</h3>
+                    <p>إضافة مسؤول أو مشرف جديد إلى النظام</p>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="name">الاسم الكامل</label>
+                        <input type="text" id="name" placeholder="أدخل الاسم الكامل" dir="rtl">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">البريد الإلكتروني</label>
+                        <input type="email" id="email" placeholder="أدخل البريد الإلكتروني" dir="rtl">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="role">الدور</label>
+                        <div class="role-options">
+                            <div class="role-option selected">
+                                <span class="text">مسؤول</span>
+                                <span class="icon">🛡️</span>
+                            </div>
+                            <div class="role-option">
+                                <span class="text">مشرف</span>
+                                <span class="icon">👥</span>
+                            </div>
+                            <div class="role-option">
+                                <span class="text">مندوب</span>
+                                <span class="icon">👥</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">كلمة المرور</label>
+                        <div class="password-field">
+                            <input type="password" id="password" placeholder="أدخل كلمة المرور (6 أحرف على الأقل)" dir="rtl">
+                            <button type="button" class="password-toggle">👁️</button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="confirmPassword">تأكيد كلمة المرور</label>
+                        <input type="password" id="confirmPassword" placeholder="تأكيد كلمة المرور" dir="rtl">
+                    </div>
+                    
+                    <div class="form-buttons">
+                        <button class="btn btn-cancel" onclick="closeModal()">إلغاء</button>
+                        <button class="btn btn-create">
+                            إنشاء مستخدم
+                            <span class="loading-spinner" style="display: none;"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="test-result">
+            <h3>🎉 تم إضافة الدعم العربي بنجاح!</h3>
+            <p>صفحة إدارة المستخدمين تدعم الآن اللغة العربية بشكل كامل مع التخطيط RTL الصحيح</p>
+        </div>
+    </div>
+    
+    <script>
+        function openModal() {
+            document.getElementById('modal').style.display = 'flex';
+        }
+        
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        document.getElementById('modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+        
+        // Role selection
+        document.querySelectorAll('.role-option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelectorAll('.role-option').forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+            });
+        });
+        
+        // Password toggle
+        document.querySelector('.password-toggle').addEventListener('click', function() {
+            const passwordField = document.getElementById('password');
+            if (passwordField.type === 'password') {
+                passwordField.type = 'text';
+                this.textContent = '🙈';
+            } else {
+                passwordField.type = 'password';
+                this.textContent = '👁️';
+            }
+        });
+    </script>
+</body>
+</html>

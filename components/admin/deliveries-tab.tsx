@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Search, Plus, MoreHorizontal, MapPin, Clock, Package, Filter, Download, User, Truck } from "lucide-react"
+import { Search, Plus, MoreHorizontal, MapPin, Clock, Package, Filter, Download, User, Truck, Trash2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { CreateTaskModal } from "./create-task-modal"
 import { TaskDetailsModal } from "./task-details-modal"
 import { ProofPhotosInline } from "@/components/ui/proof-photos-display"
 import { useLanguage } from "@/contexts/language-context"
-import { getDeliveryTasks, getDeliveryTaskStats } from "@/lib/delivery-tasks"
+import { getDeliveryTasks, getDeliveryTaskStats, deleteDeliveryTask } from "@/lib/delivery-tasks"
 import { useToast } from "@/hooks/use-toast"
 import type { DeliveryTask } from "@/types/delivery-tasks"
 
@@ -116,6 +117,9 @@ export function DeliveriesTab() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [taskToDelete, setTaskToDelete] = useState<DeliveryTask | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [stats, setStats] = useState({
     pending: 0,
     assigned: 0,
@@ -203,6 +207,36 @@ export function DeliveriesTab() {
   const handleViewDetails = (task: DeliveryTask) => {
     setSelectedTask(task)
     setIsDetailsModalOpen(true)
+  }
+
+  const handleCancelTask = (task: DeliveryTask) => {
+    setTaskToDelete(task)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!taskToDelete) return
+
+    setIsDeleting(true)
+    try {
+      await deleteDeliveryTask(taskToDelete.id)
+      setTasks(prevTasks => prevTasks.filter(task => task.id !== taskToDelete.id))
+      setIsDeleteDialogOpen(false)
+      setTaskToDelete(null)
+      toast({
+        title: "Success",
+        description: "Task deleted successfully",
+      })
+    } catch (error) {
+      console.error('Error deleting task:', error)
+      toast({
+        title: "Error",
+        description: "Failed to delete task",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   const handleCreateTask = async (newTask: DeliveryTask) => {
@@ -410,7 +444,13 @@ export function DeliveriesTab() {
                         <DropdownMenuItem>{t("assignRepresentative")}</DropdownMenuItem>
                         <DropdownMenuItem>{t("updateStatus")}</DropdownMenuItem>
                         <DropdownMenuItem>{t("trackLocation")}</DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">{t("cancelTask")}</DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleCancelTask(task)}
+                          className="text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          {t("cancelTask")}
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -435,6 +475,28 @@ export function DeliveriesTab() {
         onClose={() => setIsDetailsModalOpen(false)}
         onUpdate={handleUpdateTask}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("confirmDelete")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("deleteTaskConfirmation")} "{taskToDelete?.title}"? {t("deleteTaskWarning")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? t("deleting") : t("delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

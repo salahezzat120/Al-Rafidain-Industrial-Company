@@ -207,3 +207,6 @@ interface RepresentativeWithLocation {
 The fix ensures that representatives without location data are handled gracefully with clear messaging, while representatives with valid location data work perfectly for map focusing.
 
 
+
+
+

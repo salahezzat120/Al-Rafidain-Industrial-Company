@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Cards RTL Fix</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            direction: rtl;
+            text-align: right;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            color: #1f2937;
+            margin: 0 0 10px 0;
+            font-size: 24px;
+            text-align: right;
+        }
+        
+        .header p {
+            color: #6b7280;
+            margin: 0;
+            text-align: right;
+        }
+        
+        .before-after {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .before, .after {
+            padding: 15px;
+            border-radius: 6px;
+        }
+        
+        .before {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+        }
+        
+        .after {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+        }
+        
+        .before h4, .after h4 {
+            margin: 0 0 10px 0;
+            text-align: right;
+        }
+        
+        .before h4 {
+            color: #dc2626;
+        }
+        
+        .after h4 {
+            color: #16a34a;
+        }
+        
+        .employee-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin: 10px 0;
+        }
+        
+        .employee-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            flex-direction: row-reverse;
+        }
+        
+        .employee-info {
+            display: flex;
+            align-items: center;
+            flex-direction: row-reverse;
+        }
+        
+        .employee-avatar {
+            width: 48px;
+            height: 48px;
+            background: #dbeafe;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 12px;
+            margin-right: 0;
+            font-weight: bold;
+            color: #1e40af;
+        }
+        
+        .employee-details {
+            text-align: right;
+        }
+        
+        .employee-details h3 {
+            margin: 0 0 4px 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+            text-align: right;
+        }
+        
+        .employee-details p {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            color: #6b7280;
+            text-align: right;
+        }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            background: #dcfce7;
+            color: #166534;
+            flex-direction: row-reverse;
+            justify-content: flex-end;
+        }
+        
+        .status-icon {
+            width: 12px;
+            height: 12px;
+            margin-left: 4px;
+            margin-right: 0;
+        }
+        
+        .employee-content {
+            margin-top: 15px;
+        }
+        
+        .employee-detail {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            flex-direction: row-reverse;
+            justify-content: flex-end;
+        }
+        
+        .detail-icon {
+            width: 16px;
+            height: 16px;
+            color: #6b7280;
+            margin-left: 8px;
+            margin-right: 0;
+        }
+        
+        .detail-text {
+            font-size: 14px;
+            color: #6b7280;
+            text-align: right;
+        }
+        
+        .test-result {
+            background: #dcfce7;
+            border: 1px solid #22c55e;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .test-result h3 {
+            color: #166534;
+            margin: 0 0 10px 0;
+            text-align: right;
+        }
+        
+        .test-result p {
+            color: #166534;
+            margin: 0;
+            text-align: right;
+        }
+        
+        .improvements-list {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .improvements-list h4 {
+            color: #0c4a6e;
+            margin: 0 0 15px 0;
+            text-align: right;
+        }
+        
+        .improvements-list ul {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+        
+        .improvements-list li {
+            padding: 8px 0;
+            color: #0c4a6e;
+            text-align: right;
+            display: flex;
+            align-items: center;
+            flex-direction: row-reverse;
+        }
+        
+        .improvements-list li::before {
+            content: "✅";
+            margin-left: 8px;
+            margin-right: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>شركة الرفيدان للصناعة</h1>
+            <p>إصلاح تخطيط بطاقات الموظفين للدعم العربي</p>
+        </div>
+        
+        <div class="before-after">
+            <div class="before">
+                <h4>❌ قبل الإصلاح</h4>
+                <p>المحتوى داخل البطاقات كان محاذاة لليسار</p>
+                <div class="employee-card">
+                    <div class="employee-header">
+                        <div class="employee-info">
+                            <div class="employee-avatar">SE</div>
+                            <div class="employee-details" style="text-align: left;">
+                                <h3>salah ezzat</h3>
+                                <p>مدير الموارد البشرية</p>
+                                <span class="status-badge" style="flex-direction: row;">
+                                    <span class="status-icon">✓</span>
+                                    <span>نشط</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="employee-content" style="text-align: left;">
+                        <div class="employee-detail" style="flex-direction: row;">
+                            <span class="detail-icon">🏢</span>
+                            <span class="detail-text">الموارد البشرية</span>
+                        </div>
+                        <div class="employee-detail" style="flex-direction: row;">
+                            <span class="detail-icon">📧</span>
+                            <span class="detail-text">salahezzat120@gmail.com</span>
+                        </div>
+                        <div class="employee-detail" style="flex-direction: row;">
+                            <span class="detail-icon">📞</span>
+                            <span class="detail-text">+20459083040</span>
+                        </div>
+                        <div class="employee-detail" style="flex-direction: row;">
+                            <span class="detail-icon">📅</span>
+                            <span class="detail-text">تم التوظيف: 9/3/2025</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="after">
+                <h4>✅ بعد الإصلاح</h4>
+                <p>المحتوى داخل البطاقات محاذاة لليمين</p>
+                <div class="employee-card">
+                    <div class="employee-header">
+                        <div class="employee-info">
+                            <div class="employee-avatar">SE</div>
+                            <div class="employee-details">
+                                <h3>salah ezzat</h3>
+                                <p>مدير الموارد البشرية</p>
+                                <span class="status-badge">
+                                    <span class="status-icon">✓</span>
+                                    <span>نشط</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="employee-content">
+                        <div class="employee-detail">
+                            <span class="detail-icon">🏢</span>
+                            <span class="detail-text">الموارد البشرية</span>
+                        </div>
+                        <div class="employee-detail">
+                            <span class="detail-icon">📧</span>
+                            <span class="detail-text">salahezzat120@gmail.com</span>
+                        </div>
+                        <div class="employee-detail">
+                            <span class="detail-icon">📞</span>
+                            <span class="detail-text">+20459083040</span>
+                        </div>
+                        <div class="employee-detail">
+                            <span class="detail-icon">📅</span>
+                            <span class="detail-text">تم التوظيف: 9/3/2025</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="improvements-list">
+            <h4>التحسينات المطبقة</h4>
+            <ul>
+                <li>محاذاة النص داخل البطاقات لليمين</li>
+                <li>ترتيب الأيقونات والنصوص بشكل صحيح للعربية</li>
+                <li>تحسين تخطيط العناصر داخل البطاقات</li>
+                <li>إضافة CSS مخصص لدعم RTL</li>
+                <li>تحسين محاذاة الأزرار والحالات</li>
+                <li>ضمان التخطيط الصحيح للعربية</li>
+            </ul>
+        </div>
+        
+        <div class="test-result">
+            <h3>✅ تم إصلاح تخطيط البطاقات</h3>
+            <p>تم تحسين تخطيط المحتوى داخل بطاقات الموظفين ليدعم اللغة العربية بشكل صحيح مع محاذاة النص من اليمين إلى اليسار.</p>
+        </div>
+    </div>
+</body>
+</html>

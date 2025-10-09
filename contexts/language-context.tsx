@@ -890,6 +890,12 @@ const translations = {
     "taskDetails.driverAssigned": "Driver assigned",
     "taskDetails.taskStarted": "Task started",
     "taskDetails.locationInfo": "Location Information",
+    "cancelTask": "Cancel Task",
+    "confirmDelete": "Confirm Delete",
+    "deleteTaskConfirmation": "Are you sure you want to delete the task",
+    "deleteTaskWarning": "This action cannot be undone.",
+    "deleting": "Deleting...",
+    "delete": "Delete",
 
     // Supervisor
     "supervisor.assignNewDelivery": "Assign New Delivery",
@@ -2032,6 +2038,12 @@ const translations = {
     "taskDetails.driverAssigned": "تم تعيين السائق",
     "taskDetails.taskStarted": "تم بدء المهمة",
     "taskDetails.locationInfo": "معلومات الموقع",
+    "cancelTask": "إلغاء المهمة",
+    "confirmDelete": "تأكيد الحذف",
+    "deleteTaskConfirmation": "هل أنت متأكد من حذف المهمة",
+    "deleteTaskWarning": "لا يمكن التراجع عن هذا الإجراء.",
+    "deleting": "جاري الحذف...",
+    "delete": "حذف",
 
     // Supervisor
     "supervisor.assignNewDelivery": "تعيين توصيل جديد",

@@ -83,11 +83,11 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
               <Button
                 key={item.id}
                 variant={activeTab === item.id ? "secondary" : "ghost"}
-                className={cn("w-full justify-start mb-1", collapsed ? "px-2" : "px-3")}
+                className={cn("w-full mb-1", collapsed ? "px-2 justify-center" : isRTL ? "px-3 justify-end flex-row-reverse" : "px-3 justify-start")}
                 onClick={() => onTabChange(item.id)}
               >
-                <Icon className={cn("h-4 w-4", collapsed ? "" : isRTL ? "ml-3" : "mr-3")} />
                 {!collapsed && <span className={isRTL ? 'text-right' : 'text-left'}>{item.label}</span>}
+                <Icon className={cn("h-4 w-4", collapsed ? "" : isRTL ? "mr-3" : "ml-3")} />
               </Button>
             )
           })}
