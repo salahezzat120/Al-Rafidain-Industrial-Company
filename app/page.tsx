@@ -17,7 +17,7 @@ import { UsersTabSimple } from "@/components/admin/users-tab-simple"
 import { SupervisorDashboard } from "@/components/supervisor/supervisor-dashboard"
 import EmployeesTab from "@/components/admin/employees-tab"
 import { RepresentativesTab } from "@/components/admin/representatives-tab";
-import { CustomersTab } from "@/components/admin/customers-tab"
+import CustomersTab from "@/components/admin/customers-tab"
 import PaymentsTab from "@/components/admin/payments-tab"
 import { DeliveriesTab } from "@/components/admin/deliveries-tab"
 import { VehiclesTab } from "@/components/admin/vehicles-tab"

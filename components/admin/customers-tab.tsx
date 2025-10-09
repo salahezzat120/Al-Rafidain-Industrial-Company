@@ -20,7 +20,7 @@ import { getCustomers, Customer } from "@/lib/customers"
 import { useToast } from "@/hooks/use-toast"
 import { exportCustomersToExcel, exportCustomersToExcelWithSummary } from "@/lib/customer-excel-export"
 
-export function CustomersTab() {
+export default function CustomersTab() {
   const [searchTerm, setSearchTerm] = useState("")
   const [customers, setCustomers] = useState<Customer[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
