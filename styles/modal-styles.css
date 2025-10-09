@@ -1,0 +1,44 @@
+/* Add Representative Modal Styles */
+.add-representative-modal {
+  position: fixed !important; /* Keeps it centered even when scrolling */
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important; /* Centers it perfectly */
+  background: #fff !important;
+  border-radius: 20px !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15) !important;
+  padding: 2rem !important;
+  width: 700px !important; /* Adjust width as needed */
+  max-width: 90% !important;
+  max-height: 80vh !important;
+  overflow-y: auto !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: #6b7280 #e5e7eb !important;
+  z-index: 9999 !important;
+}
+
+.add-representative-modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.add-representative-modal::-webkit-scrollbar-thumb {
+  background-color: #6b7280;
+  border-radius: 10px;
+}
+
+.add-representative-modal::-webkit-scrollbar-track {
+  background: #e5e7eb;
+}
+
+/* Override any conflicting styles */
+.add-representative-modal * {
+  box-sizing: border-box;
+}
+
+/* Ensure the modal stays centered */
+.add-representative-modal[data-state="open"] {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+}

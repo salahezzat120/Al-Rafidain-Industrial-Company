@@ -290,21 +290,17 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
       <DialogContent 
         ref={dialogRef} 
         onKeyDown={handleKeyDown}
-        className="max-w-4xl max-h-[75vh] sm:max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200 hover:scrollbar-thumb-gray-600 bg-gradient-to-br from-slate-50 to-blue-50 border-0 shadow-2xl relative mx-auto my-8"
-        style={{
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#6b7280 #e5e7eb'
-        }}
+        className="add-representative-modal"
       >
         {/* Scroll progress bar */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gray-200 z-20">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gray-200 z-20 rounded-t-[20px]">
           <div 
-            className="h-full bg-gradient-to-r from-gray-400 to-gray-500 transition-all duration-150 ease-out"
+            className="h-full bg-gradient-to-r from-gray-400 to-gray-500 transition-all duration-150 ease-out rounded-t-[20px]"
             style={{ width: `${scrollProgress}%` }}
           />
         </div>
         
-        <DialogHeader className="space-y-3 pb-3 pt-1">
+        <DialogHeader className="space-y-2 pb-2 pt-1">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg">
@@ -326,10 +322,10 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-3 px-1 pb-1">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-2 px-1 pb-1">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
             <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all duration-300">
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-1">
                 <CardTitle className="text-xl flex items-center gap-3 text-gray-800">
                   <div className="p-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg">
                     <User className="h-5 w-5 text-white" />
@@ -338,7 +334,7 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
                 </CardTitle>
                 <p className="text-sm text-gray-500 ml-11">Basic personal details and contact information</p>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-3">
                 <div className="space-y-2">
                   <Label htmlFor="id" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                     <Shield className="h-4 w-4 text-blue-500" />
@@ -477,7 +473,7 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
             </Card>
 
             <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all duration-300">
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-1">
                 <CardTitle className="text-xl flex items-center gap-3 text-gray-800">
                   <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
                     <Truck className="h-5 w-5 text-white" />
@@ -486,7 +482,7 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
                 </CardTitle>
                 <p className="text-sm text-gray-500 ml-11">Professional details and work preferences</p>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-3">
                 <div className="space-y-3">
                   <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                     <div className="h-4 w-4 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center">
@@ -661,8 +657,8 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
               </CardTitle>
               <p className="text-sm text-gray-500 ml-11">Define service areas and coverage zones</p>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
+            <CardContent className="space-y-3">
+              <div className="space-y-3">
                 <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                   <div className="h-4 w-4 rounded-full bg-gradient-to-r from-green-500 to-teal-500 flex items-center justify-center">
                     <span className="text-white text-xs font-bold">📍</span>
@@ -777,7 +773,7 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
         )}
         
         {/* Scroll navigation buttons */}
-        <div className="absolute top-2 right-2 flex flex-col gap-2 z-10">
+        <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
           {/* Scroll to top - only show when scrolled down */}
           {scrollProgress > 5 && (
             <Button

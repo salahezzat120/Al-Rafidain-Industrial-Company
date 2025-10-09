@@ -5,6 +5,7 @@ import { GeistMono } from "geist/font/mono"
 import "./globals.css"
 import "leaflet/dist/leaflet.css"
 import "../styles/chat-overflow.css"
+import "../styles/modal-styles.css"
 import { AuthProvider } from "@/contexts/auth-context"
 import { LanguageProvider } from "@/contexts/language-context"
 
