@@ -9,9 +9,26 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Settings, Users, Shield, Database, Bell, Globe, Save, RefreshCw, AlertCircle, CheckCircle, Loader2 } from "lucide-react"
+import { Settings, Users, Database, Bell, Globe, Save, RefreshCw, AlertCircle, CheckCircle, Loader2 } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { UsersTab } from "@/components/admin/users-tab"
+import { 
+  createBackup, 
+  getBackupHistory, 
+  downloadBackup, 
+  restoreBackup, 
+  deleteBackup,
+  getStorageInfo,
+  formatFileSize,
+  getBackupSettings,
+  saveBackupSettings,
+  scheduleBackup,
+  cancelScheduledBackup,
+  type BackupInfo,
+  type BackupSettings,
+  type StorageInfo
+} from "@/lib/backup"
 
 export function SettingsTab() {
   const { t } = useLanguage()
@@ -20,23 +37,23 @@ export function SettingsTab() {
   const [settings, setSettings] = useState({
     companyName: "Al-Rafidain Industrial Company",
     companyEmail: "admin@alrafidain.com",
-    companyPhone: "+1 (555) 123-4567",
-    companyAddress: "123 Business St, City, State 12345",
-    timezone: "America/New_York",
-    currency: "USD",
-    language: "en",
+    companyPhone: "+966 11 123 4567",
+    companyAddress: "King Fahd Road, Riyadh 12345, Saudi Arabia",
+    timezone: "Asia/Riyadh",
+    currency: "SAR",
+    language: "ar",
     autoAssignTasks: true,
     realTimeTracking: true,
     emailNotifications: true,
-    smsNotifications: false,
+    smsNotifications: true,
     pushNotifications: true,
     dataRetention: "12",
     backupFrequency: "daily",
-    workingHours: { start: "09:00", end: "17:00" },
+    workingHours: { start: "08:00", end: "17:00" },
     customerTypes: ['active', 'vip', 'inactive'],
-    coverageZones: ['Downtown', 'North Zone', 'East District'],
+    coverageZones: ['Riyadh', 'Jeddah', 'Dammam', 'Mecca', 'Medina'],
     selectedCustomerType: 'active',
-    selectedCoverageZone: 'Downtown',
+    selectedCoverageZone: 'Riyadh',
   })
 
   const [originalSettings, setOriginalSettings] = useState({})
@@ -44,11 +61,35 @@ export function SettingsTab() {
   const [isSaving, setIsSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const [hasChanges, setHasChanges] = useState(false)
+  
+  // Backup-related state
+  const [backups, setBackups] = useState<BackupInfo[]>([])
+  const [storageInfo, setStorageInfo] = useState<StorageInfo>({ totalUsed: 0, available: 0, totalStorage: 0 })
+  const [backupSettings, setBackupSettings] = useState<BackupSettings>({ frequency: 'daily', retention: 12, autoBackup: false })
+  const [isCreatingBackup, setIsCreatingBackup] = useState(false)
+  const [isRestoring, setIsRestoring] = useState(false)
+  const [backupMessage, setBackupMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
 
   // Load settings on component mount
   useEffect(() => {
     loadSettings()
+    loadBackupData()
   }, [])
+
+  // Load backup data
+  const loadBackupData = () => {
+    try {
+      const backupHistory = getBackupHistory()
+      const storage = getStorageInfo()
+      const settings = getBackupSettings()
+      
+      setBackups(backupHistory)
+      setStorageInfo(storage)
+      setBackupSettings(settings)
+    } catch (error) {
+      console.error('Error loading backup data:', error)
+    }
+  }
 
   // Check for changes
   useEffect(() => {
@@ -105,23 +146,23 @@ export function SettingsTab() {
     const defaultSettings = {
       companyName: "Al-Rafidain Industrial Company",
       companyEmail: "admin@alrafidain.com",
-      companyPhone: "+1 (555) 123-4567",
-      companyAddress: "123 Business St, City, State 12345",
-      timezone: "America/New_York",
-      currency: "USD",
-      language: "en",
+      companyPhone: "+966 11 123 4567",
+      companyAddress: "King Fahd Road, Riyadh 12345, Saudi Arabia",
+      timezone: "Asia/Riyadh",
+      currency: "SAR",
+      language: "ar",
       autoAssignTasks: true,
       realTimeTracking: true,
       emailNotifications: true,
-      smsNotifications: false,
+      smsNotifications: true,
       pushNotifications: true,
       dataRetention: "12",
       backupFrequency: "daily",
-      workingHours: { start: "09:00", end: "17:00" },
+      workingHours: { start: "08:00", end: "17:00" },
       customerTypes: ['active', 'vip', 'inactive'],
-      coverageZones: ['Downtown', 'North Zone', 'East District'],
+      coverageZones: ['Riyadh', 'Jeddah', 'Dammam', 'Mecca', 'Medina'],
       selectedCustomerType: 'active',
-      selectedCoverageZone: 'Downtown',
+      selectedCoverageZone: 'Riyadh',
     }
     
     setSettings(defaultSettings)
@@ -130,6 +171,87 @@ export function SettingsTab() {
 
   const handleSettingChange = (key: string, value: any) => {
     setSettings((prev) => ({ ...prev, [key]: value }))
+  }
+
+  // Backup operations
+  const handleCreateBackup = async () => {
+    setIsCreatingBackup(true)
+    setBackupMessage(null)
+    
+    try {
+      const backup = await createBackup()
+      setBackupMessage({ type: 'success', text: `Backup created successfully: ${backup.filename}` })
+      loadBackupData() // Refresh backup list
+    } catch (error) {
+      setBackupMessage({ type: 'error', text: 'Failed to create backup' })
+    } finally {
+      setIsCreatingBackup(false)
+      setTimeout(() => setBackupMessage(null), 5000)
+    }
+  }
+
+  const handleDownloadBackup = (backupId: string) => {
+    try {
+      downloadBackup(backupId)
+      setBackupMessage({ type: 'success', text: 'Backup download started' })
+      setTimeout(() => setBackupMessage(null), 3000)
+    } catch (error) {
+      setBackupMessage({ type: 'error', text: 'Failed to download backup' })
+      setTimeout(() => setBackupMessage(null), 5000)
+    }
+  }
+
+  const handleRestoreBackup = async (backupId: string) => {
+    if (!confirm('Are you sure you want to restore this backup? This will replace all current data.')) {
+      return
+    }
+
+    setIsRestoring(true)
+    setBackupMessage(null)
+    
+    try {
+      await restoreBackup(backupId)
+      setBackupMessage({ type: 'success', text: 'Database restored successfully' })
+      loadBackupData() // Refresh data
+    } catch (error) {
+      setBackupMessage({ type: 'error', text: 'Failed to restore backup' })
+    } finally {
+      setIsRestoring(false)
+      setTimeout(() => setBackupMessage(null), 5000)
+    }
+  }
+
+  const handleDeleteBackup = (backupId: string) => {
+    if (!confirm('Are you sure you want to delete this backup?')) {
+      return
+    }
+
+    try {
+      deleteBackup(backupId)
+      setBackupMessage({ type: 'success', text: 'Backup deleted successfully' })
+      loadBackupData() // Refresh backup list
+      setTimeout(() => setBackupMessage(null), 3000)
+    } catch (error) {
+      setBackupMessage({ type: 'error', text: 'Failed to delete backup' })
+      setTimeout(() => setBackupMessage(null), 5000)
+    }
+  }
+
+  const handleBackupSettingsChange = (key: keyof BackupSettings, value: any) => {
+    const newSettings = { ...backupSettings, [key]: value }
+    setBackupSettings(newSettings)
+    saveBackupSettings(newSettings)
+    
+    // Handle auto backup scheduling
+    if (key === 'autoBackup') {
+      if (value) {
+        scheduleBackup(newSettings.frequency)
+      } else {
+        cancelScheduledBackup()
+      }
+    } else if (key === 'frequency' && newSettings.autoBackup) {
+      scheduleBackup(value)
+    }
   }
 
   return (
@@ -143,8 +265,6 @@ export function SettingsTab() {
         <TabsList>
           <TabsTrigger value="general">{t("general")}</TabsTrigger>
           <TabsTrigger value="users">{t("userManagement")}</TabsTrigger>
-          <TabsTrigger value="security">{t("security")}</TabsTrigger>
-          <TabsTrigger value="integrations">{t("integrations")}</TabsTrigger>
           <TabsTrigger value="backup">{t("backupData")}</TabsTrigger>
         </TabsList>
 
@@ -214,10 +334,16 @@ export function SettingsTab() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
-                      <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
-                      <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
-                      <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
+                      <SelectItem value="Asia/Riyadh">Riyadh (GMT+3)</SelectItem>
+                      <SelectItem value="Asia/Dubai">Dubai (GMT+4)</SelectItem>
+                      <SelectItem value="Asia/Kuwait">Kuwait (GMT+3)</SelectItem>
+                      <SelectItem value="Asia/Bahrain">Bahrain (GMT+3)</SelectItem>
+                      <SelectItem value="Asia/Qatar">Qatar (GMT+3)</SelectItem>
+                      <SelectItem value="Asia/Muscat">Muscat (GMT+4)</SelectItem>
+                      <SelectItem value="Asia/Tehran">Tehran (GMT+3:30)</SelectItem>
+                      <SelectItem value="Asia/Baghdad">Baghdad (GMT+3)</SelectItem>
+                      <SelectItem value="Europe/London">London (GMT+0)</SelectItem>
+                      <SelectItem value="America/New_York">New York (GMT-5)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -228,10 +354,15 @@ export function SettingsTab() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="SAR">Saudi Riyal (SAR) - ريال سعودي</SelectItem>
+                      <SelectItem value="AED">UAE Dirham (AED) - درهم إماراتي</SelectItem>
+                      <SelectItem value="KWD">Kuwaiti Dinar (KWD) - دينار كويتي</SelectItem>
+                      <SelectItem value="BHD">Bahraini Dinar (BHD) - دينار بحريني</SelectItem>
+                      <SelectItem value="QAR">Qatari Riyal (QAR) - ريال قطري</SelectItem>
+                      <SelectItem value="OMR">Omani Rial (OMR) - ريال عماني</SelectItem>
                       <SelectItem value="USD">US Dollar (USD)</SelectItem>
                       <SelectItem value="EUR">Euro (EUR)</SelectItem>
                       <SelectItem value="GBP">British Pound (GBP)</SelectItem>
-                      <SelectItem value="CAD">Canadian Dollar (CAD)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -242,8 +373,8 @@ export function SettingsTab() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="ar">العربية (Arabic)</SelectItem>
                       <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="ar">العربية</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -421,305 +552,7 @@ export function SettingsTab() {
         </TabsContent>
 
         <TabsContent value="users" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Users className="h-5 w-5 mr-2" />
-                {t("userManagement")}
-              </CardTitle>
-              <CardDescription>{t("userManagementDescription")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* User List */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <Users className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Admin User</p>
-                      <p className="text-sm text-gray-500">admin@alrafidain.com</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">Admin</span>
-                    <Button variant="outline" size="sm">Edit</Button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                      <Users className="h-4 w-4 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Supervisor</p>
-                      <p className="text-sm text-gray-500">supervisor@alrafidain.com</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">Supervisor</span>
-                    <Button variant="outline" size="sm">Edit</Button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                      <Users className="h-4 w-4 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Representative</p>
-                      <p className="text-sm text-gray-500">rep@alrafidain.com</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">Representative</span>
-                    <Button variant="outline" size="sm">Edit</Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Add User Button */}
-              <div className="pt-4 border-t">
-                <Button className="w-full">
-                  <Users className="h-4 w-4 mr-2" />
-                  Add New User
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="security" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Shield className="h-5 w-5 mr-2" />
-                {t("securitySettings")}
-              </CardTitle>
-              <CardDescription>{t("securitySettingsDescription")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Password Policy */}
-              <div className="space-y-4">
-                <h4 className="font-medium">Password Policy</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="minPasswordLength">Minimum Password Length</Label>
-                    <Input
-                      id="minPasswordLength"
-                      type="number"
-                      defaultValue="8"
-                      min="6"
-                      max="32"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="passwordExpiry">Password Expiry (days)</Label>
-                    <Input
-                      id="passwordExpiry"
-                      type="number"
-                      defaultValue="90"
-                      min="30"
-                      max="365"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Switch id="requireUppercase" defaultChecked />
-                    <Label htmlFor="requireUppercase">Require uppercase letters</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch id="requireNumbers" defaultChecked />
-                    <Label htmlFor="requireNumbers">Require numbers</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Switch id="requireSymbols" />
-                    <Label htmlFor="requireSymbols">Require special characters</Label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Session Management */}
-              <div className="space-y-4 pt-4 border-t">
-                <h4 className="font-medium">Session Management</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="sessionTimeout">Session Timeout (minutes)</Label>
-                    <Input
-                      id="sessionTimeout"
-                      type="number"
-                      defaultValue="30"
-                      min="5"
-                      max="480"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="maxLoginAttempts">Max Login Attempts</Label>
-                    <Input
-                      id="maxLoginAttempts"
-                      type="number"
-                      defaultValue="5"
-                      min="3"
-                      max="10"
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch id="lockoutEnabled" defaultChecked />
-                  <Label htmlFor="lockoutEnabled">Enable account lockout after failed attempts</Label>
-                </div>
-              </div>
-
-              {/* Two-Factor Authentication */}
-              <div className="space-y-4 pt-4 border-t">
-                <h4 className="font-medium">Two-Factor Authentication</h4>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="twoFactorEnabled">Enable 2FA</Label>
-                    <p className="text-sm text-gray-500">Add an extra layer of security</p>
-                  </div>
-                  <Switch id="twoFactorEnabled" />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="sms2FA">SMS Authentication</Label>
-                    <p className="text-sm text-gray-500">Use SMS for 2FA</p>
-                  </div>
-                  <Switch id="sms2FA" />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="email2FA">Email Authentication</Label>
-                    <p className="text-sm text-gray-500">Use email for 2FA</p>
-                  </div>
-                  <Switch id="email2FA" defaultChecked />
-                </div>
-              </div>
-
-              {/* Security Actions */}
-              <div className="pt-4 border-t">
-                <div className="flex space-x-2">
-                  <Button variant="outline">
-                    <Shield className="h-4 w-4 mr-2" />
-                    Force Password Reset
-                  </Button>
-                  <Button variant="outline">
-                    <Shield className="h-4 w-4 mr-2" />
-                    Revoke All Sessions
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="integrations" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("thirdPartyIntegrations")}</CardTitle>
-              <CardDescription>{t("thirdPartyIntegrationsDescription")}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Email Integration */}
-              <div className="space-y-4">
-                <h4 className="font-medium">Email Integration</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="smtpHost">SMTP Host</Label>
-                    <Input id="smtpHost" placeholder="smtp.gmail.com" />
-                  </div>
-                  <div>
-                    <Label htmlFor="smtpPort">SMTP Port</Label>
-                    <Input id="smtpPort" type="number" placeholder="587" />
-                  </div>
-                  <div>
-                    <Label htmlFor="smtpUser">SMTP Username</Label>
-                    <Input id="smtpUser" placeholder="your-email@gmail.com" />
-                  </div>
-                  <div>
-                    <Label htmlFor="smtpPass">SMTP Password</Label>
-                    <Input id="smtpPass" type="password" placeholder="••••••••" />
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch id="emailEnabled" />
-                  <Label htmlFor="emailEnabled">Enable email notifications</Label>
-                </div>
-              </div>
-
-              {/* SMS Integration */}
-              <div className="space-y-4 pt-4 border-t">
-                <h4 className="font-medium">SMS Integration</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="smsProvider">SMS Provider</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select provider" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="twilio">Twilio</SelectItem>
-                        <SelectItem value="aws">AWS SNS</SelectItem>
-                        <SelectItem value="nexmo">Vonage (Nexmo)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="smsApiKey">API Key</Label>
-                    <Input id="smsApiKey" type="password" placeholder="••••••••" />
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch id="smsEnabled" />
-                  <Label htmlFor="smsEnabled">Enable SMS notifications</Label>
-                </div>
-              </div>
-
-              {/* Database Integration */}
-              <div className="space-y-4 pt-4 border-t">
-                <h4 className="font-medium">Database Integration</h4>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="supabaseEnabled">Supabase</Label>
-                      <p className="text-sm text-gray-500">Real-time database</p>
-                    </div>
-                    <Switch id="supabaseEnabled" defaultChecked />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="backupEnabled">Auto Backup</Label>
-                      <p className="text-sm text-gray-500">Automatic database backups</p>
-                    </div>
-                    <Switch id="backupEnabled" defaultChecked />
-                  </div>
-                </div>
-              </div>
-
-              {/* API Settings */}
-              <div className="space-y-4 pt-4 border-t">
-                <h4 className="font-medium">API Settings</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="apiRateLimit">Rate Limit (requests/hour)</Label>
-                    <Input id="apiRateLimit" type="number" defaultValue="1000" />
-                  </div>
-                  <div>
-                    <Label htmlFor="apiTimeout">Timeout (seconds)</Label>
-                    <Input id="apiTimeout" type="number" defaultValue="30" />
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch id="apiEnabled" defaultChecked />
-                  <Label htmlFor="apiEnabled">Enable API access</Label>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <UsersTab />
         </TabsContent>
 
         <TabsContent value="backup" className="space-y-4">
@@ -732,6 +565,16 @@ export function SettingsTab() {
               <CardDescription>{t("backupDataManagementDescription")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Backup Messages */}
+              {backupMessage && (
+                <Alert className={backupMessage.type === 'error' ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className={backupMessage.type === 'error' ? 'text-red-800' : 'text-green-800'}>
+                    {backupMessage.text}
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* Backup Settings */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -739,8 +582,8 @@ export function SettingsTab() {
                     {t("dataRetention")} ({t("months")})
                   </Label>
                   <Select
-                    value={settings.dataRetention}
-                    onValueChange={(value) => handleSettingChange("dataRetention", value)}
+                    value={backupSettings.retention.toString()}
+                    onValueChange={(value) => handleBackupSettingsChange("retention", parseInt(value))}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -756,8 +599,8 @@ export function SettingsTab() {
                 <div>
                   <Label htmlFor="backupFrequency">{t("backupFrequency")}</Label>
                   <Select
-                    value={settings.backupFrequency}
-                    onValueChange={(value) => handleSettingChange("backupFrequency", value)}
+                    value={backupSettings.frequency}
+                    onValueChange={(value) => handleBackupSettingsChange("frequency", value)}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -771,21 +614,50 @@ export function SettingsTab() {
                 </div>
               </div>
 
+              {/* Auto Backup Toggle */}
+              <div className="flex items-center justify-between p-3 border rounded">
+                <div>
+                  <Label htmlFor="autoBackup">Automatic Backups</Label>
+                  <p className="text-sm text-gray-500">Enable automatic backups based on frequency</p>
+                </div>
+                <Switch
+                  id="autoBackup"
+                  checked={backupSettings.autoBackup}
+                  onCheckedChange={(checked) => handleBackupSettingsChange("autoBackup", checked)}
+                />
+              </div>
+
               {/* Backup Status */}
               <div className="pt-4 border-t">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h4 className="font-medium">{t("lastBackup")}</h4>
-                    <p className="text-sm text-gray-500">January 15, 2024 at 2:30 AM</p>
+                    <p className="text-sm text-gray-500">
+                      {backups.length > 0 
+                        ? new Date(backups[0].createdAt).toLocaleString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : 'No backups created yet'
+                      }
+                    </p>
                   </div>
                   <div className="flex space-x-2">
-                    <Button variant="outline" size="sm">
-                      <Database className="h-4 w-4 mr-2" />
-                      {t("createBackupNow")}
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Restore
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleCreateBackup}
+                      disabled={isCreatingBackup}
+                    >
+                      {isCreatingBackup ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Database className="h-4 w-4 mr-2" />
+                      )}
+                      {isCreatingBackup ? 'Creating...' : t("createBackupNow")}
                     </Button>
                   </div>
                 </div>
@@ -793,38 +665,58 @@ export function SettingsTab() {
                 {/* Backup History */}
                 <div className="space-y-2">
                   <h5 className="font-medium">Backup History</h5>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between p-2 border rounded">
-                      <div className="flex items-center space-x-2">
-                        <Database className="h-4 w-4 text-green-600" />
-                        <span className="text-sm">backup_2024_01_15_023000.sql</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs text-gray-500">2.3 MB</span>
-                        <Button variant="ghost" size="sm">Download</Button>
-                      </div>
+                  {backups.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <Database className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p>No backups created yet</p>
+                      <p className="text-sm">Create your first backup to get started</p>
                     </div>
-                    <div className="flex items-center justify-between p-2 border rounded">
-                      <div className="flex items-center space-x-2">
-                        <Database className="h-4 w-4 text-green-600" />
-                        <span className="text-sm">backup_2024_01_14_023000.sql</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs text-gray-500">2.1 MB</span>
-                        <Button variant="ghost" size="sm">Download</Button>
-                      </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {backups.map((backup) => (
+                        <div key={backup.id} className="flex items-center justify-between p-3 border rounded">
+                          <div className="flex items-center space-x-3">
+                            <Database className={`h-4 w-4 ${
+                              backup.status === 'completed' ? 'text-green-600' : 
+                              backup.status === 'failed' ? 'text-red-600' : 'text-yellow-600'
+                            }`} />
+                            <div>
+                              <span className="text-sm font-medium">{backup.filename}</span>
+                              <p className="text-xs text-gray-500">
+                                {new Date(backup.createdAt).toLocaleString()} • {backup.type}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs text-gray-500">{formatFileSize(backup.size)}</span>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleDownloadBackup(backup.id)}
+                            >
+                              Download
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleRestoreBackup(backup.id)}
+                              disabled={isRestoring}
+                            >
+                              {isRestoring ? 'Restoring...' : 'Restore'}
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleDeleteBackup(backup.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="flex items-center justify-between p-2 border rounded">
-                      <div className="flex items-center space-x-2">
-                        <Database className="h-4 w-4 text-green-600" />
-                        <span className="text-sm">backup_2024_01_13_023000.sql</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs text-gray-500">2.0 MB</span>
-                        <Button variant="ghost" size="sm">Download</Button>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
@@ -833,17 +725,28 @@ export function SettingsTab() {
                 <h5 className="font-medium mb-2">Storage Information</h5>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="text-center p-3 border rounded">
-                    <div className="text-2xl font-bold text-blue-600">15.2 GB</div>
+                    <div className="text-2xl font-bold text-blue-600">{formatFileSize(storageInfo.totalUsed)}</div>
                     <div className="text-sm text-gray-500">Total Used</div>
                   </div>
                   <div className="text-center p-3 border rounded">
-                    <div className="text-2xl font-bold text-green-600">84.8 GB</div>
+                    <div className="text-2xl font-bold text-green-600">{formatFileSize(storageInfo.available)}</div>
                     <div className="text-sm text-gray-500">Available</div>
                   </div>
                   <div className="text-center p-3 border rounded">
-                    <div className="text-2xl font-bold text-purple-600">100 GB</div>
+                    <div className="text-2xl font-bold text-purple-600">{formatFileSize(storageInfo.totalStorage)}</div>
                     <div className="text-sm text-gray-500">Total Storage</div>
                   </div>
+                </div>
+                <div className="mt-4">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full" 
+                      style={{ width: `${(storageInfo.totalUsed / storageInfo.totalStorage) * 100}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {((storageInfo.totalUsed / storageInfo.totalStorage) * 100).toFixed(1)}% used
+                  </p>
                 </div>
               </div>
             </CardContent>
