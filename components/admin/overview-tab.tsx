@@ -11,7 +11,7 @@ import { getPerformanceMetrics, getRecentActivity, getDashboardKPIs } from "@/li
 import { getAlerts, getAlertStats, performAlertAction, type Alert, type AlertStats } from "@/lib/alerts"
 
 export function OverviewTab() {
-  const { t } = useLanguage()
+  const { t, isRTL } = useLanguage()
   const [kpis, setKpis] = useState<any>(null)
   const [performanceMetrics, setPerformanceMetrics] = useState<any>(null)
   const [recentActivity, setRecentActivity] = useState<any[]>([])
@@ -255,7 +255,7 @@ export function OverviewTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${isRTL ? 'text-right' : 'text-left'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>

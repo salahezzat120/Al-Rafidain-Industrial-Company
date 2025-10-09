@@ -170,6 +170,8 @@ export default function ChatSupportTab() {
       
       if (diffInMinutes < 5) {
         return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 text-xs">Just now</Badge>
+      } else if (diffInMinutes < 30) {
+        return <Badge variant="default" className="bg-green-100 text-green-800 text-xs">Online</Badge>
       } else if (diffInMinutes < 60) {
         return <Badge variant="secondary" className="bg-gray-100 text-gray-600 text-xs">{Math.floor(diffInMinutes)}m ago</Badge>
       } else {

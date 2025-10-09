@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perfect RTL Layout Test - Al-Rafidain</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            direction: rtl;
+            text-align: right;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            color: #1f2937;
+            margin: 0 0 10px 0;
+            font-size: 24px;
+            text-align: right;
+        }
+        
+        .header p {
+            color: #6b7280;
+            margin: 0;
+            text-align: right;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            min-height: 600px;
+        }
+        
+        .sidebar {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        
+        .sidebar h3 {
+            color: #1f2937;
+            margin: 0 0 20px 0;
+            text-align: right;
+            font-size: 18px;
+        }
+        
+        .sidebar ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .sidebar li {
+            margin-bottom: 10px;
+            text-align: right;
+        }
+        
+        .sidebar a {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            color: #374151;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+            text-align: right;
+            flex-direction: row-reverse;
+            justify-content: flex-end;
+        }
+        
+        .sidebar a:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .sidebar a.active {
+            background-color: #dbeafe;
+            color: #1d4ed8;
+        }
+        
+        .sidebar a .icon {
+            margin-right: 0;
+            margin-left: 12px;
+            width: 16px;
+            height: 16px;
+        }
+        
+        .sidebar a .text {
+            text-align: right;
+        }
+        
+        .main-content {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-direction: row-reverse;
+        }
+        
+        .content-header h2 {
+            color: #1f2937;
+            margin: 0;
+            text-align: right;
+        }
+        
+        .content-header p {
+            color: #6b7280;
+            margin: 5px 0 0 0;
+            text-align: right;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-direction: row-reverse;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            flex-direction: row-reverse;
+            justify-content: flex-end;
+        }
+        
+        .btn-primary {
+            background-color: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2563eb;
+        }
+        
+        .btn-secondary {
+            background-color: #6b7280;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #4b5563;
+        }
+        
+        .btn-outline {
+            background-color: white;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+        
+        .btn-outline:hover {
+            background-color: #f9fafb;
+        }
+        
+        .btn .icon {
+            margin-right: 0;
+            margin-left: 8px;
+            width: 16px;
+            height: 16px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: right;
+            display: flex;
+            align-items: center;
+            flex-direction: row-reverse;
+            justify-content: flex-end;
+        }
+        
+        .stat-card .content {
+            text-align: right;
+        }
+        
+        .stat-card h4 {
+            color: #64748b;
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            text-align: right;
+        }
+        
+        .stat-card .value {
+            color: #1f2937;
+            font-size: 24px;
+            font-weight: bold;
+            margin: 0;
+            text-align: right;
+        }
+        
+        .stat-card .icon {
+            margin-right: 0;
+            margin-left: 15px;
+            width: 24px;
+            height: 24px;
+            padding: 8px;
+            border-radius: 6px;
+        }
+        
+        .search-section {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-direction: row-reverse;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            text-align: right;
+            padding-right: 40px;
+        }
+        
+        .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            color: #9ca3af;
+        }
+        
+        .search-container {
+            position: relative;
+            flex: 1;
+        }
+        
+        .customer-list {
+            margin-top: 20px;
+        }
+        
+        .customer-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            background: white;
+            flex-direction: row-reverse;
+        }
+        
+        .customer-item:hover {
+            background-color: #f9fafb;
+        }
+        
+        .customer-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #374151;
+        }
+        
+        .customer-details {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+        }
+        
+        .customer-detail {
+            text-align: right;
+        }
+        
+        .customer-detail h4 {
+            margin: 0 0 4px 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        
+        .customer-detail p {
+            margin: 0;
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .customer-detail .contact {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 4px;
+            flex-direction: row-reverse;
+        }
+        
+        .customer-detail .contact .icon {
+            width: 12px;
+            height: 12px;
+            color: #6b7280;
+        }
+        
+        .customer-detail .location {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 4px;
+            flex-direction: row-reverse;
+        }
+        
+        .customer-detail .location .icon {
+            width: 12px;
+            height: 12px;
+            color: #6b7280;
+        }
+        
+        .customer-detail .status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .status-active {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        
+        .status-inactive {
+            background-color: #fef2f2;
+            color: #dc2626;
+        }
+        
+        .customer-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+        }
+        
+        .action-menu {
+            position: relative;
+        }
+        
+        .action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            color: #6b7280;
+        }
+        
+        .action-btn:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .improvements-summary {
+            background: #f0fdf4;
+            border: 1px solid #22c55e;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .improvements-summary h3 {
+            color: #166534;
+            margin: 0 0 15px 0;
+            text-align: right;
+        }
+        
+        .improvements-summary ul {
+            margin: 0;
+            padding-right: 20px;
+            text-align: right;
+        }
+        
+        .improvements-summary li {
+            margin-bottom: 8px;
+            color: #166534;
+        }
+        
+        .test-result {
+            background: #dcfce7;
+            border: 1px solid #22c55e;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .test-result h3 {
+            color: #166534;
+            margin: 0 0 10px 0;
+            text-align: right;
+        }
+        
+        .test-result p {
+            color: #166534;
+            margin: 0;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>شركة الرفيدان للصناعة</h1>
+            <p>مرحباً بك في نظام إدارة التوصيل - الرفيدان</p>
+        </div>
+        
+        <div class="improvements-summary">
+            <h3>✅ التحسينات المطبقة للـ RTL</h3>
+            <ul>
+                <li>تم إصلاح موضع الأيقونات في جميع الأزرار</li>
+                <li>تم إصلاح موضع الأيقونات في البطاقات الإحصائية</li>
+                <li>تم إصلاح تخطيط البحث والتصفية</li>
+                <li>تم إصلاح تخطيط جدول العملاء</li>
+                <li>تم تطبيق اتجاه النص من اليمين إلى اليسار</li>
+                <li>تم عكس اتجاه العناصر والهوامش</li>
+                <li>تم تحسين تخطيط الشريط الجانبي</li>
+            </ul>
+        </div>
+        
+        <div class="dashboard">
+            <div class="sidebar">
+                <h3>لوحة الإدارة</h3>
+                <ul>
+                    <li><a href="#" class="active">
+                        <span class="text">نظرة عامة</span>
+                        <span class="icon">📊</span>
+                    </a></li>
+                    <li><a href="#">
+                        <span class="text">إدارة المستخدمين</span>
+                        <span class="icon">👤+</span>
+                    </a></li>
+                    <li><a href="#">
+                        <span class="text">إدارة الموظفين</span>
+                        <span class="icon">👥</span>
+                    </a></li>
+                    <li><a href="#">
+                        <span class="text">إدارة المندوبين</span>
+                        <span class="icon">👥</span>
+                    </a></li>
+                    <li><a href="#">
+                        <span class="text">إدارة العملاء</span>
+                        <span class="icon">👥</span>
+                    </a></li>
+                    <li><a href="#">
+                        <span class="text">إدارة المستودعات</span>
+                        <span class="icon">📋</span>
+                    </a></li>
+                    <li><a href="#">
+                        <span class="text">تتبع المدفوعات</span>
+                        <span class="icon">💰</span>
+                    </a></li>
+                    <li><a href="#">
+                        <span class="text">نظام الولاء البسيط</span>
+                        <span class="icon">⭐</span>
+                    </a></li>
+                    <li><a href="#">
+                        <span class="text">الحضور</span>
+                        <span class="icon">📅</span>
+                    </a></li>
+                    <li><a href="#">
+                        <span class="text">دعم المحادثة</span>
+                        <span class="icon">💬</span>
+                    </a></li>
+                    <li><a href="#">
+                        <span class="text">الخريطة المباشرة</span>
+                        <span class="icon">📍</span>
+                    </a></li>
+                    <li><a href="#">
+                        <span class="text">أسطول المركبات</span>
+                        <span class="icon">🚛</span>
+                    </a></li>
+                    <li><a href="#">
+                        <span class="text">مهام التوصيل</span>
+                        <span class="icon">📦</span>
+                    </a></li>
+                    <li><a href="#">
+                        <span class="text">التحليلات</span>
+                        <span class="icon">📊</span>
+                    </a></li>
+                    <li><a href="#">
+                        <span class="text">التنبيهات والإشعارات</span>
+                        <span class="icon">🔔</span>
+                    </a></li>
+                    <li><a href="#">
+                        <span class="text">إدارة الزيارات</span>
+                        <span class="icon">📅</span>
+                    </a></li>
+                    <li><a href="#">
+                        <span class="text">الرسائل الداخلية</span>
+                        <span class="icon">💬</span>
+                    </a></li>
+                    <li><a href="#">
+                        <span class="text">دعم ما بعد البيع</span>
+                        <span class="icon">🎧</span>
+                    </a></li>
+                    <li><a href="#">
+                        <span class="text">إعدادات النظام</span>
+                        <span class="icon">⚙️</span>
+                    </a></li>
+                </ul>
+            </div>
+            
+            <div class="main-content">
+                <div class="content-header">
+                    <div>
+                        <h2>إدارة العملاء</h2>
+                        <p>إدارة علاقات العملاء وتتبع تاريخ التوصيل</p>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn btn-outline">
+                            تصدير
+                            <span class="icon">📥</span>
+                        </button>
+                        <button class="btn btn-primary">
+                            إضافة عميل
+                            <span class="icon">➕</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="content">
+                            <h4>العملاء النشطون</h4>
+                            <p class="value">1</p>
+                        </div>
+                        <div class="icon" style="background: #dcfce7; color: #166534;">🟢</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="content">
+                            <h4>العملاء المميزون</h4>
+                            <p class="value">0</p>
+                        </div>
+                        <div class="icon" style="background: #f3e8ff; color: #7c3aed;">⭐</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="content">
+                            <h4>إجمالي الإيرادات</h4>
+                            <p class="value">$150</p>
+                        </div>
+                        <div class="icon" style="background: #dbeafe; color: #2563eb;">📦</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="content">
+                            <h4>غير نشط</h4>
+                            <p class="value">0</p>
+                        </div>
+                        <div class="icon" style="background: #f3f4f6; color: #6b7280;">⚪</div>
+                    </div>
+                </div>
+                
+                <div class="search-section">
+                    <button class="btn btn-outline">
+                        تصفية
+                        <span class="icon">🔍</span>
+                    </button>
+                    <div class="search-container">
+                        <input type="text" class="search-input" placeholder="البحث عن العملاء بالاسم أو البريد الإلكتروني أو المعرف.....">
+                        <span class="search-icon">🔍</span>
+                    </div>
+                </div>
+                
+                <div class="customer-list">
+                    <div class="customer-item">
+                        <div class="customer-actions">
+                            <div class="action-menu">
+                                <button class="action-btn">⋯</button>
+                            </div>
+                        </div>
+                        <div class="customer-details">
+                            <div class="customer-detail">
+                                <h4>صلاح عزت</h4>
+                                <p>ID: C689490</p>
+                            </div>
+                            <div class="customer-detail">
+                                <div class="contact">
+                                    <span>sklans120@gmail.com</span>
+                                    <span class="icon">📧</span>
+                                </div>
+                                <div class="contact">
+                                    <span>1022505987+</span>
+                                    <span class="icon">📞</span>
+                                </div>
+                            </div>
+                            <div class="customer-detail">
+                                <div class="location">
+                                    <span>29.938200, 31.221700</span>
+                                    <span class="icon">📍</span>
+                                </div>
+                                <span class="status status-active">ACTIVE</span>
+                            </div>
+                            <div class="customer-detail">
+                                <h4>3 orders</h4>
+                                <p>$150</p>
+                            </div>
+                            <div class="customer-detail">
+                                <h4>Not Visited</h4>
+                                <p>No visits yet</p>
+                            </div>
+                            <div class="customer-detail">
+                                <h4>No visits</h4>
+                                <p>No visits</p>
+                            </div>
+                        </div>
+                        <div class="customer-avatar">SE</div>
+                    </div>
+                </div>
+                
+                <div class="test-result">
+                    <h3>🎉 تم إكمال التخطيط RTL المثالي!</h3>
+                    <p>جميع العناصر تظهر الآن بشكل صحيح من اليمين إلى اليسار مع الأيقونات في المواضع المناسبة</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

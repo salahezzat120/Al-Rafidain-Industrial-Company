@@ -1,0 +1,267 @@
+/* Responsive Modal Sizing for All Components */
+
+/* Base modal sizing - responsive and not too large */
+.dialog-content-responsive {
+  max-width: 90vw !important;
+  max-height: 85vh !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+/* Small screens (mobile) */
+@media (max-width: 640px) {
+  .dialog-content-responsive {
+    max-width: 95vw !important;
+    max-height: 90vh !important;
+    margin: 1rem !important;
+  }
+}
+
+/* Medium screens (tablet) */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .dialog-content-responsive {
+    max-width: 80vw !important;
+    max-height: 80vh !important;
+  }
+}
+
+/* Large screens (desktop) */
+@media (min-width: 1025px) {
+  .dialog-content-responsive {
+    max-width: 70vw !important;
+    max-height: 85vh !important;
+  }
+}
+
+/* Extra large screens */
+@media (min-width: 1440px) {
+  .dialog-content-responsive {
+    max-width: 60vw !important;
+    max-height: 80vh !important;
+  }
+}
+
+/* Form modals - smaller and more compact */
+.dialog-content-form {
+  max-width: 600px !important;
+  max-height: 85vh !important;
+  width: 90vw !important;
+}
+
+@media (max-width: 640px) {
+  .dialog-content-form {
+    max-width: 95vw !important;
+    max-height: 90vh !important;
+  }
+}
+
+/* Large form modals - for complex forms */
+.dialog-content-large-form {
+  max-width: 800px !important;
+  max-height: 85vh !important;
+  width: 90vw !important;
+}
+
+@media (max-width: 640px) {
+  .dialog-content-large-form {
+    max-width: 95vw !important;
+    max-height: 90vh !important;
+  }
+}
+
+/* Scrollable content within modals */
+.modal-scrollable-content {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Custom scrollbar for modals */
+.modal-scrollable-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-scrollable-content::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.modal-scrollable-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.modal-scrollable-content::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Fixed footer for modals */
+.modal-footer-fixed {
+  position: sticky;
+  bottom: 0;
+  background: white;
+  border-top: 1px solid #e2e8f0;
+  padding: 1rem;
+  margin-top: auto;
+}
+
+/* Responsive grid for form fields */
+.responsive-form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .responsive-form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-form-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Compact form spacing */
+.compact-form-spacing {
+  gap: 0.75rem;
+}
+
+.compact-form-spacing .space-y-6 > * + * {
+  margin-top: 0.75rem;
+}
+
+/* Modal header responsive */
+.modal-header-responsive {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+/* Modal body responsive */
+.modal-body-responsive {
+  padding: 1.5rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Ensure modal content is scrollable */
+[data-radix-dialog-content] .flex-1 {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  padding: 0.25rem !important;
+}
+
+/* Custom scrollbar for modal content */
+[data-radix-dialog-content] .flex-1::-webkit-scrollbar {
+  width: 6px;
+}
+
+[data-radix-dialog-content] .flex-1::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+[data-radix-dialog-content] .flex-1::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+[data-radix-dialog-content] .flex-1::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Force ALL modals to be small box-like */
+[data-radix-dialog-content],
+[data-radix-dialog-content][class*="max-w-"],
+[data-radix-dialog-content][class*="w-"],
+.dialog-content,
+.DialogContent {
+  width: 90vw !important;
+  max-width: 28rem !important; /* sm = 28rem = 448px */
+  max-height: 80vh !important;
+  height: auto !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Override any large modal classes */
+[data-radix-dialog-content].max-w-4xl,
+[data-radix-dialog-content].max-w-5xl,
+[data-radix-dialog-content].max-w-6xl,
+[data-radix-dialog-content].max-w-7xl,
+[data-radix-dialog-content].w-\[90vw\],
+[data-radix-dialog-content].w-\[95vw\],
+[data-radix-dialog-content].w-\[98vw\] {
+  width: 90vw !important;
+  max-width: 28rem !important; /* sm = 448px */
+  max-height: 80vh !important;
+}
+
+/* Override specific large modals */
+[data-radix-dialog-content].max-w-4xl {
+  max-width: 28rem !important; /* sm = 448px */
+}
+
+/* Force smaller box-like modals for all screen sizes */
+@media (max-width: 640px) {
+  [data-radix-dialog-content] {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    max-height: 85vh !important;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  [data-radix-dialog-content] {
+    width: 90vw !important;
+    max-width: 28rem !important; /* sm = 448px */
+    max-height: 80vh !important;
+  }
+}
+
+@media (min-width: 1025px) {
+  [data-radix-dialog-content] {
+    width: 90vw !important;
+    max-width: 28rem !important; /* sm = 448px */
+    max-height: 80vh !important;
+  }
+}
+
+/* Additional overrides for stubborn modals */
+[data-radix-dialog-content][style*="width"],
+[data-radix-dialog-content][style*="max-width"],
+[data-radix-dialog-content][style*="height"] {
+  width: 90vw !important;
+  max-width: 28rem !important; /* sm = 448px */
+  max-height: 80vh !important;
+}
+
+/* Nuclear option - force ALL elements with dialog content to be small box-like */
+*[class*="dialog-content"],
+*[class*="DialogContent"],
+*[data-slot="dialog-content"] {
+  width: 90vw !important;
+  max-width: 28rem !important; /* sm = 448px */
+  max-height: 80vh !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Override any grid layout that might be causing issues */
+*[data-slot="dialog-content"].grid {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+[data-radix-dialog-content].max-w-6xl {
+  max-width: 28rem !important; /* sm = 448px */
+}
+
+[data-radix-dialog-content].max-w-7xl {
+  max-width: 28rem !important; /* sm = 448px */
+}

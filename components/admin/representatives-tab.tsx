@@ -35,7 +35,7 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
   const [formData, setFormData] = useState({ id: '' });
   const [errors, setErrors] = useState({ id: '' });
 
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
 
   useEffect(() => {
     const fetchRepresentatives = async () => {
@@ -175,10 +175,10 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
   };
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${isRTL ? 'text-right' : 'text-left'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
+      <div className={`flex justify-between items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
+        <div className={isRTL ? 'text-right' : 'text-left'}>
           <h2 className="text-2xl font-bold text-gray-900">{t("representativeManagement")}</h2>
           <p className="text-gray-600">{t("manageDeliveryTeam")}</p>
         </div>

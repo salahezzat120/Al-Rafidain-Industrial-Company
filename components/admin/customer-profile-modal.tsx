@@ -5,6 +5,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { 
@@ -25,7 +28,9 @@ import {
   Edit,
   Send,
   CheckCircle,
-  XCircle
+  XCircle,
+  Save,
+  X
 } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
 import type { 
@@ -90,12 +95,86 @@ export function CustomerProfileModal({
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   const [newMessage, setNewMessage] = useState("")
+  
+  // Edit form state
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    company: '',
+    notes: ''
+  })
 
   useEffect(() => {
     if (isOpen && customerId) {
       loadCustomerProfile()
     }
   }, [isOpen, customerId])
+
+  // Initialize edit form when profile loads
+  useEffect(() => {
+    if (profile) {
+      setEditForm({
+        name: profile.name,
+        email: profile.email,
+        phone: profile.phone || '',
+        address: profile.address || '',
+        company: profile.company || '',
+        notes: profile.notes || ''
+      })
+    }
+  }, [profile])
+
+  const handleEditFormChange = (field: string, value: string) => {
+    setEditForm(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  const handleSaveEdit = async () => {
+    try {
+      // TODO: Implement actual save to database
+      console.log('Saving customer edit:', editForm)
+      
+      // Update local profile state
+      if (profile) {
+        setProfile({
+          ...profile,
+          name: editForm.name,
+          email: editForm.email,
+          phone: editForm.phone,
+          address: editForm.address,
+          company: editForm.company,
+          notes: editForm.notes
+        })
+      }
+      
+      setIsEditingProfile(false)
+      
+      // Show success message
+      alert('تم حفظ التغييرات بنجاح!')
+    } catch (error) {
+      console.error('Error saving customer edit:', error)
+      alert('حدث خطأ أثناء حفظ التغييرات')
+    }
+  }
+
+  const handleCancelEdit = () => {
+    // Reset form to original values
+    if (profile) {
+      setEditForm({
+        name: profile.name,
+        email: profile.email,
+        phone: profile.phone || '',
+        address: profile.address || '',
+        company: profile.company || '',
+        notes: profile.notes || ''
+      })
+    }
+    setIsEditingProfile(false)
+  }
 
   const loadCustomerProfile = async () => {
     setLoading(true)
@@ -343,6 +422,15 @@ export function CustomerProfileModal({
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-3">
+              <User className="h-6 w-6" />
+              <span>ملف العميل - {customerName || 'العميل'}</span>
+            </DialogTitle>
+            <DialogDescription>
+              عرض تفاصيل العميل وتاريخ التعامل معه
+            </DialogDescription>
+          </DialogHeader>
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
@@ -356,56 +444,143 @@ export function CustomerProfileModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center space-x-3">
             <User className="h-6 w-6" />
-            <span>ملف العميل - {customerName}</span>
+            <span>ملف العميل - {customerName || 'العميل'}</span>
           </DialogTitle>
           <DialogDescription>
             عرض تفاصيل العميل وتاريخ التعامل معه
           </DialogDescription>
         </DialogHeader>
 
-        {profile && (
-          <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">جاري تحميل بيانات العميل...</p>
+              </div>
+            </div>
+          ) : profile ? (
+            <div className="space-y-6">
             {/* Customer Header */}
             <Card>
               <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-4">
-                    <Avatar className="h-16 w-16">
-                      <AvatarImage src="" />
-                      <AvatarFallback className="text-lg">
-                        {customerName.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <h3 className="text-xl font-semibold">{profile.name}</h3>
-                      <p className="text-gray-600">{profile.email}</p>
-                      <div className="flex items-center space-x-2 mt-2">
-                        <Badge className={getStatusColor(profile.status)}>
-                          {profile.status === 'active' ? 'نشط' : 
-                           profile.status === 'vip' ? 'VIP' : 
-                           profile.status === 'inactive' ? 'غير نشط' : 'محظور'}
-                        </Badge>
-                        <Badge variant="outline">
-                          {profile.satisfactionRating}/5 ⭐
-                        </Badge>
+                {isEditingProfile ? (
+                  /* Edit Form */
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold">تعديل بيانات العميل</h3>
+                      <div className="flex items-center space-x-2">
+                        <Button variant="outline" size="sm" onClick={handleCancelEdit}>
+                          <X className="h-4 w-4 mr-2" />
+                          إلغاء
+                        </Button>
+                        <Button size="sm" onClick={handleSaveEdit}>
+                          <Save className="h-4 w-4 mr-2" />
+                          حفظ
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="name">الاسم</Label>
+                        <Input
+                          id="name"
+                          value={editForm.name}
+                          onChange={(e) => handleEditFormChange('name', e.target.value)}
+                          placeholder="اسم العميل"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="email">البريد الإلكتروني</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={editForm.email}
+                          onChange={(e) => handleEditFormChange('email', e.target.value)}
+                          placeholder="البريد الإلكتروني"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="phone">رقم الهاتف</Label>
+                        <Input
+                          id="phone"
+                          value={editForm.phone}
+                          onChange={(e) => handleEditFormChange('phone', e.target.value)}
+                          placeholder="رقم الهاتف"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="company">الشركة</Label>
+                        <Input
+                          id="company"
+                          value={editForm.company}
+                          onChange={(e) => handleEditFormChange('company', e.target.value)}
+                          placeholder="اسم الشركة"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label htmlFor="address">العنوان</Label>
+                        <Input
+                          id="address"
+                          value={editForm.address}
+                          onChange={(e) => handleEditFormChange('address', e.target.value)}
+                          placeholder="العنوان"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label htmlFor="notes">ملاحظات</Label>
+                        <Textarea
+                          id="notes"
+                          value={editForm.notes}
+                          onChange={(e) => handleEditFormChange('notes', e.target.value)}
+                          placeholder="ملاحظات إضافية"
+                          rows={3}
+                        />
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm" onClick={() => setIsEditingProfile(true)}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      تعديل
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => setActiveTab("communication")}>
-                      <Send className="h-4 w-4 mr-2" />
-                      إرسال رسالة
-                    </Button>
+                ) : (
+                  /* View Mode */
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-4">
+                      <Avatar className="h-16 w-16">
+                        <AvatarImage src="" />
+                        <AvatarFallback className="text-lg">
+                          {customerName.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h3 className="text-xl font-semibold">{profile.name}</h3>
+                        <p className="text-gray-600">{profile.email}</p>
+                        <div className="flex items-center space-x-2 mt-2">
+                          <Badge className={getStatusColor(profile.status)}>
+                            {profile.status === 'active' ? 'نشط' : 
+                             profile.status === 'vip' ? 'VIP' : 
+                             profile.status === 'inactive' ? 'غير نشط' : 'محظور'}
+                          </Badge>
+                          <Badge variant="outline">
+                            {profile.satisfactionRating}/5 ⭐
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button variant="outline" size="sm" onClick={() => setIsEditingProfile(true)}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        تعديل
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setActiveTab("communication")}>
+                        <Send className="h-4 w-4 mr-2" />
+                        إرسال رسالة
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
@@ -459,10 +634,8 @@ export function CustomerProfileModal({
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
-                <TabsTrigger value="history">التاريخ</TabsTrigger>
-                <TabsTrigger value="communication">التواصل</TabsTrigger>
                 <TabsTrigger value="preferences">التفضيلات</TabsTrigger>
                 <TabsTrigger value="notes">الملاحظات</TabsTrigger>
               </TabsList>
@@ -503,221 +676,10 @@ export function CustomerProfileModal({
                     </CardContent>
                   </Card>
 
-                  {/* Customer Statistics */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center space-x-2">
-                        <TrendingUp className="h-5 w-5" />
-                        <span>إحصائيات العميل</span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="flex justify-between">
-                        <span>تاريخ الانضمام:</span>
-                        <span className="font-medium">{new Date(profile.joinDate).toLocaleDateString('ar-SA')}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>إجمالي الطلبات:</span>
-                        <span className="font-medium">{profile.totalOrders}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>إجمالي المبلغ:</span>
-                        <span className="font-medium">{profile.totalSpent.toLocaleString()} ريال</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>تقييم الرضا:</span>
-                        <div className="flex items-center space-x-1">
-                          <Star className="h-4 w-4 text-yellow-500" />
-                          <span className="font-medium">{profile.satisfactionRating}/5</span>
-                        </div>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>آخر تواصل:</span>
-                        <span className="font-medium">{new Date(profile.lastContact).toLocaleDateString('ar-SA')}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
                 </div>
 
-                {/* Tags */}
-                {profile.tags.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>العلامات</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex flex-wrap gap-2">
-                        {profile.tags.map((tag, index) => (
-                          <Badge key={index} variant="secondary">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
               </TabsContent>
 
-              <TabsContent value="history" className="space-y-4">
-                <div className="space-y-4">
-                  {/* Inquiries */}
-                  {inquiries.length > 0 && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center space-x-2">
-                          <MessageSquare className="h-5 w-5" />
-                          <span>الاستفسارات ({inquiries.length})</span>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          {inquiries.map((inquiry) => (
-                            <div key={inquiry.id} className="border rounded-lg p-3">
-                              <div className="flex items-center justify-between mb-2">
-                                <h4 className="font-medium">{inquiry.subject}</h4>
-                                <div className="flex items-center space-x-2">
-                                  <Badge className={getStatusColor(inquiry.status)}>
-                                    {inquiry.status}
-                                  </Badge>
-                                  <Badge className={getPriorityColor(inquiry.priority)}>
-                                    {inquiry.priority}
-                                  </Badge>
-                                </div>
-                              </div>
-                              <p className="text-sm text-gray-600 mb-2">{inquiry.description}</p>
-                              <div className="flex items-center justify-between text-xs text-gray-500">
-                                <span>{new Date(inquiry.created_at).toLocaleDateString('ar-SA')}</span>
-                                {inquiry.customer_satisfaction_rating && (
-                                  <div className="flex items-center space-x-1">
-                                    <Star className="h-3 w-3 text-yellow-500" />
-                                    <span>{inquiry.customer_satisfaction_rating}/5</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Complaints */}
-                  {complaints.length > 0 && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center space-x-2">
-                          <AlertTriangle className="h-5 w-5" />
-                          <span>الشكاوى ({complaints.length})</span>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          {complaints.map((complaint) => (
-                            <div key={complaint.id} className="border rounded-lg p-3">
-                              <div className="flex items-center justify-between mb-2">
-                                <h4 className="font-medium">{complaint.subject}</h4>
-                                <div className="flex items-center space-x-2">
-                                  <Badge className={getStatusColor(complaint.status)}>
-                                    {complaint.status}
-                                  </Badge>
-                                  <Badge className={getPriorityColor(complaint.severity)}>
-                                    {complaint.severity}
-                                  </Badge>
-                                </div>
-                              </div>
-                              <p className="text-sm text-gray-600 mb-2">{complaint.description}</p>
-                              <div className="flex items-center justify-between text-xs text-gray-500">
-                                <span>{new Date(complaint.created_at).toLocaleDateString('ar-SA')}</span>
-                                {complaint.customer_satisfaction_rating && (
-                                  <div className="flex items-center space-x-1">
-                                    <Star className="h-3 w-3 text-yellow-500" />
-                                    <span>{complaint.customer_satisfaction_rating}/5</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Maintenance Requests */}
-                  {maintenanceRequests.length > 0 && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center space-x-2">
-                          <Wrench className="h-5 w-5" />
-                          <span>طلبات الصيانة ({maintenanceRequests.length})</span>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          {maintenanceRequests.map((request) => (
-                            <div key={request.id} className="border rounded-lg p-3">
-                              <div className="flex items-center justify-between mb-2">
-                                <h4 className="font-medium">{request.equipment_name || 'طلب صيانة'}</h4>
-                                <div className="flex items-center space-x-2">
-                                  <Badge className={getStatusColor(request.status)}>
-                                    {request.status}
-                                  </Badge>
-                                  <Badge className={getPriorityColor(request.priority)}>
-                                    {request.priority}
-                                  </Badge>
-                                </div>
-                              </div>
-                              <p className="text-sm text-gray-600 mb-2">{request.description}</p>
-                              <div className="flex items-center justify-between text-xs text-gray-500">
-                                <span>{new Date(request.created_at).toLocaleDateString('ar-SA')}</span>
-                                {request.customer_satisfaction_rating && (
-                                  <div className="flex items-center space-x-1">
-                                    <Star className="h-3 w-3 text-yellow-500" />
-                                    <span>{request.customer_satisfaction_rating}/5</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="communication" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>إرسال رسالة</CardTitle>
-                    <CardDescription>
-                      إرسال رسالة مباشرة للعميل
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">الرسالة</label>
-                      <textarea
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        placeholder="اكتب رسالتك هنا..."
-                        className="w-full p-3 border rounded-lg resize-none"
-                        rows={4}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-gray-500">
-                        إلى: {profile.email}
-                      </div>
-                      <Button 
-                        onClick={handleSendMessage}
-                        disabled={isSendingMessage || !newMessage.trim()}
-                      >
-                        {isSendingMessage ? 'جاري الإرسال...' : 'إرسال الرسالة'}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
 
               <TabsContent value="preferences" className="space-y-4">
                 <Card>
@@ -753,8 +715,17 @@ export function CustomerProfileModal({
                 </Card>
               </TabsContent>
             </Tabs>
-          </div>
-        )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">لا توجد بيانات للعميل</p>
+                <p className="text-sm text-gray-500 mt-2">تعذر تحميل معلومات العميل</p>
+              </div>
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   )

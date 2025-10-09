@@ -20,7 +20,7 @@ import { getCustomers, Customer } from "@/lib/customers"
 import { useToast } from "@/hooks/use-toast"
 import { exportCustomersToExcel, exportCustomersToExcelWithSummary } from "@/lib/customer-excel-export"
 
-export function CustomersTab() {
+export default function CustomersTab() {
   const [searchTerm, setSearchTerm] = useState("")
   const [customers, setCustomers] = useState<Customer[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
@@ -35,7 +35,7 @@ export function CustomersTab() {
   const [orderFilter, setOrderFilter] = useState<string>("all")
   const [isFilterOpen, setIsFilterOpen] = useState(false)
 
-  const { t } = useLanguage()
+  const { t, isRTL } = useLanguage()
   const { toast } = useToast()
 
   // Fetch customers from Supabase
@@ -512,49 +512,73 @@ export function CustomersTab() {
     })
   }, [toast])
 
+  const handleEditProfile = useCallback((customer: Customer) => {
+    setSelectedCustomer(customer)
+    setIsProfileModalOpen(true)
+  }, [])
+
+  const handleDeleteCustomer = useCallback(async (customer: Customer) => {
+    if (window.confirm(`Are you sure you want to delete ${customer.name}? This action cannot be undone.`)) {
+      try {
+        // TODO: Implement actual delete functionality with Supabase
+        toast({
+          title: "Feature Coming Soon",
+          description: "Delete customer functionality will be implemented soon",
+        })
+      } catch (err) {
+        console.error('Error deleting customer:', err)
+        toast({
+          title: "Error",
+          description: "Failed to delete customer. Please try again.",
+          variant: "destructive",
+        })
+      }
+    }
+  }, [toast])
+
   // Stable callback function to close the AddCustomerModal
   const handleCloseAddModal = useCallback(() => {
     setIsAddModalOpen(false)
   }, [])
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${isRTL ? 'text-right' : 'text-left'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
+      <div className={`flex justify-between items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
+        <div className={isRTL ? 'text-right' : 'text-left'}>
           <h2 className="text-2xl font-bold text-gray-900">{t("customerManagement")}</h2>
           <p className="text-gray-600">{t("manageCustomerRelationships")}</p>
         </div>
-        <div className="flex gap-2">
+        <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                <Download className="h-4 w-4 mr-2" />
+              <Button variant="outline" className={isRTL ? 'flex-row-reverse' : ''}>
                 {t("export")}
+                <Download className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={exportToCSV}>
-                <FileText className="h-4 w-4 mr-2" />
+              <DropdownMenuItem onClick={exportToCSV} className={isRTL ? 'flex-row-reverse' : ''}>
                 Export as CSV
+                <FileText className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportToExcel}>
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
+              <DropdownMenuItem onClick={handleExportToExcel} className={isRTL ? 'flex-row-reverse' : ''}>
                 Export as Excel
+                <FileSpreadsheet className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportToExcelWithSummary}>
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
+              <DropdownMenuItem onClick={handleExportToExcelWithSummary} className={isRTL ? 'flex-row-reverse' : ''}>
                 Export as Excel (with Summary)
+                <FileSpreadsheet className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={exportToPDF}>
-                <FileText className="h-4 w-4 mr-2" />
+              <DropdownMenuItem onClick={exportToPDF} className={isRTL ? 'flex-row-reverse' : ''}>
                 Export as PDF
+                <FileText className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button onClick={() => setIsAddModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button onClick={() => setIsAddModalOpen(true)} className={isRTL ? 'flex-row-reverse' : ''}>
             {t("add")} Customer
+            <Plus className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
           </Button>
         </div>
       </div>
@@ -563,55 +587,55 @@ export function CustomersTab() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-3">
+            <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <div>
+                <p className={`text-sm text-gray-600 ${isRTL ? 'text-right' : 'text-left'}`}>{t("activeCustomers")}</p>
+                <p className={`text-xl font-bold ${isRTL ? 'text-right' : 'text-left'}`}>{stats.active}</p>
+              </div>
               <div className="p-2 bg-green-100 rounded-lg">
                 <div className="h-2 w-2 bg-green-500 rounded-full"></div>
               </div>
-              <div>
-                <p className="text-sm text-gray-600">{t("activeCustomers")}</p>
-                <p className="text-xl font-bold">{stats.active}</p>
-              </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-3">
+            <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <div>
+                <p className={`text-sm text-gray-600 ${isRTL ? 'text-right' : 'text-left'}`}>{t("vipCustomers")}</p>
+                <p className={`text-xl font-bold ${isRTL ? 'text-right' : 'text-left'}`}>{stats.vip}</p>
+              </div>
               <div className="p-2 bg-purple-100 rounded-lg">
                 <Star className="h-4 w-4 text-purple-600" />
               </div>
-              <div>
-                <p className="text-sm text-gray-600">{t("vipCustomers")}</p>
-                <p className="text-xl font-bold">{stats.vip}</p>
-              </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-3">
+            <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <div>
+                <p className={`text-sm text-gray-600 ${isRTL ? 'text-right' : 'text-left'}`}>{t("totalRevenue")}</p>
+                <p className={`text-xl font-bold ${isRTL ? 'text-right' : 'text-left'}`}>${stats.totalRevenue.toLocaleString()}</p>
+              </div>
               <div className="p-2 bg-blue-100 rounded-lg">
                 <Package className="h-4 w-4 text-blue-600" />
               </div>
-              <div>
-                <p className="text-sm text-gray-600">{t("totalRevenue")}</p>
-                <p className="text-xl font-bold">${stats.totalRevenue.toLocaleString()}</p>
-              </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-3">
+            <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <div>
+                <p className={`text-sm text-gray-600 ${isRTL ? 'text-right' : 'text-left'}`}>{t("inactive")}</p>
+                <p className={`text-xl font-bold ${isRTL ? 'text-right' : 'text-left'}`}>{stats.inactive}</p>
+              </div>
               <div className="p-2 bg-gray-100 rounded-lg">
                 <div className="h-2 w-2 bg-gray-500 rounded-full"></div>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">{t("inactive")}</p>
-                <p className="text-xl font-bold">{stats.inactive}</p>
               </div>
             </div>
           </CardContent>
@@ -621,21 +645,22 @@ export function CustomersTab() {
       {/* Search and Filters */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-4">
+          <div className={`flex items-center gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400`} />
               <Input
                 placeholder={t("searchCustomers")}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className={isRTL ? 'pr-10' : 'pl-10'}
+                dir={isRTL ? 'rtl' : 'ltr'}
               />
             </div>
             <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
               <PopoverTrigger asChild>
-                <Button variant="outline">
-                  <Filter className="h-4 w-4 mr-2" />
+                <Button variant="outline" className={isRTL ? 'flex-row-reverse' : ''}>
                   {t("filter")}
+                  <Filter className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-80" align="end">
@@ -732,7 +757,7 @@ export function CustomersTab() {
           ) : (
             <div className="space-y-4">
               {filteredCustomers.map((customer) => (
-              <div key={customer.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50">
+              <div key={customer.id} className={`flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 ${isRTL ? 'flex-row-reverse' : ''}`}>
                 <Avatar className="h-12 w-12">
                   <AvatarImage src={customer.avatar_url || customer.avatar || "/placeholder.svg"} alt={customer.name} />
                   <AvatarFallback>
@@ -744,41 +769,41 @@ export function CustomersTab() {
                 </Avatar>
 
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-7 gap-4">
-                  <div>
+                  <div className={isRTL ? 'text-right' : 'text-left'}>
                     <p className="font-medium text-gray-900">{customer.name}</p>
                     <p className="text-sm text-gray-500">ID: {customer.customer_id}</p>
                   </div>
 
-                  <div>
-                    <div className="flex items-center gap-1 text-sm text-gray-600 mb-1">
-                      <Mail className="h-3 w-3" />
+                  <div className={isRTL ? 'text-right' : 'text-left'}>
+                    <div className={`flex items-center gap-1 text-sm text-gray-600 mb-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
                       {customer.email}
+                      <Mail className="h-3 w-3" />
                     </div>
-                    <div className="flex items-center gap-1 text-sm text-gray-600">
-                      <Phone className="h-3 w-3" />
+                    <div className={`flex items-center gap-1 text-sm text-gray-600 ${isRTL ? 'flex-row-reverse' : ''}`}>
                       {customer.phone}
+                      <Phone className="h-3 w-3" />
                     </div>
                   </div>
 
-                  <div>
-                    <div className="flex items-center gap-1 text-sm text-gray-600 mb-1">
-                      <MapPin className="h-3 w-3" />
+                  <div className={isRTL ? 'text-right' : 'text-left'}>
+                    <div className={`flex items-center gap-1 text-sm text-gray-600 mb-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
                       <span className="truncate">{customer.address.split(",")[0]}</span>
+                      <MapPin className="h-3 w-3" />
                     </div>
                     <Badge className={getStatusColor(customer.status)}>{customer.status.toUpperCase()}</Badge>
                   </div>
 
-                  <div>
+                  <div className={isRTL ? 'text-right' : 'text-left'}>
                     <p className="text-sm font-medium">{customer.total_orders} orders</p>
                     <p className="text-sm text-gray-600">${customer.total_spent.toLocaleString()}</p>
                   </div>
 
-                  <div>
-                    <div className="flex items-center gap-1 mb-1">
-                      {getVisitStatusIcon(customer.visit_status)}
+                  <div className={isRTL ? 'text-right' : 'text-left'}>
+                    <div className={`flex items-center gap-1 mb-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
                       <span className="text-sm font-medium">
                         {customer.visit_status === "visited" ? "Visited" : "Not Visited"}
                       </span>
+                      {getVisitStatusIcon(customer.visit_status)}
                     </div>
                     <div className="space-y-1">
                       <p className="text-sm text-gray-600">
@@ -799,59 +824,34 @@ export function CustomersTab() {
                     />
                   </div>
 
-                  <div>
-                    <div className="flex items-center gap-1 text-sm text-gray-600 mb-1">
-                      <Calendar className="h-3 w-3" />
+                  <div className={isRTL ? 'text-right' : 'text-left'}>
+                    <div className={`flex items-center gap-1 text-sm text-gray-600 mb-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
                       <span className="text-xs">
                         {customer.last_visit_date ? customer.last_visit_date : "No visits"}
                       </span>
+                      <Calendar className="h-3 w-3" />
                     </div>
                     <p className="text-xs text-gray-500 truncate max-w-[120px]" title={customer.visit_notes}>
                       {customer.visit_notes ? customer.visit_notes : "No notes"}
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-end">
+                  <div className={`flex items-center ${isRTL ? 'justify-start' : 'justify-end'}`}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuItem onClick={() => handleViewProfile(customer)}>
-                          <Eye className="h-4 w-4 mr-2" />
-                          View Profile
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleCreateOrder(customer)}>
-                          <Package className="h-4 w-4 mr-2" />
-                          Create Order
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleViewHistory(customer)}>
-                          <History className="h-4 w-4 mr-2" />
-                          View History
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleSendMessage(customer)}>
-                          <MessageSquare className="h-4 w-4 mr-2" />
-                          Send Message
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => handleEditProfile(customer)} className={isRTL ? 'flex-row-reverse' : ''}>
+                          Edit Profile
+                          <Edit className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleViewOnMap(customer)}>
-                          <Navigation className="h-4 w-4 mr-2" />
-                          View on Map
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleMarkAsVisited(customer)}>
-                          <UserCheck className="h-4 w-4 mr-2" />
-                          Mark as Visited
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleScheduleVisit(customer)}>
-                          <Calendar className="h-4 w-4 mr-2" />
-                          Schedule Visit
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600" onClick={() => handleDeactivateCustomer(customer)}>
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Deactivate Customer
+                        <DropdownMenuItem className={`text-red-600 ${isRTL ? 'flex-row-reverse' : ''}`} onClick={() => handleDeleteCustomer(customer)}>
+                          Delete Customer
+                          <Trash2 className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -866,10 +866,12 @@ export function CustomersTab() {
 
       {/* Modals */}
       <CustomerProfileModal
-        customer={selectedCustomer}
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
-        onSave={handleSaveCustomer}
+        customerId={selectedCustomer?.id || ''}
+        customerName={selectedCustomer?.name || ''}
+        customerEmail={selectedCustomer?.email || ''}
+        customerPhone={selectedCustomer?.phone || ''}
       />
 
       <AddCustomerModal 

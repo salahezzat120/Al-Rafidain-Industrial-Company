@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { 
   Loader2, 
   Search, 
@@ -145,6 +146,91 @@ export default function AttendanceTab() {
     setEndDate(undefined)
   }
 
+  const exportToCSV = () => {
+    if (filteredRecords.length === 0) {
+      alert(isRTL ? "لا توجد بيانات للتصدير" : "No data to export")
+      return
+    }
+
+    const headers = [
+      isRTL ? "المندوب" : "Representative",
+      isRTL ? "الهاتف" : "Phone",
+      isRTL ? "التاريخ" : "Date",
+      isRTL ? "وقت الدخول" : "Check In",
+      isRTL ? "وقت الخروج" : "Check Out",
+      isRTL ? "المدة" : "Duration",
+      isRTL ? "الحالة" : "Status",
+      isRTL ? "الموقع" : "Location"
+    ]
+
+    const csvContent = [
+      headers.join(','),
+      ...filteredRecords.map(record => [
+        `"${record.representative_name || ''}"`,
+        `"${record.representative_phone || ''}"`,
+        `"${record.check_in_time ? format(parseISO(record.check_in_time), 'yyyy-MM-dd') : ''}"`,
+        `"${record.check_in_time ? format(parseISO(record.check_in_time), 'HH:mm') : ''}"`,
+        `"${record.check_out_time ? format(parseISO(record.check_out_time), 'HH:mm') : ''}"`,
+        `"${record.total_hours ? `${record.total_hours.toFixed(1)}h` : '0h'}"`,
+        `"${record.status || ''}"`,
+        `"${record.location || ''}"`
+      ].join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `attendance_records_${format(new Date(), 'yyyy-MM-dd')}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const exportToExcel = () => {
+    if (filteredRecords.length === 0) {
+      alert(isRTL ? "لا توجد بيانات للتصدير" : "No data to export")
+      return
+    }
+
+    // Create Excel-like CSV with proper formatting
+    const headers = [
+      isRTL ? "المندوب" : "Representative",
+      isRTL ? "الهاتف" : "Phone", 
+      isRTL ? "التاريخ" : "Date",
+      isRTL ? "وقت الدخول" : "Check In",
+      isRTL ? "وقت الخروج" : "Check Out",
+      isRTL ? "المدة" : "Duration",
+      isRTL ? "الحالة" : "Status",
+      isRTL ? "الموقع" : "Location"
+    ]
+
+    const excelContent = [
+      headers.join('\t'),
+      ...filteredRecords.map(record => [
+        record.representative_name || '',
+        record.representative_phone || '',
+        record.check_in_time ? format(parseISO(record.check_in_time), 'yyyy-MM-dd') : '',
+        record.check_in_time ? format(parseISO(record.check_in_time), 'HH:mm') : '',
+        record.check_out_time ? format(parseISO(record.check_out_time), 'HH:mm') : '',
+        record.total_hours ? `${record.total_hours.toFixed(1)}h` : '0h',
+        record.status || '',
+        record.location || ''
+      ].join('\t'))
+    ].join('\n')
+
+    const blob = new Blob([excelContent], { type: 'application/vnd.ms-excel;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `attendance_records_${format(new Date(), 'yyyy-MM-dd')}.xls`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       checked_in: { label: "Checked In", variant: "default", icon: CheckCircle, color: "text-green-600" },
@@ -232,10 +318,24 @@ export default function AttendanceTab() {
             <RefreshCw className="h-4 w-4 mr-2" />
             {isRTL ? "تحديث" : "Refresh"}
           </Button>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            {isRTL ? "تصدير" : "Export"}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                {isRTL ? "تصدير" : "Export"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={exportToCSV}>
+                <Download className="h-4 w-4 mr-2" />
+                {isRTL ? "تصدير CSV" : "Export CSV"}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={exportToExcel}>
+                <Download className="h-4 w-4 mr-2" />
+                {isRTL ? "تصدير Excel" : "Export Excel"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

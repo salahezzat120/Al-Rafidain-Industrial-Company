@@ -110,17 +110,36 @@ export default function AddEmployeeModal({ open, onOpenChange, onAdd }: AddEmplo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Only allow submission on the final step
+    if (currentStep !== steps.length) {
+      return
+    }
+    
     if (!validateStep(currentStep)) return
 
     setIsSubmitting(true)
     try {
       console.log('Form data being submitted:', formData)
       
-      const { data: newEmployee, error } = await createEmployee(formData)
+      let { data: newEmployee, error } = await createEmployee(formData)
       if (error) {
         console.error('Error from createEmployee:', error)
-        toast.error(`Failed to create employee: ${error}`)
-        return
+        if (typeof error === 'string' && error.toLowerCase().includes('employee id already exists')) {
+          // Auto-generate a new ID and retry once
+          generateEmployeeId()
+          await new Promise(r => setTimeout(r, 50))
+          const retryPayload = { ...formData, employee_id: `EMP${Date.now().toString().slice(-6)}` }
+          const retry = await createEmployee(retryPayload)
+          newEmployee = retry.data
+          if (retry.error) {
+            toast.error(retry.error)
+            return
+          }
+        } else {
+          toast.error(`Failed to create employee: ${error}`)
+          return
+        }
       }
 
       if (newEmployee) {
@@ -164,14 +183,16 @@ export default function AddEmployeeModal({ open, onOpenChange, onAdd }: AddEmplo
   }
 
   const generateEmployeeId = () => {
-    const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
-    setFormData(prev => ({ ...prev, employee_id: `EMP${randomNum}` }))
+    const randomNum = Math.floor(Math.random() * 1000000)
+    const timestamp = Date.now().toString().slice(-5)
+    const unique = (randomNum + parseInt(timestamp, 10)).toString().slice(-6)
+    setFormData(prev => ({ ...prev, employee_id: `EMP${unique}` }))
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5" />
             Add New Employee
@@ -204,7 +225,18 @@ export default function AddEmployeeModal({ open, onOpenChange, onAdd }: AddEmplo
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="flex-1 overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+          <form 
+            id="employee-form" 
+            onSubmit={handleSubmit} 
+            onKeyDown={(e) => {
+              // Prevent Enter key from submitting form unless on final step
+              if (e.key === 'Enter' && currentStep !== steps.length) {
+                e.preventDefault()
+              }
+            }}
+            className="space-y-6"
+          >
           {/* Step 1: Personal Information */}
           {currentStep === 1 && (
             <Card>
@@ -606,7 +638,11 @@ export default function AddEmployeeModal({ open, onOpenChange, onAdd }: AddEmplo
             </Card>
           )}
 
-          {/* Navigation Buttons */}
+          </form>
+        </div>
+
+        {/* Navigation Buttons - Fixed at bottom */}
+        <div className="flex-shrink-0 border-t bg-background p-4">
           <div className="flex justify-between">
             <Button
               type="button"
@@ -629,7 +665,7 @@ export default function AddEmployeeModal({ open, onOpenChange, onAdd }: AddEmplo
                   Next
                 </Button>
               ) : (
-                <Button type="submit" disabled={isSubmitting}>
+                <Button type="submit" form="employee-form" disabled={isSubmitting}>
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -645,7 +681,7 @@ export default function AddEmployeeModal({ open, onOpenChange, onAdd }: AddEmplo
               )}
             </div>
           </div>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   )

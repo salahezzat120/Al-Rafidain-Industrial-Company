@@ -195,74 +195,70 @@ export function UsersTabSimple() {
     <div className="space-y-6" dir={isRTL ? "rtl" : "ltr"}>
       {/* Header */}
       <div className="flex justify-between items-center">
-        <div>
+        <div className={isRTL ? 'text-right' : 'text-left'}>
           <h2 className="text-3xl font-bold text-gray-900">{t("nav.userManagement")}</h2>
-          <p className="text-gray-600 mt-1">Manage admin and supervisor users</p>
+          <p className="text-gray-600 mt-1">{isRTL ? "إدارة المستخدمين والصلاحيات" : "Manage admin and supervisor users"}</p>
         </div>
         
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
-              <UserPlus className="h-4 w-4 mr-2" />
-              Add New User
+            <Button className={`bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              {isRTL ? "إضافة مستخدم جديد" : "Add New User"}
+              <UserPlus className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Create New User</DialogTitle>
+              <DialogTitle>{isRTL ? "إنشاء مستخدم جديد" : "Create New User"}</DialogTitle>
               <DialogDescription>
-                Add a new admin or supervisor to the system
+                {isRTL ? "إضافة مسؤول أو مشرف جديد إلى النظام" : "Add a new admin or supervisor to the system"}
               </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="name">{isRTL ? "الاسم الكامل" : "Full Name"}</Label>
                 <Input
                   id="name"
                   type="text"
-                  placeholder="Enter full name"
+                  placeholder={isRTL ? "أدخل الاسم الكامل" : "Enter full name"}
                   value={newUser.name}
                   onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
                   required
+                  dir={isRTL ? 'rtl' : 'ltr'}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email">{isRTL ? "البريد الإلكتروني" : "Email Address"}</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Enter email address"
+                  placeholder={isRTL ? "أدخل البريد الإلكتروني" : "Enter email address"}
                   value={newUser.email}
                   onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                   required
+                  dir={isRTL ? 'rtl' : 'ltr'}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
+                <Label htmlFor="role">{isRTL ? "الدور" : "Role"}</Label>
                 <Select value={newUser.role} onValueChange={(value) => setNewUser({ ...newUser, role: value })}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select user role" />
+                    <SelectValue placeholder={isRTL ? "اختر دور المستخدم" : "Select user role"} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="admin">
-                      <div className="flex items-center space-x-2">
+                      <div className={`flex items-center ${isRTL ? 'space-x-reverse space-x-2' : 'space-x-2'}`}>
                         <Shield className="h-4 w-4" />
-                        <span>Admin</span>
+                        <span>{isRTL ? "مسؤول" : "Admin"}</span>
                       </div>
                     </SelectItem>
                     <SelectItem value="supervisor">
-                      <div className="flex items-center space-x-2">
+                      <div className={`flex items-center ${isRTL ? 'space-x-reverse space-x-2' : 'space-x-2'}`}>
                         <Users className="h-4 w-4" />
-                        <span>Supervisor</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="representative">
-                      <div className="flex items-center space-x-2">
-                        <Users className="h-4 w-4" />
-                        <span>Representative</span>
+                        <span>{isRTL ? "مشرف" : "Supervisor"}</span>
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -270,20 +266,21 @@ export function UsersTabSimple() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{isRTL ? "كلمة المرور" : "Password"}</Label>
                 <div className="relative">
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Enter password (min. 6 characters)"
+                    placeholder={isRTL ? "أدخل كلمة المرور (6 أحرف على الأقل)" : "Enter password (min. 6 characters)"}
                     value={newUser.password}
                     onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                     required
+                    dir={isRTL ? 'rtl' : 'ltr'}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className={`absolute ${isRTL ? 'left-3' : 'right-3'} top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600`}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -291,14 +288,15 @@ export function UsersTabSimple() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Label htmlFor="confirmPassword">{isRTL ? "تأكيد كلمة المرور" : "Confirm Password"}</Label>
                 <Input
                   id="confirmPassword"
                   type="password"
-                  placeholder="Confirm password"
+                  placeholder={isRTL ? "تأكيد كلمة المرور" : "Confirm password"}
                   value={newUser.confirmPassword}
                   onChange={(e) => setNewUser({ ...newUser, confirmPassword: e.target.value })}
                   required
+                  dir={isRTL ? 'rtl' : 'ltr'}
                 />
               </div>
 
@@ -313,7 +311,7 @@ export function UsersTabSimple() {
                 </Alert>
               )}
 
-              <div className="flex space-x-2">
+              <div className={`flex ${isRTL ? 'space-x-reverse space-x-2' : 'space-x-2'}`}>
                 <Button
                   variant="outline"
                   className="flex-1"
@@ -323,7 +321,7 @@ export function UsersTabSimple() {
                     setMessage(null)
                   }}
                 >
-                  Cancel
+                  {isRTL ? "إلغاء" : "Cancel"}
                 </Button>
                 <Button
                   className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
@@ -331,12 +329,12 @@ export function UsersTabSimple() {
                   disabled={createLoading}
                 >
                   {createLoading ? (
-                    <div className="flex items-center space-x-2">
+                    <div className={`flex items-center ${isRTL ? 'space-x-reverse space-x-2' : 'space-x-2'}`}>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Creating...</span>
+                      <span>{isRTL ? "جاري الإنشاء..." : "Creating..."}</span>
                     </div>
                   ) : (
-                    'Create User'
+                    isRTL ? 'إنشاء مستخدم' : 'Create User'
                   )}
                 </Button>
               </div>
@@ -348,8 +346,8 @@ export function UsersTabSimple() {
       {/* Tabs for User Management and Supervisor Permissions */}
       <Tabs defaultValue="users" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="users">All Users</TabsTrigger>
-          <TabsTrigger value="supervisor-permissions">Supervisor Permissions</TabsTrigger>
+          <TabsTrigger value="users">{isRTL ? "جميع المستخدمين" : "All Users"}</TabsTrigger>
+          <TabsTrigger value="supervisor-permissions">{isRTL ? "صلاحيات المشرفين" : "Supervisor Permissions"}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="space-y-4">

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ResponsiveFormModal } from "@/components/ui/responsive-modal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -308,7 +309,7 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
   return (
     <>
       <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[85vw] max-w-5xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
@@ -316,7 +317,8 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="flex-1 overflow-y-auto px-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+            <form id="customer-form" onSubmit={handleSubmit} className="space-y-6">
             {/* Personal Information */}
             <Card>
               <CardHeader>
@@ -739,34 +741,20 @@ export function AddCustomerModal({ isOpen, onClose, onAdd }: AddCustomerModalPro
               </CardContent>
             </Card>
 
-            <div className="flex justify-end gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleClose}
-                disabled={isSubmitting}
-              >
-                <X className="h-4 w-4 mr-2" />
-                {isRTL ? "إلغاء" : "Cancel"}
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    {isRTL ? "جاري الإضافة..." : "Adding..."}
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    {isRTL ? "إضافة العميل" : "Add Customer"}
-                  </>
-                )}
-              </Button>
-            </div>
           </form>
+          </div>
+
+          {/* Fixed Footer with Buttons */}
+          <div className="flex-shrink-0 border-t bg-white p-4 flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
+              <X className="h-4 w-4 mr-2" />
+              {isRTL ? "إلغاء" : "Cancel"}
+            </Button>
+            <Button type="submit" form="customer-form" disabled={isSubmitting}>
+              <Save className="h-4 w-4 mr-2" />
+              {isSubmitting ? (isRTL ? "جاري الحفظ..." : "Saving...") : (isRTL ? "حفظ العميل" : "Save Customer")}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 

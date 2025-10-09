@@ -38,6 +38,7 @@ import {
   BarChart3
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useLanguage } from '@/contexts/language-context'
 import type { Employee, EmployeeStats } from '@/types/employees'
 import { getEmployees, getEmployeeStats, deleteEmployee } from '@/lib/employees'
 import AddEmployeeModal from './add-employee-modal'
@@ -47,6 +48,7 @@ import AttendanceModal from './attendance-modal'
 import PerformanceModal from './performance-modal'
 
 export default function EmployeesTab() {
+  const { t, isRTL } = useLanguage()
   const [employees, setEmployees] = useState<Employee[]>([])
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -250,70 +252,82 @@ export default function EmployeesTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${isRTL ? 'text-right' : 'text-left'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Employee Management</h2>
-          <p className="text-muted-foreground">Manage your team members, permissions, and performance</p>
+      <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+        <div className={isRTL ? 'text-right' : 'text-left'}>
+          <h2 className="text-2xl font-bold tracking-tight">
+            {isRTL ? "إدارة الموظفين" : "Employee Management"}
+          </h2>
+          <p className="text-muted-foreground">
+            {isRTL ? "إدارة أعضاء الفريق والصلاحيات والأداء" : "Manage your team members, permissions, and performance"}
+          </p>
         </div>
-        <Button onClick={() => setShowAddModal(true)} className="gap-2">
-          <UserPlus className="h-4 w-4" />
-            Add Employee
-          </Button>
+        <Button onClick={() => setShowAddModal(true)} className={`gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+          <UserPlus className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+          {isRTL ? "إضافة موظف" : "Add Employee"}
+        </Button>
       </div>
 
       {/* Stats Cards */}
       {stats && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className={`flex flex-row items-center justify-between space-y-0 pb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+            <CardTitle className={`text-sm font-medium ${isRTL ? 'text-right' : 'text-left'}`}>
+              {isRTL ? "إجمالي الموظفين" : "Total Employees"}
+            </CardTitle>
+            <Users className={`h-4 w-4 text-muted-foreground ${isRTL ? 'ml-2' : 'mr-2'}`} />
           </CardHeader>
-          <CardContent>
-              <div className="text-2xl font-bold">{stats.totalEmployees}</div>
+          <CardContent className={isRTL ? 'text-right' : 'text-left'}>
+            <div className="text-2xl font-bold">{stats.totalEmployees}</div>
             <p className="text-xs text-muted-foreground">
-                {stats.activeEmployees} active
+              {stats.activeEmployees} {isRTL ? "نشط" : "active"}
             </p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Average Salary</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className={`flex flex-row items-center justify-between space-y-0 pb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+            <CardTitle className={`text-sm font-medium ${isRTL ? 'text-right' : 'text-left'}`}>
+              {isRTL ? "متوسط الراتب" : "Average Salary"}
+            </CardTitle>
+            <DollarSign className={`h-4 w-4 text-muted-foreground ${isRTL ? 'ml-2' : 'mr-2'}`} />
           </CardHeader>
-          <CardContent>
-              <div className="text-2xl font-bold">${stats.averageSalary.toFixed(0)}</div>
-              <p className="text-xs text-muted-foreground">
-                Total: ${stats.totalSalary.toFixed(0)}
-              </p>
+          <CardContent className={isRTL ? 'text-right' : 'text-left'}>
+            <div className="text-2xl font-bold">${stats.averageSalary.toFixed(0)}</div>
+            <p className="text-xs text-muted-foreground">
+              {isRTL ? "الإجمالي:" : "Total:"} ${stats.totalSalary.toFixed(0)}
+            </p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Departments</CardTitle>
-              <Building className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className={`flex flex-row items-center justify-between space-y-0 pb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+            <CardTitle className={`text-sm font-medium ${isRTL ? 'text-right' : 'text-left'}`}>
+              {isRTL ? "الأقسام" : "Departments"}
+            </CardTitle>
+            <Building className={`h-4 w-4 text-muted-foreground ${isRTL ? 'ml-2' : 'mr-2'}`} />
           </CardHeader>
-          <CardContent>
-              <div className="text-2xl font-bold">{Object.keys(stats.departmentStats).length}</div>
-              <p className="text-xs text-muted-foreground">
-                {Object.entries(stats.departmentStats).map(([dept, count]) => `${dept}: ${count}`).join(', ')}
-              </p>
+          <CardContent className={isRTL ? 'text-right' : 'text-left'}>
+            <div className="text-2xl font-bold">{Object.keys(stats.departmentStats).length}</div>
+            <p className="text-xs text-muted-foreground">
+              {Object.entries(stats.departmentStats).map(([dept, count]) => `${dept}: ${count}`).join(', ')}
+            </p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Rate</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className={`flex flex-row items-center justify-between space-y-0 pb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+            <CardTitle className={`text-sm font-medium ${isRTL ? 'text-right' : 'text-left'}`}>
+              {isRTL ? "معدل النشاط" : "Active Rate"}
+            </CardTitle>
+            <TrendingUp className={`h-4 w-4 text-muted-foreground ${isRTL ? 'ml-2' : 'mr-2'}`} />
           </CardHeader>
-          <CardContent>
+          <CardContent className={isRTL ? 'text-right' : 'text-left'}>
             <div className="text-2xl font-bold">
-                {((stats.activeEmployees / stats.totalEmployees) * 100).toFixed(1)}%
+              {((stats.activeEmployees / stats.totalEmployees) * 100).toFixed(1)}%
             </div>
-              <p className="text-xs text-muted-foreground">
-                {stats.inactiveEmployees} inactive, {stats.suspendedEmployees} suspended
-              </p>
+            <p className="text-xs text-muted-foreground">
+              {stats.inactiveEmployees} {isRTL ? "غير نشط" : "inactive"}, {stats.suspendedEmployees} {isRTL ? "معلق" : "suspended"}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -322,28 +336,32 @@ export default function EmployeesTab() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Filters</CardTitle>
+          <CardTitle className={isRTL ? 'text-right' : 'text-left'}>
+            {isRTL ? "المرشحات" : "Filters"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col gap-4 md:flex-row md:items-center">
+          <div className={`flex flex-col gap-4 md:flex-row md:items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search employees..."
+                <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground`} />
+                <Input
+                  placeholder={isRTL ? "البحث في الموظفين..." : "Search employees..."}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+                  className={isRTL ? 'pr-10' : 'pl-10'}
+                  dir={isRTL ? 'rtl' : 'ltr'}
+                />
+              </div>
             </div>
-            <div className="flex gap-2">
+            <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
               <select
                 value={selectedDepartment}
                 onChange={(e) => setSelectedDepartment(e.target.value)}
                 className="px-3 py-2 border border-input bg-background rounded-md text-sm"
+                dir={isRTL ? 'rtl' : 'ltr'}
               >
-                <option value="all">All Departments</option>
+                <option value="all">{isRTL ? "جميع الأقسام" : "All Departments"}</option>
                 {departments.map(dept => (
                   <option key={dept} value={dept}>{dept}</option>
                 ))}
@@ -352,14 +370,15 @@ export default function EmployeesTab() {
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
                 className="px-3 py-2 border border-input bg-background rounded-md text-sm"
+                dir={isRTL ? 'rtl' : 'ltr'}
               >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="suspended">Suspended</option>
+                <option value="all">{isRTL ? "جميع الحالات" : "All Status"}</option>
+                <option value="active">{isRTL ? "نشط" : "Active"}</option>
+                <option value="inactive">{isRTL ? "غير نشط" : "Inactive"}</option>
+                <option value="suspended">{isRTL ? "معلق" : "Suspended"}</option>
               </select>
-      </div>
-        </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -368,21 +387,31 @@ export default function EmployeesTab() {
           {filteredEmployees.map((employee) => (
           <Card key={employee.id} className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center space-x-3">
-              <Avatar className="h-12 w-12">
+              <div className={`flex items-start justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <div className={`flex items-center ${isRTL ? 'space-x-reverse space-x-3' : 'space-x-3'}`}>
+                  <Avatar className="h-12 w-12">
                     <AvatarImage src={employee.avatar_url} />
-                <AvatarFallback>
-                  {employee.first_name[0]}{employee.last_name[0]}
-                </AvatarFallback>
-              </Avatar>
-                  <div>
-                    <h3 className="font-semibold">{employee.first_name} {employee.last_name}</h3>
-                    <p className="text-sm text-muted-foreground">{employee.position}</p>
-                    <Badge className={`mt-1 ${getStatusColor(employee.status)}`}>
-                    {getStatusIcon(employee.status)}
-                    <span className="ml-1 capitalize">{employee.status}</span>
-                  </Badge>
+                    <AvatarFallback>
+                      {employee.first_name[0]}{employee.last_name[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className={isRTL ? 'text-right' : 'text-left'}>
+                    <h3 className={`font-semibold ${isRTL ? 'text-right' : 'text-left'}`}>
+                      {employee.first_name} {employee.last_name}
+                    </h3>
+                    <p className={`text-sm text-muted-foreground ${isRTL ? 'text-right' : 'text-left'}`}>
+                      {employee.position}
+                    </p>
+                    <Badge className={`mt-1 ${getStatusColor(employee.status)} ${isRTL ? 'flex-row-reverse justify-end' : ''}`}>
+                      {getStatusIcon(employee.status)}
+                      <span className={`${isRTL ? 'mr-1' : 'ml-1'} capitalize`}>
+                        {isRTL ? 
+                          (employee.status === 'active' ? 'نشط' : 
+                           employee.status === 'inactive' ? 'غير نشط' : 'معلق') : 
+                          employee.status
+                        }
+                      </span>
+                    </Badge>
                   </div>
                 </div>
               <DropdownMenu>
@@ -392,52 +421,54 @@ export default function EmployeesTab() {
                   </Button>
                 </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleViewProfile(employee)}>
-                      <Eye className="h-4 w-4 mr-2" />
-                    View Profile
-                  </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleEditPermissions(employee)}>
-                      <Shield className="h-4 w-4 mr-2" />
-                      Manage Permissions
-                  </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleViewAttendance(employee)}>
-                      <Calendar className="h-4 w-4 mr-2" />
-                      View Attendance
-                  </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleViewPerformance(employee)}>
-                      <BarChart3 className="h-4 w-4 mr-2" />
-                      Performance Review
-                  </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDeleteEmployee(employee.id)} className="text-red-600">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Employee
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => handleViewProfile(employee)} className={isRTL ? 'flex-row-reverse' : ''}>
+                      <Eye className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                      {isRTL ? "عرض الملف الشخصي" : "View Profile"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleEditPermissions(employee)} className={isRTL ? 'flex-row-reverse' : ''}>
+                      <Shield className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                      {isRTL ? "إدارة الصلاحيات" : "Manage Permissions"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleViewAttendance(employee)} className={isRTL ? 'flex-row-reverse' : ''}>
+                      <Calendar className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                      {isRTL ? "عرض الحضور" : "View Attendance"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleViewPerformance(employee)} className={isRTL ? 'flex-row-reverse' : ''}>
+                      <BarChart3 className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                      {isRTL ? "مراجعة الأداء" : "Performance Review"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDeleteEmployee(employee.id)} className={`text-red-600 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      <Trash2 className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                      {isRTL ? "حذف الموظف" : "Delete Employee"}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
               </DropdownMenu>
             </div>
             </CardHeader>
-            <CardContent className="pt-0">
-              <div className="space-y-2">
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Building className="h-4 w-4 mr-2" />
-                  {employee.department}
+            <CardContent className={`pt-0 ${isRTL ? 'text-right employee-card-content' : 'text-left'}`}>
+              <div className="space-y-3">
+                <div className={`flex items-center text-sm text-muted-foreground ${isRTL ? 'flex-row-reverse justify-end' : ''}`}>
+                  <Building className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                  <span className={isRTL ? 'text-right' : 'text-left'}>{employee.department}</span>
                 </div>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Mail className="h-4 w-4 mr-2" />
-                  {employee.email}
+                <div className={`flex items-center text-sm text-muted-foreground ${isRTL ? 'flex-row-reverse justify-end' : ''}`}>
+                  <Mail className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                  <span className={isRTL ? 'text-right' : 'text-left'}>{employee.email}</span>
                 </div>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Phone className="h-4 w-4 mr-2" />
-                  {employee.phone}
+                <div className={`flex items-center text-sm text-muted-foreground ${isRTL ? 'flex-row-reverse justify-end' : ''}`}>
+                  <Phone className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                  <span className={isRTL ? 'text-right' : 'text-left'}>{employee.phone}</span>
                 </div>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <CalendarIcon className="h-4 w-4 mr-2" />
-                  Hired: {new Date(employee.hire_date).toLocaleDateString()}
+                <div className={`flex items-center text-sm text-muted-foreground ${isRTL ? 'flex-row-reverse justify-end' : ''}`}>
+                  <CalendarIcon className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                  <span className={isRTL ? 'text-right' : 'text-left'}>
+                    {isRTL ? "تم التوظيف:" : "Hired:"} {new Date(employee.hire_date).toLocaleDateString()}
+                  </span>
                 </div>
                 {employee.salary && (
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <DollarSign className="h-4 w-4 mr-2" />
-                    ${employee.salary.toLocaleString()}
+                  <div className={`flex items-center text-sm text-muted-foreground ${isRTL ? 'flex-row-reverse justify-end' : ''}`}>
+                    <DollarSign className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                    <span className={isRTL ? 'text-right' : 'text-left'}>${employee.salary.toLocaleString()}</span>
                   </div>
                 )}
               </div>
@@ -450,16 +481,18 @@ export default function EmployeesTab() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Users className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No employees found</h3>
-            <p className="text-muted-foreground text-center mb-4">
+            <h3 className={`text-lg font-semibold mb-2 ${isRTL ? 'text-right' : 'text-left'}`}>
+              {isRTL ? "لم يتم العثور على موظفين" : "No employees found"}
+            </h3>
+            <p className={`text-muted-foreground text-center mb-4 ${isRTL ? 'text-right' : 'text-left'}`}>
               {searchQuery || selectedDepartment !== 'all' || selectedStatus !== 'all'
-                ? 'Try adjusting your search criteria'
-                : 'Get started by adding your first employee'
+                ? (isRTL ? "جرب تعديل معايير البحث" : "Try adjusting your search criteria")
+                : (isRTL ? "ابدأ بإضافة أول موظف لك" : "Get started by adding your first employee")
               }
             </p>
-            <Button onClick={() => setShowAddModal(true)} className="gap-2">
-              <UserPlus className="h-4 w-4" />
-              Add Employee
+            <Button onClick={() => setShowAddModal(true)} className={`gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <UserPlus className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+              {isRTL ? "إضافة موظف" : "Add Employee"}
             </Button>
           </CardContent>
         </Card>

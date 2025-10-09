@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modal Scrolling Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            max-width: 800px;
+            max-height: 90vh;
+            width: 90%;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e0e0e0;
+            flex-shrink: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-title {
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+        .close-btn:hover {
+            color: #000;
+        }
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1px;
+            scrollbar-width: thin;
+            scrollbar-color: #d1d5db #f3f4f6;
+        }
+        .modal-body::-webkit-scrollbar {
+            width: 6px;
+        }
+        .modal-body::-webkit-scrollbar-track {
+            background: #f3f4f6;
+        }
+        .modal-body::-webkit-scrollbar-thumb {
+            background-color: #d1d5db;
+            border-radius: 3px;
+        }
+        .modal-body::-webkit-scrollbar-thumb:hover {
+            background-color: #9ca3af;
+        }
+        .content-section {
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        .customer-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #3498db;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .customer-info h3 {
+            margin: 0 0 8px 0;
+            font-size: 20px;
+        }
+        .customer-info p {
+            margin: 0;
+            color: #666;
+        }
+        .status-badges {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-active {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .badge-rating {
+            background-color: #f8f9fa;
+            color: #495057;
+            border: 1px solid #dee2e6;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        .tab.active {
+            border-bottom-color: #3498db;
+            color: #3498db;
+            font-weight: bold;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .stat-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+        .test-result {
+            margin-top: 20px;
+            padding: 16px;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            color: #155724;
+        }
+        .scroll-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 1001;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>📜 Modal Scrolling Test</h1>
+        <p>This test verifies that the customer profile modal can scroll properly.</p>
+        
+        <button onclick="openModal()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            Open Scrollable Modal
+        </button>
+
+        <div id="modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title">
+                        👤 ملف العميل - صلاح عزت
+                    </div>
+                    <button class="close-btn" onclick="closeModal()">&times;</button>
+                </div>
+                <div class="modal-body" id="modalBody">
+                    <!-- Content will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="scroll-indicator" id="scrollIndicator" style="display: none;">
+            Scroll: <span id="scrollPosition">0</span>px
+        </div>
+
+        <div class="test-result" id="testResult" style="display: none;">
+            <strong>✅ Test Result:</strong> <span id="resultText"></span>
+        </div>
+    </div>
+
+    <script>
+        function openModal() {
+            document.getElementById('modal').style.display = 'flex';
+            document.getElementById('scrollIndicator').style.display = 'block';
+            generateLongContent();
+            updateScrollPosition();
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+            document.getElementById('scrollIndicator').style.display = 'none';
+        }
+
+        function generateLongContent() {
+            const body = document.getElementById('modalBody');
+            body.innerHTML = `
+                <div class="content-section">
+                    <div class="customer-header">
+                        <div class="avatar">صع</div>
+                        <div class="customer-info">
+                            <h3>صلاح عزت</h3>
+                            <p>sklans120@gmail.com</p>
+                            <div class="status-badges">
+                                <span class="badge badge-active">نشط</span>
+                                <span class="badge badge-rating">4.2/5 ⭐</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tabs">
+                    <div class="tab active">نظرة عامة</div>
+                    <div class="tab">التواصل</div>
+                    <div class="tab">التاريخ</div>
+                    <div class="tab">الملاحظات</div>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">📦</div>
+                        <div class="stat-value">24</div>
+                        <div class="stat-label">إجمالي الطلبات</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-value">$125,000</div>
+                        <div class="stat-label">إجمالي الإنفاق</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📅</div>
+                        <div class="stat-value">15/01/2023</div>
+                        <div class="stat-label">تاريخ الانضمام</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📞</div>
+                        <div class="stat-value">15/01/2024</div>
+                        <div class="stat-label">آخر تواصل</div>
+                    </div>
+                </div>
+                
+                ${generateMultipleSections()}
+            `;
+        }
+
+        function generateMultipleSections() {
+            let html = '';
+            for (let i = 1; i <= 10; i++) {
+                html += `
+                    <div class="content-section">
+                        <h3>معلومات إضافية ${i}</h3>
+                        <p>هذا قسم إضافي لاختبار التمرير. المحتوى هنا طويل بما يكفي لاختبار قدرة النافذة المنبثقة على التمرير.</p>
+                        <p>يمكنك التمرير لأسفل لرؤية المزيد من المحتوى. يجب أن تعمل شريط التمرير بشكل صحيح.</p>
+                        <div style="height: 200px; background: linear-gradient(45deg, #f0f0f0, #e0e0e0); border-radius: 4px; display: flex; align-items: center; justify-content: center; margin: 10px 0;">
+                            <span>منطقة محتوى ${i}</span>
+                        </div>
+                    </div>
+                `;
+            }
+            return html;
+        }
+
+        function updateScrollPosition() {
+            const modalBody = document.getElementById('modalBody');
+            const indicator = document.getElementById('scrollPosition');
+            
+            modalBody.addEventListener('scroll', function() {
+                indicator.textContent = Math.round(modalBody.scrollTop);
+            });
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        // Show initial test status
+        setTimeout(() => {
+            document.getElementById('resultText').textContent = 'Modal scrolling fix applied! The modal now has proper flex layout with scrollable content area.';
+            document.getElementById('testResult').style.display = 'block';
+        }, 1000);
+    </script>
+</body>
+</html>

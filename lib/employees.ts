@@ -22,15 +22,79 @@ export const createEmployee = async (employeeData: CreateEmployeeData): Promise<
   try {
     console.log('Creating employee with data:', employeeData)
     
+    // Validate required fields
+    const requiredFields = ['employee_id', 'first_name', 'last_name', 'email', 'phone', 'position', 'department', 'hire_date']
+    const missingFields = requiredFields.filter(field => !employeeData[field as keyof CreateEmployeeData])
+    
+    if (missingFields.length > 0) {
+      console.error('Missing required fields:', missingFields)
+      return { data: null, error: `Missing required fields: ${missingFields.join(', ')}` }
+    }
+    
+    // Clean and prepare data for database
+    const cleanedData = {
+      employee_id: employeeData.employee_id.trim(),
+      first_name: employeeData.first_name.trim(),
+      last_name: employeeData.last_name.trim(),
+      email: employeeData.email.trim().toLowerCase(),
+      phone: employeeData.phone.trim(),
+      position: employeeData.position.trim(),
+      department: employeeData.department.trim(),
+      hire_date: employeeData.hire_date,
+      salary: Number(employeeData.salary) || 0,
+      status: employeeData.status || 'active',
+      avatar_url: employeeData.avatar_url?.trim() || null,
+      address: employeeData.address?.trim() || null,
+      emergency_contact_name: employeeData.emergency_contact_name?.trim() || null,
+      emergency_contact_phone: employeeData.emergency_contact_phone?.trim() || null,
+      can_manage_customers: Boolean(employeeData.can_manage_customers),
+      can_manage_drivers: Boolean(employeeData.can_manage_drivers),
+      can_manage_vehicles: Boolean(employeeData.can_manage_vehicles),
+      can_view_analytics: Boolean(employeeData.can_view_analytics),
+      can_manage_employees: Boolean(employeeData.can_manage_employees),
+      can_manage_orders: Boolean(employeeData.can_manage_orders),
+      can_manage_visits: Boolean(employeeData.can_manage_visits),
+      can_manage_after_sales: Boolean(employeeData.can_manage_after_sales)
+    }
+    
+    console.log('Cleaned data for insertion:', cleanedData)
+    
+    // Pre-check: ensure employee_id is unique
+    const { count: idCount, error: idCheckError } = await supabase
+      .from('employees')
+      .select('id', { count: 'exact', head: true })
+      .eq('employee_id', cleanedData.employee_id)
+    if (idCheckError) {
+      console.error('Error checking existing employee_id:', idCheckError)
+    }
+    if ((idCount || 0) > 0) {
+      return { data: null, error: 'Employee ID already exists. Please generate a new one.' }
+    }
+    
+    // Pre-check: ensure email is unique
+    const { count: emailCount, error: emailCheckError } = await supabase
+      .from('employees')
+      .select('id', { count: 'exact', head: true })
+      .eq('email', cleanedData.email)
+    if (emailCheckError) {
+      console.error('Error checking existing email:', emailCheckError)
+    }
+    if ((emailCount || 0) > 0) {
+      return { data: null, error: 'Email already exists. Try another email.' }
+    }
+    
     const { data, error } = await supabase
       .from('employees')
-      .insert([employeeData])
+      .insert([cleanedData])
       .select()
       .single()
 
     if (error) {
       console.error('Supabase error creating employee:', error)
       console.error('Error details:', JSON.stringify(error, null, 2))
+      console.error('Error code:', error.code)
+      console.error('Error hint:', error.hint)
+      console.error('Error details:', error.details)
       return { data: null, error: error.message || 'Failed to create employee' }
     }
 

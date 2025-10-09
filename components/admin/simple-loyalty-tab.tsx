@@ -200,8 +200,8 @@ export default function SimpleLoyaltyTab() {
   return (
     <div className="space-y-6" dir={isRTL ? "rtl" : "ltr"}>
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
+      <div className={`flex justify-between items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
+        <div className={isRTL ? 'text-right' : 'text-left'}>
           <h2 className="text-2xl font-bold text-gray-900">
             {isRTL ? "نظام الولاء" : "Loyalty System"}
           </h2>
