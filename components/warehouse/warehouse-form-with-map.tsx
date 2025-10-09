@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Map, MapPin, Navigation, Building2, User, Phone, Mail, Package, AlertCircle } from 'lucide-react';
+import { Map, MapPin, Navigation, Building2, User, Phone, Mail, Package, AlertCircle, ChevronUp, ChevronDown } from 'lucide-react';
 import { LocationPicker } from '@/components/ui/location-picker';
 import { useLanguage } from '@/contexts/language-context';
 import { toast } from '@/hooks/use-toast';
@@ -42,6 +42,11 @@ export function WarehouseFormWithMap({ isOpen, onClose, onSave, editingWarehouse
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{ latitude: number; longitude: number; address?: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Scroll functionality state
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [showScrollHint, setShowScrollHint] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   // Initialize form data when editing
   React.useEffect(() => {
@@ -89,6 +94,58 @@ export function WarehouseFormWithMap({ isOpen, onClose, onSave, editingWarehouse
       setSelectedLocation(null);
     }
   }, [editingWarehouse, isOpen]);
+
+  // Track scroll progress
+  useEffect(() => {
+    const handleScroll = () => {
+      if (dialogRef.current) {
+        const { scrollTop, scrollHeight, clientHeight } = dialogRef.current;
+        const progress = (scrollTop / (scrollHeight - clientHeight)) * 100;
+        setScrollProgress(Math.min(100, Math.max(0, progress)));
+      }
+    };
+
+    const dialog = dialogRef.current;
+    if (dialog) {
+      dialog.addEventListener('scroll', handleScroll);
+      return () => dialog.removeEventListener('scroll', handleScroll);
+    }
+  }, [isOpen]);
+
+  // Show scroll hint when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        setShowScrollHint(true);
+        setTimeout(() => setShowScrollHint(false), 3000);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  const scrollToTop = () => {
+    if (dialogRef.current) {
+      dialogRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const scrollToBottom = () => {
+    if (dialogRef.current) {
+      dialogRef.current.scrollTo({ top: dialogRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 'Home') {
+        e.preventDefault();
+        scrollToTop();
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        scrollToBottom();
+      }
+    }
+  };
 
   const handleLocationSelect = (location: { latitude: number; longitude: number; address?: string }) => {
     setSelectedLocation(location);
@@ -207,8 +264,20 @@ export function WarehouseFormWithMap({ isOpen, onClose, onSave, editingWarehouse
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="space-y-3">
+        <DialogContent 
+          ref={dialogRef} 
+          onKeyDown={handleKeyDown}
+          className="max-w-6xl max-h-[95vh] overflow-hidden"
+        >
+          {/* Scroll progress bar */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gray-200 z-30 rounded-t-[20px]">
+            <div 
+              className="h-full bg-gradient-to-r from-gray-400 to-gray-500 transition-all duration-150 ease-out rounded-t-[20px]"
+              style={{ width: `${scrollProgress}%` }}
+            />
+          </div>
+          
+          <DialogHeader className="pb-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50 -m-6 mb-0 p-6">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <Building2 className="h-6 w-6 text-blue-600" />
@@ -227,7 +296,8 @@ export function WarehouseFormWithMap({ isOpen, onClose, onSave, editingWarehouse
             </div>
           </DialogHeader>
           
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="overflow-y-auto max-h-[calc(95vh-200px)] px-6">
+            <form onSubmit={handleSubmit} className="space-y-6 py-6">
             {/* Basic Information Card */}
             <Card>
               <CardHeader className="pb-4">
@@ -500,7 +570,65 @@ export function WarehouseFormWithMap({ isOpen, onClose, onSave, editingWarehouse
                 )}
               </Button>
             </DialogFooter>
-          </form>
+            </form>
+          </div>
+          
+          {/* Scroll hint overlay */}
+          {showScrollHint && (
+            <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px] flex items-center justify-center z-30 animate-in fade-in duration-500">
+              <div className="bg-white/95 px-6 py-4 rounded-xl shadow-xl border border-gray-200 backdrop-blur-sm">
+                <div className="flex items-center gap-3 text-sm text-gray-700">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                  <span className="font-medium">Scroll down to see all form sections</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Scroll indicator - only show when at top */}
+          {scrollProgress < 10 && !showScrollHint && (
+            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-2 text-xs text-gray-500 bg-white/90 px-3 py-1.5 rounded-full shadow-sm border border-gray-200 backdrop-blur-sm animate-in fade-in duration-300 z-30">
+              <div className="flex gap-1">
+                <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+              </div>
+              <span className="font-medium">Scroll to explore</span>
+            </div>
+          )}
+          
+          {/* Scroll navigation buttons */}
+          <div className="absolute top-6 right-6 flex flex-col gap-2 z-40">
+            {/* Scroll to top - only show when scrolled down */}
+            {scrollProgress > 5 && (
+              <Button
+                onClick={scrollToTop}
+                size="sm"
+                variant="outline"
+                className="h-7 w-7 p-0 bg-white/95 hover:bg-white shadow-md border-gray-200 hover:border-gray-400 hover:shadow-lg transition-all duration-200 animate-in slide-in-from-top active:scale-95"
+                title="Scroll to top (Ctrl+Home)"
+              >
+                <ChevronUp className="h-3 w-3" />
+              </Button>
+            )}
+            
+            {/* Scroll to bottom - only show when not at bottom */}
+            {scrollProgress < 95 && (
+              <Button
+                onClick={scrollToBottom}
+                size="sm"
+                variant="outline"
+                className="h-7 w-7 p-0 bg-white/95 hover:bg-white shadow-md border-gray-200 hover:border-gray-400 hover:shadow-lg transition-all duration-200 animate-in slide-in-from-top active:scale-95"
+                title="Scroll to bottom (Ctrl+End)"
+              >
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
