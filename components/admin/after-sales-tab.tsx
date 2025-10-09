@@ -59,11 +59,14 @@ import {
   createFollowUpService
 } from "@/lib/after-sales"
 import { CustomerProfileModal } from "./customer-profile-modal"
-import { LiveTrackingModal } from "./live-tracking-modal"
 import { AssignTaskModal } from "./assign-task-modal"
 import { SendMessageModal } from "./send-message-modal"
 
-export function AfterSalesTab() {
+interface AfterSalesTabProps {
+  onNavigateToLiveMap?: (representativeName?: string) => void;
+}
+
+export function AfterSalesTab({ onNavigateToLiveMap }: AfterSalesTabProps = {}) {
   const { t } = useLanguage()
   const [activeTab, setActiveTab] = useState("overview")
   const [metrics, setMetrics] = useState<AfterSalesMetrics | null>(null)
@@ -107,7 +110,6 @@ export function AfterSalesTab() {
 
   // New modal states
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
-  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false)
   const [isAssignTaskModalOpen, setIsAssignTaskModalOpen] = useState(false)
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null)
@@ -652,9 +654,13 @@ export function AfterSalesTab() {
     setIsProfileModalOpen(true)
   }
 
-  const handleLiveTracking = () => {
-    console.log('Opening live tracking modal')
-    setIsTrackingModalOpen(true)
+  const handleLiveTracking = (representativeName?: string) => {
+    console.log('Navigating to live map for representative:', representativeName)
+    
+    // Navigate to live map tab with representative name
+    if (onNavigateToLiveMap) {
+      onNavigateToLiveMap(representativeName);
+    }
   }
 
   const handleAssignTask = (taskId?: string, taskType?: string) => {
@@ -2401,10 +2407,6 @@ export function AfterSalesTab() {
         customerPhone={selectedCustomer?.customer_phone || selectedCustomer?.phone}
       />
 
-      <LiveTrackingModal
-        isOpen={isTrackingModalOpen}
-        onClose={() => setIsTrackingModalOpen(false)}
-      />
 
       <AssignTaskModal
         isOpen={isAssignTaskModalOpen}

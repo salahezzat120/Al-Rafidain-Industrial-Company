@@ -8,7 +8,6 @@ import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Star, Truck, Filter,
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AddRepresentativeModal } from "./add-representative-modal";
-import { LiveTrackingModal } from "./live-tracking-modal";
 import { AssignTaskModal } from "./assign-task-modal";
 import { MovementTrackingModal } from "./movement-tracking-modal";
 import { useLanguage } from "@/contexts/language-context";
@@ -20,14 +19,14 @@ import { Alert, AlertDescription, AlertCircle } from "@/components/ui/alert";
 interface RepresentativesTabProps {
   onNavigateToChatSupport?: () => void
   onNavigateToDeliveryTasks?: () => void
+  onNavigateToLiveMap?: (representativeName?: string) => void
 }
 
-export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDeliveryTasks }: RepresentativesTabProps = {}) {
+export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDeliveryTasks, onNavigateToLiveMap }: RepresentativesTabProps = {}) {
   const [searchTerm, setSearchTerm] = useState("");
   const [representatives, setRepresentatives] = useState<any[]>([]);
   const [selectedRepresentative, setSelectedRepresentative] = useState<any>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
   const [isAssignTaskModalOpen, setIsAssignTaskModalOpen] = useState(false);
   const [isProfileInfoModalOpen, setIsProfileInfoModalOpen] = useState(false);
   const [selectedProfileRepresentative, setSelectedProfileRepresentative] = useState<any>(null);
@@ -81,9 +80,18 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
     }
   };
 
-  const handleLiveTracking = () => {
-    console.log('Opening live tracking modal');
-    setIsTrackingModalOpen(true);
+  const handleLiveTracking = (representative?: any) => {
+    console.log('Navigating to live map for representative:', representative);
+    console.log('onNavigateToLiveMap function exists:', !!onNavigateToLiveMap);
+    
+    // Navigate to live map tab with representative name
+    if (onNavigateToLiveMap) {
+      const representativeName = representative?.name || representative?.representative_name;
+      console.log('Representative name to search for:', representativeName);
+      onNavigateToLiveMap(representativeName);
+    } else {
+      console.error('onNavigateToLiveMap function is not provided!');
+    }
   };
 
   const handleAssignTask = (representativeId?: string) => {
@@ -365,7 +373,7 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => {
                         setSelectedRepresentative(representative);
-                        handleLiveTracking();
+                        handleLiveTracking(representative);
                       }}>
                         {t("liveTracking")}
                       </DropdownMenuItem>
@@ -455,13 +463,6 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddRepresentative}
-      />
-
-
-      <LiveTrackingModal
-        representative={selectedRepresentative}
-        isOpen={isTrackingModalOpen}
-        onClose={() => setIsTrackingModalOpen(false)}
       />
 
       <AssignTaskModal

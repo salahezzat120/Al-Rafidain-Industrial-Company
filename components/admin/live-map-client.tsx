@@ -301,6 +301,30 @@ export default function LiveMapClient() {
     return () => clearInterval(interval)
   }, [])
 
+  // Read URL parameter for auto-search
+  useEffect(() => {
+    console.log('LiveMapClient: Checking for URL parameters...')
+    const urlParams = new URLSearchParams(window.location.search)
+    const searchParam = urlParams.get('search')
+    console.log('LiveMapClient: URL search parameter:', searchParam)
+    if (searchParam) {
+      console.log('LiveMapClient: Setting search term to:', searchParam)
+      setSearchTerm(searchParam)
+      // Clear the URL parameter after reading it
+      const url = new URL(window.location.href)
+      url.searchParams.delete('search')
+      window.history.replaceState({}, '', url.toString())
+      console.log('LiveMapClient: URL parameter cleared')
+    }
+  }, [])
+
+  // Perform search when searchTerm changes or when data is loaded
+  useEffect(() => {
+    if (searchTerm && (representatives.length > 0 || customers.length > 0)) {
+      performSearch(searchTerm)
+    }
+  }, [searchTerm, representatives, customers])
+
   // Inject bounce animation CSS
   useEffect(() => {
     const style = document.createElement('style')
