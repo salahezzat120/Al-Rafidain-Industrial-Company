@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, Truck, MapPin, Sparkles, UserPlus, Shield, Clock, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { User, Truck, MapPin, Sparkles, UserPlus, Shield, Clock, CheckCircle, AlertCircle, Loader2, ChevronUp, ChevronDown } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
 import { addRepresentative } from "@/lib/supabase-utils";
 
@@ -31,6 +31,61 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
   const [isGenerating, setIsGenerating] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [showScrollHint, setShowScrollHint] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Track scroll progress
+  useEffect(() => {
+    const handleScroll = () => {
+      if (dialogRef.current) {
+        const { scrollTop, scrollHeight, clientHeight } = dialogRef.current;
+        const progress = (scrollTop / (scrollHeight - clientHeight)) * 100;
+        setScrollProgress(Math.min(100, Math.max(0, progress)));
+      }
+    };
+
+    const dialog = dialogRef.current;
+    if (dialog) {
+      dialog.addEventListener('scroll', handleScroll);
+      return () => dialog.removeEventListener('scroll', handleScroll);
+    }
+  }, [isOpen]);
+
+  // Show scroll hint when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        setShowScrollHint(true);
+        setTimeout(() => setShowScrollHint(false), 3000);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  const scrollToTop = () => {
+    if (dialogRef.current) {
+      dialogRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const scrollToBottom = () => {
+    if (dialogRef.current) {
+      dialogRef.current.scrollTo({ top: dialogRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 'Home') {
+        e.preventDefault();
+        scrollToTop();
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        scrollToBottom();
+      }
+    }
+  };
 
   const generateRepresentativeId = async () => {
     return `REP-${Math.floor(Math.random() * 1000000)}`;
@@ -232,8 +287,24 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto bg-gradient-to-br from-slate-50 to-blue-50 border-0 shadow-2xl">
-        <DialogHeader className="space-y-4 pb-6">
+      <DialogContent 
+        ref={dialogRef} 
+        onKeyDown={handleKeyDown}
+        className="max-w-4xl max-h-[75vh] sm:max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200 hover:scrollbar-thumb-gray-600 bg-gradient-to-br from-slate-50 to-blue-50 border-0 shadow-2xl relative mx-auto my-8"
+        style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#6b7280 #e5e7eb'
+        }}
+      >
+        {/* Scroll progress bar */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gray-200 z-20">
+          <div 
+            className="h-full bg-gradient-to-r from-gray-400 to-gray-500 transition-all duration-150 ease-out"
+            style={{ width: `${scrollProgress}%` }}
+          />
+        </div>
+        
+        <DialogHeader className="space-y-3 pb-3 pt-1">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg">
@@ -255,10 +326,10 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <form onSubmit={handleSubmit} className="space-y-3 px-1 pb-1">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all duration-300">
-              <CardHeader className="pb-4">
+              <CardHeader className="pb-2">
                 <CardTitle className="text-xl flex items-center gap-3 text-gray-800">
                   <div className="p-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg">
                     <User className="h-5 w-5 text-white" />
@@ -406,7 +477,7 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
             </Card>
 
             <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all duration-300">
-              <CardHeader className="pb-4">
+              <CardHeader className="pb-2">
                 <CardTitle className="text-xl flex items-center gap-3 text-gray-800">
                   <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
                     <Truck className="h-5 w-5 text-white" />
@@ -676,6 +747,63 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
             </div>
           )}
         </form>
+        
+        {/* Scroll hint overlay */}
+        {showScrollHint && (
+          <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px] flex items-center justify-center z-30 animate-in fade-in duration-500">
+            <div className="bg-white/95 px-6 py-4 rounded-xl shadow-xl border border-gray-200 backdrop-blur-sm">
+              <div className="flex items-center gap-3 text-sm text-gray-700">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                </div>
+                <span className="font-medium">Scroll down to see all form sections</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Scroll indicator - only show when at top */}
+        {scrollProgress < 10 && !showScrollHint && (
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 text-xs text-gray-500 bg-white/90 px-3 py-1.5 rounded-full shadow-sm border border-gray-200 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="flex gap-1">
+              <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+            <span className="font-medium">Scroll to explore</span>
+          </div>
+        )}
+        
+        {/* Scroll navigation buttons */}
+        <div className="absolute top-2 right-2 flex flex-col gap-2 z-10">
+          {/* Scroll to top - only show when scrolled down */}
+          {scrollProgress > 5 && (
+            <Button
+              onClick={scrollToTop}
+              size="sm"
+              variant="outline"
+              className="h-7 w-7 p-0 bg-white/95 hover:bg-white shadow-md border-gray-200 hover:border-gray-400 hover:shadow-lg transition-all duration-200 animate-in slide-in-from-top active:scale-95"
+              title="Scroll to top (Ctrl+Home)"
+            >
+              <ChevronUp className="h-3 w-3" />
+            </Button>
+          )}
+          
+          {/* Scroll to bottom - only show when not at bottom */}
+          {scrollProgress < 95 && (
+            <Button
+              onClick={scrollToBottom}
+              size="sm"
+              variant="outline"
+              className="h-7 w-7 p-0 bg-white/95 hover:bg-white shadow-md border-gray-200 hover:border-gray-400 hover:shadow-lg transition-all duration-200 animate-in slide-in-from-top active:scale-95"
+              title="Scroll to bottom (Ctrl+End)"
+            >
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
