@@ -290,7 +290,7 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
       <DialogContent 
         ref={dialogRef} 
         onKeyDown={handleKeyDown}
-        className="add-representative-modal"
+        className="max-w-6xl max-h-[95vh] overflow-hidden"
       >
         {/* Scroll progress bar */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gray-200 z-20 rounded-t-[20px]">
@@ -300,7 +300,7 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
           />
         </div>
         
-        <DialogHeader className="space-y-2 pb-2 pt-1">
+        <DialogHeader className="pb-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50 -m-6 mb-0 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg">
@@ -322,7 +322,8 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-2 px-1 pb-1">
+        <div className="overflow-y-auto max-h-[calc(95vh-200px)] px-6">
+          <form onSubmit={handleSubmit} className="space-y-6 py-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
             <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all duration-300">
               <CardHeader className="pb-1">
@@ -742,7 +743,8 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
               <span className="text-sm text-red-700">{errors.submit}</span>
             </div>
           )}
-        </form>
+          </form>
+        </div>
         
         {/* Scroll hint overlay */}
         {showScrollHint && (
