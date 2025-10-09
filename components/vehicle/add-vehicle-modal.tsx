@@ -654,3 +654,5 @@ export function AddVehicleModal({ isOpen, onClose, onAdd }: AddVehicleModalProps
     </ScrollableDialog>
   );
 }
+
+

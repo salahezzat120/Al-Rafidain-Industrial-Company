@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Star, Truck, Filter, Download, Navigation, User, Calendar, Shield, Car, Clock, Copy, X } from "lucide-react";
+import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Star, Truck, Filter, Download, Navigation, User, Calendar, Shield, Car, Clock, Copy, X, Activity, History } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AddRepresentativeModal } from "./add-representative-modal";
 import { LiveTrackingModal } from "./live-tracking-modal";
 import { AssignTaskModal } from "./assign-task-modal";
+import { MovementTrackingModal } from "./movement-tracking-modal";
 import { useLanguage } from "@/contexts/language-context";
 import { getRepresentatives, generateRepresentativeId, testRepresentativesTable, testSimpleInsert } from "@/lib/supabase-utils";
 import * as XLSX from 'xlsx';
@@ -30,6 +31,8 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
   const [isAssignTaskModalOpen, setIsAssignTaskModalOpen] = useState(false);
   const [isProfileInfoModalOpen, setIsProfileInfoModalOpen] = useState(false);
   const [selectedProfileRepresentative, setSelectedProfileRepresentative] = useState<any>(null);
+  const [isMovementTrackingModalOpen, setIsMovementTrackingModalOpen] = useState(false);
+  const [selectedMovementRepresentative, setSelectedMovementRepresentative] = useState<any>(null);
   const [formData, setFormData] = useState({ id: '' });
   const [errors, setErrors] = useState({ id: '' });
 
@@ -103,6 +106,12 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
     if (onNavigateToChatSupport) {
       onNavigateToChatSupport();
     }
+  };
+
+  const handleViewMovementHistory = (representative: any) => {
+    console.log('Opening movement tracking for:', representative);
+    setSelectedMovementRepresentative(representative);
+    setIsMovementTrackingModalOpen(true);
   };
 
   const getStatusStats = () => {
@@ -259,6 +268,67 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
         </Button>
       </div>
 
+      {/* Movement Tracking Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Movement Tracking & Reports
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2 h-auto p-4"
+              onClick={() => {
+                if (representatives.length > 0) {
+                  handleViewMovementHistory(representatives[0]);
+                }
+              }}
+            >
+              <History className="h-5 w-5" />
+              <div className="text-left">
+                <div className="font-medium">View Historical Logs</div>
+                <div className="text-sm text-gray-600">Track representative movements and activities</div>
+              </div>
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2 h-auto p-4"
+              onClick={() => {
+                // Navigate to calendar view
+                if (representatives.length > 0) {
+                  handleViewMovementHistory(representatives[0]);
+                }
+              }}
+            >
+              <Calendar className="h-5 w-5" />
+              <div className="text-left">
+                <div className="font-medium">Calendar View</div>
+                <div className="text-sm text-gray-600">Select dates to view specific activities</div>
+              </div>
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2 h-auto p-4"
+              onClick={() => {
+                // Download reports for all representatives
+                console.log('Downloading comprehensive movement reports...');
+              }}
+            >
+              <Download className="h-5 w-5" />
+              <div className="text-left">
+                <div className="font-medium">Download Reports</div>
+                <div className="text-sm text-gray-600">Generate PDF/Excel reports for date ranges</div>
+              </div>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Representatives List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {representatives
@@ -304,6 +374,10 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleSendMessage(representative)}>
                         {t("sendMessage")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleViewMovementHistory(representative)}>
+                        <Activity className="h-4 w-4 mr-2" />
+                        View Movement History
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -397,6 +471,12 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
           console.log('Task assigned:', taskData);
           setIsAssignTaskModalOpen(false);
         }}
+      />
+
+      <MovementTrackingModal
+        representative={selectedMovementRepresentative}
+        isOpen={isMovementTrackingModalOpen}
+        onClose={() => setIsMovementTrackingModalOpen(false)}
       />
 
       {/* Enhanced Profile Information Modal */}

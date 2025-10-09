@@ -26,6 +26,7 @@ import type {
   Warehouse,
   CreateStockMovementData
 } from '@/types/warehouse';
+import { StockMovementsFilter, StockMovementFilters } from './stock-movements-filter';
 
 export function StockMovements() {
   const { t, isRTL } = useLanguage();
@@ -37,6 +38,8 @@ export function StockMovements() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
+  const [filters, setFilters] = useState<StockMovementFilters>({});
 
   // Form state
   const [formData, setFormData] = useState<CreateStockMovementData>({
@@ -210,11 +213,36 @@ export function StockMovements() {
     const product = products.find(p => p.id === movement.product_id);
     const warehouse = warehouses.find(w => w.id === movement.warehouse_id);
     
-    return (
-      product?.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      warehouse?.warehouse_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      movement.reference_number?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Apply search term filter
+    const matchesSearch = !filters.searchTerm || 
+      product?.product_name.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+      warehouse?.warehouse_name.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+      movement.reference_number?.toLowerCase().includes(filters.searchTerm.toLowerCase());
+    
+    // Apply movement type filter
+    const matchesMovementType = !filters.movementType || movement.movement_type === filters.movementType;
+    
+    // Apply warehouse filter
+    const matchesWarehouse = !filters.warehouseId || movement.warehouse_id === filters.warehouseId;
+    
+    // Apply product filter
+    const matchesProduct = !filters.productId || movement.product_id === filters.productId;
+    
+    // Apply status filter
+    const matchesStatus = !filters.status || (movement.status || 'Active') === filters.status;
+    
+    // Apply reference number filter
+    const matchesReference = !filters.referenceNumber || 
+      movement.reference_number?.toLowerCase().includes(filters.referenceNumber.toLowerCase());
+    
+    // Apply date filters
+    const movementDate = new Date(movement.created_at);
+    const matchesDateFrom = !filters.dateFrom || movementDate >= filters.dateFrom;
+    const matchesDateTo = !filters.dateTo || movementDate <= filters.dateTo;
+    
+    return matchesSearch && matchesMovementType && matchesWarehouse && 
+           matchesProduct && matchesStatus && matchesReference && 
+           matchesDateFrom && matchesDateTo;
   });
 
   if (loading) {
@@ -461,14 +489,23 @@ export function StockMovements() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={isRTL ? 'البحث في الحركات...' : 'Search movements...'}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={filters.searchTerm || ''}
+            onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
             className="pl-10"
           />
         </div>
-        <Button variant="outline">
+        <Button 
+          variant="outline" 
+          onClick={() => setFilterDialogOpen(true)}
+          className="relative"
+        >
           <Filter className="h-4 w-4 mr-2" />
           {t('common.filter')}
+          {Object.keys(filters).filter(key => filters[key as keyof StockMovementFilters]).length > 0 && (
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+              {Object.keys(filters).filter(key => filters[key as keyof StockMovementFilters]).length}
+            </span>
+          )}
         </Button>
       </div>
 
@@ -536,6 +573,18 @@ export function StockMovements() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Filter Modal */}
+      <StockMovementsFilter
+        isOpen={filterDialogOpen}
+        onClose={() => setFilterDialogOpen(false)}
+        onApplyFilters={(newFilters) => setFilters(newFilters)}
+        onClearFilters={() => setFilters({})}
+        movements={movements}
+        products={products}
+        warehouses={warehouses}
+        currentFilters={filters}
+      />
     </div>
   );
 }
