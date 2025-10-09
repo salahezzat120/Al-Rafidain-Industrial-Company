@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
 import { 
   Plus, 
@@ -34,6 +35,7 @@ import {
   mockVehicleData 
 } from "@/lib/vehicle"
 import { AddVehicleModal } from "@/components/vehicle/add-vehicle-modal"
+import { EditVehicleModal } from "@/components/vehicle/edit-vehicle-modal"
 import { VehicleDataDisplay } from "@/components/vehicle/vehicle-data-display"
 import type { Vehicle, Driver, VehicleStats as VehicleStatsType } from "@/types/vehicle"
 
@@ -48,6 +50,10 @@ export function VehiclesTab() {
   const [isAddVehicleOpen, setIsAddVehicleOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [showSuccess, setShowSuccess] = useState(false)
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
+  const [isViewDetailsOpen, setIsViewDetailsOpen] = useState(false)
+  const [isEditVehicleOpen, setIsEditVehicleOpen] = useState(false)
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -106,6 +112,56 @@ export function VehiclesTab() {
     }
     setShowSuccess(true)
     setTimeout(() => setShowSuccess(false), 3000)
+  }
+
+  const handleViewDetails = (vehicle: Vehicle) => {
+    setSelectedVehicle(vehicle)
+    setIsViewDetailsOpen(true)
+  }
+
+  const handleEditVehicle = (vehicle: Vehicle) => {
+    setSelectedVehicle(vehicle)
+    setIsEditVehicleOpen(true)
+  }
+
+  const handleDeleteVehicle = (vehicle: Vehicle) => {
+    setSelectedVehicle(vehicle)
+    setIsDeleteConfirmOpen(true)
+  }
+
+  const confirmDeleteVehicle = async () => {
+    if (!selectedVehicle) return
+
+    try {
+      // Here you would call your delete API
+      // await deleteVehicle(selectedVehicle.id)
+      
+      // For now, just remove from local state
+      setVehicles(prev => prev.filter(v => v.id !== selectedVehicle.id))
+      
+      // Update stats
+      if (stats) {
+        setStats(prev => prev ? {
+          ...prev,
+          total_vehicles: prev.total_vehicles - 1,
+          active_vehicles: selectedVehicle.status === 'active' ? prev.active_vehicles - 1 : prev.active_vehicles
+        } : null)
+      }
+
+      console.log('Vehicle deleted:', selectedVehicle.vehicle_id)
+      setIsDeleteConfirmOpen(false)
+      setSelectedVehicle(null)
+    } catch (error) {
+      console.error('Error deleting vehicle:', error)
+    }
+  }
+
+  const handleUpdateVehicle = (updatedVehicle: Vehicle) => {
+    console.log('Updating vehicle in state:', updatedVehicle);
+    setVehicles(prev => prev.map(v => v.id === updatedVehicle.id ? updatedVehicle : v))
+    setIsEditVehicleOpen(false)
+    setSelectedVehicle(null)
+    console.log('Vehicle updated successfully');
   }
 
   const getStatusBadge = (status: string) => {
@@ -306,15 +362,18 @@ export function VehiclesTab() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleViewDetails(vehicle)}>
                             <Eye className="mr-2 h-4 w-4" />
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditVehicle(vehicle)}>
                             <Edit className="mr-2 h-4 w-4" />
                             Edit Vehicle
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteVehicle(vehicle)}
+                            className="text-red-600"
+                          >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete Vehicle
                           </DropdownMenuItem>
@@ -399,6 +458,14 @@ export function VehiclesTab() {
         onAdd={handleAddVehicle}
       />
 
+      {/* Edit Vehicle Modal */}
+      <EditVehicleModal
+        isOpen={isEditVehicleOpen}
+        onClose={() => setIsEditVehicleOpen(false)}
+        onUpdate={handleUpdateVehicle}
+        vehicle={selectedVehicle}
+      />
+
       {/* Data Display Modal */}
       {showDataDisplay && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -419,6 +486,179 @@ export function VehiclesTab() {
           </div>
         </div>
       )}
+
+      {/* View Details Modal */}
+      <Dialog open={isViewDetailsOpen} onOpenChange={setIsViewDetailsOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5" />
+              Vehicle Details - {selectedVehicle?.vehicle_id}
+            </DialogTitle>
+            <DialogDescription>
+              Complete information about this vehicle
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedVehicle && (
+            <div className="space-y-6">
+              {/* Basic Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Vehicle ID</label>
+                    <p className="text-lg font-semibold">{selectedVehicle.vehicle_id}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">License Plate</label>
+                    <p className="text-lg font-semibold">{selectedVehicle.license_plate}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Make & Model</label>
+                    <p className="text-lg">{selectedVehicle.make} {selectedVehicle.model}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Year</label>
+                    <p className="text-lg">{selectedVehicle.year}</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Vehicle Type</label>
+                    <p className="text-lg">{selectedVehicle.vehicle_type}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Engine Type</label>
+                    <p className="text-lg">{selectedVehicle.engine_type || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Fuel Type</label>
+                    <p className="text-lg">{selectedVehicle.fuel_type || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Status</label>
+                    <div className="mt-1">
+                      {getStatusBadge(selectedVehicle.status)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Technical Specifications */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Capacity</label>
+                  <p className="text-lg">{selectedVehicle.capacity_kg || 0} kg</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Fuel Capacity</label>
+                  <p className="text-lg">{selectedVehicle.fuel_capacity_l || 0} L</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Current Fuel Level</label>
+                  <div className="mt-1">
+                    <Progress value={selectedVehicle.fuel_level_percent || 0} className="h-2" />
+                    <p className="text-sm text-gray-600 mt-1">{selectedVehicle.fuel_level_percent || 0}%</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Mileage</label>
+                  <p className="text-lg">{(selectedVehicle.mileage_km || 0).toLocaleString()} km</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Current Location</label>
+                  <p className="text-lg">{selectedVehicle.current_location || 'Unknown'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Insurance Company</label>
+                  <p className="text-lg">{selectedVehicle.insurance_company || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Purchase Price</label>
+                  <p className="text-lg">${(selectedVehicle.purchase_price || 0).toLocaleString()}</p>
+                </div>
+              </div>
+
+              {/* Performance Metrics */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Service Interval</label>
+                  <p className="text-lg">{(selectedVehicle.service_interval_km || 0).toLocaleString()} km</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Speed Limit</label>
+                  <p className="text-lg">{selectedVehicle.speed_limit_kmh || 0} km/h</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Fuel Consumption</label>
+                  <p className="text-lg">{selectedVehicle.fuel_consumption || 'N/A'} L/100km</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsViewDetailsOpen(false)}>
+              Close
+            </Button>
+            <Button onClick={() => {
+              setIsViewDetailsOpen(false)
+              handleEditVehicle(selectedVehicle!)
+            }}>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Vehicle
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-600" />
+              Delete Vehicle
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this vehicle? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedVehicle && (
+            <div className="py-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center gap-3">
+                  <Truck className="h-8 w-8 text-red-600" />
+                  <div>
+                    <p className="font-semibold text-red-900">{selectedVehicle.vehicle_id}</p>
+                    <p className="text-sm text-red-700">{selectedVehicle.make} {selectedVehicle.model} - {selectedVehicle.license_plate}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={confirmDeleteVehicle}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Vehicle
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
