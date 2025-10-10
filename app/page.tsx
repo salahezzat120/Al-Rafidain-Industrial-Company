@@ -133,7 +133,17 @@ function Dashboard() {
             {activeTab === "overview" && <OverviewTab />}
             {activeTab === "users" && <UsersTabSimple />}
             {activeTab === "employees" && <EmployeesTab />}
-            {activeTab === "representatives" && <RepresentativesTab onNavigateToChatSupport={() => setActiveTab("chat-support")} onNavigateToDeliveryTasks={() => setActiveTab("deliveries")} />}
+            {activeTab === "representatives" && <RepresentativesTab onNavigateToChatSupport={() => setActiveTab("chat-support")} onNavigateToDeliveryTasks={() => setActiveTab("deliveries")} onNavigateToLiveMap={(representativeName) => {
+              console.log('Dashboard: Navigating to live-map with representative:', representativeName);
+              setActiveTab("live-map");
+              // Store representative name in URL for the live map to pick up
+              if (representativeName) {
+                const url = new URL(window.location.href);
+                url.searchParams.set('search', representativeName);
+                window.history.replaceState({}, '', url.toString());
+                console.log('Dashboard: URL updated with search parameter:', url.toString());
+              }
+            }} />}
             {activeTab === "customers" && <CustomersTab />}
             {activeTab === "warehouse" && <WarehouseTab />}
             {activeTab === "simple-loyalty" && <SimpleLoyaltyTab />}
@@ -147,7 +157,15 @@ function Dashboard() {
             {activeTab === "alerts" && <AlertsTab />}
             {activeTab === "visits" && <VisitManagementSingleTab />}
             {activeTab === "messaging" && <MessagingTab />}
-            {activeTab === "after-sales" && <AfterSalesTab />}
+            {activeTab === "after-sales" && <AfterSalesTab onNavigateToLiveMap={(representativeName) => {
+              setActiveTab("live-map");
+              // Store representative name in URL for the live map to pick up
+              if (representativeName) {
+                const url = new URL(window.location.href);
+                url.searchParams.set('search', representativeName);
+                window.history.replaceState({}, '', url.toString());
+              }
+            }} />}
             {activeTab === "settings" && <SettingsTab />}
             {activeTab === "attendance" && <AttendanceTab />}
             {activeTab === "chat-support" && <ChatSupportTab />}
@@ -227,7 +245,17 @@ function Dashboard() {
                 {activeTab === "overview" && <OverviewTab />}
                 {activeTab === "users" && <UsersTabSimple />}
                 {activeTab === "employees" && <EmployeesTab />}
-                {activeTab === "representatives" && <RepresentativesTab onNavigateToChatSupport={() => setActiveTab("chat-support")} onNavigateToDeliveryTasks={() => setActiveTab("deliveries")} />}
+                {activeTab === "representatives" && <RepresentativesTab onNavigateToChatSupport={() => setActiveTab("chat-support")} onNavigateToDeliveryTasks={() => setActiveTab("deliveries")} onNavigateToLiveMap={(representativeName) => {
+                  console.log('Dashboard: Navigating to live-map with representative:', representativeName);
+                  setActiveTab("live-map");
+                  // Store representative name in URL for the live map to pick up
+                  if (representativeName) {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('search', representativeName);
+                    window.history.replaceState({}, '', url.toString());
+                    console.log('Dashboard: URL updated with search parameter:', url.toString());
+                  }
+                }} />}
                 {activeTab === "customers" && <CustomersTab />}
                 {activeTab === "warehouse" && <WarehouseTab />}
                 {activeTab === "simple-loyalty" && <SimpleLoyaltyTab />}
@@ -241,7 +269,15 @@ function Dashboard() {
                 {activeTab === "alerts" && <AlertsTab />}
                 {activeTab === "visits" && <VisitsTab />}
                 {activeTab === "messaging" && <MessagingTab />}
-                {activeTab === "after-sales" && <AfterSalesTab />}
+                {activeTab === "after-sales" && <AfterSalesTab onNavigateToLiveMap={(representativeName) => {
+                  setActiveTab("live-map");
+                  // Store representative name in URL for the live map to pick up
+                  if (representativeName) {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('search', representativeName);
+                    window.history.replaceState({}, '', url.toString());
+                  }
+                }} />}
                 {activeTab === "settings" && <SettingsTab />}
                 {activeTab === "attendance" && <AttendanceTab />}
                 {activeTab === "chat-support" && <ChatSupportTab />}
