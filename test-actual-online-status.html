@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Actual Online Status Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            color: #1f2937;
+            margin: 0 0 10px 0;
+            font-size: 24px;
+        }
+        
+        .header p {
+            color: #6b7280;
+            margin: 0;
+        }
+        
+        .test-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        
+        .test-section h3 {
+            color: #1f2937;
+            margin: 0 0 15px 0;
+        }
+        
+        .sql-test {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        
+        .expected-result {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        
+        .expected-result h4 {
+            color: #166534;
+            margin: 0 0 10px 0;
+        }
+        
+        .debug-steps {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        
+        .debug-steps h4 {
+            color: #d97706;
+            margin: 0 0 10px 0;
+        }
+        
+        .debug-steps ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .debug-steps li {
+            margin: 5px 0;
+            color: #92400e;
+        }
+        
+        .code-block {
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        
+        .warning {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        
+        .warning h4 {
+            color: #dc2626;
+            margin: 0 0 10px 0;
+        }
+        
+        .success {
+            background: #dcfce7;
+            border: 1px solid #22c55e;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        
+        .success h4 {
+            color: #166534;
+            margin: 0 0 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Actual Online Status Test & Debugging</h1>
+            <p>Test the new simple and reliable online status system</p>
+        </div>
+        
+        <div class="test-section">
+            <h3>Step 1: Run the New SQL Functions</h3>
+            <p>Execute the new SQL file to create the simple and reliable functions:</p>
+            <div class="sql-test">
+-- Run this in Supabase SQL Editor
+create-simple-online-status-check.sql
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Step 2: Test Database Functions Directly</h3>
+            <p>Test the database functions to see actual data:</p>
+            
+            <div class="sql-test">
+-- Test 1: Get all representatives with actual status
+SELECT * FROM get_representatives_with_actual_status();
+            </div>
+            
+            <div class="expected-result">
+                <h4>Expected Result:</h4>
+                <p>You should see each representative with their actual online/offline status based on their last location in the <code>representative_live_locations</code> table.</p>
+            </div>
+            
+            <div class="sql-test">
+-- Test 2: Get only online representatives
+SELECT * FROM get_online_representatives_actual();
+            </div>
+            
+            <div class="sql-test">
+-- Test 3: Get only offline representatives  
+SELECT * FROM get_offline_representatives_actual();
+            </div>
+            
+            <div class="sql-test">
+-- Test 4: Check specific representative
+SELECT * FROM get_representative_status_details('REP_ID_HERE');
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Step 3: Debug Data in representative_live_locations Table</h3>
+            <p>Check the actual data in your location table:</p>
+            
+            <div class="sql-test">
+-- Check all location data
+SELECT 
+    representative_id,
+    latitude,
+    longitude,
+    timestamp,
+    EXTRACT(EPOCH FROM (now() - timestamp)) as seconds_ago
+FROM representative_live_locations 
+ORDER BY timestamp DESC 
+LIMIT 10;
+            </div>
+            
+            <div class="expected-result">
+                <h4>Expected Result:</h4>
+                <p>You should see recent location data with timestamps. Representatives with <code>seconds_ago &lt; 65</code> should be online.</p>
+            </div>
+            
+            <div class="sql-test">
+-- Check latest location for each representative
+SELECT 
+    r.name,
+    r.id,
+    ll.timestamp,
+    ll.latitude,
+    ll.longitude,
+    EXTRACT(EPOCH FROM (now() - ll.timestamp)) as seconds_ago,
+    CASE 
+        WHEN ll.timestamp > now() - INTERVAL '65 seconds' THEN 'ONLINE'
+        ELSE 'OFFLINE'
+    END as status
+FROM representatives r
+LEFT JOIN LATERAL (
+    SELECT * FROM representative_live_locations
+    WHERE representative_id = r.id
+    ORDER BY timestamp DESC
+    LIMIT 1
+) ll ON true
+ORDER BY r.name;
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>Step 4: Update Your Live Map Component</h3>
+            <p>Update your live map to use the new simple functions:</p>
+            
+            <div class="code-block">
+// OLD - Remove this
+import { getRepresentativesWithIndividualStatus } from "@/lib/representative-live-locations"
+
+// NEW - Add this
+import { 
+  getRepresentativesWithActualStatus,
+  updateRepresentativeStatusFromActualData 
+} from "@/lib/representative-live-locations"
+
+// In your component
+const fetchRepresentatives = async () => {
+  try {
+    setIsLoading(true)
+    
+    // Update statuses based on actual data
+    await updateRepresentativeStatusFromActualData()
+    
+    // Fetch representatives with actual status
+    const { data, error } = await getRepresentativesWithActualStatus()
+    
+    if (error) {
+      console.error('Error:', error)
+      return
+    }
+    
+    setRepresentatives(data || [])
+    
+    // Check console for detailed logging
+    console.log('Representatives loaded:', data?.length || 0)
+    
+  } catch (err) {
+    console.error('Error:', err)
+  } finally {
+    setIsLoading(false)
+  }
+}
+            </div>
+        </div>
+        
+        <div class="debug-steps">
+            <h4>Debugging Steps:</h4>
+            <ol>
+                <li><strong>Check Console Logs:</strong> Open browser console to see detailed status information</li>
+                <li><strong>Verify Data:</strong> Make sure <code>representative_live_locations</code> table has recent data</li>
+                <li><strong>Check Timestamps:</strong> Ensure location timestamps are recent (within 65 seconds)</li>
+                <li><strong>Test Individual Reps:</strong> Use <code>getRepresentativeStatusDetails(repId)</code> to check specific representatives</li>
+                <li><strong>Monitor Changes:</strong> Watch console logs to see when status changes occur</li>
+            </ol>
+        </div>
+        
+        <div class="warning">
+            <h4>⚠️ Common Issues:</h4>
+            <ul>
+                <li><strong>No Location Data:</strong> If <code>representative_live_locations</code> table is empty, all reps will be offline</li>
+                <li><strong>Old Timestamps:</strong> If location data is older than 65 seconds, reps will be offline</li>
+                <li><strong>Wrong Representative IDs:</strong> Make sure <code>representative_id</code> in location table matches <code>id</code> in representatives table</li>
+                <li><strong>Timezone Issues:</strong> Check if timestamps are in correct timezone</li>
+            </ul>
+        </div>
+        
+        <div class="success">
+            <h4>✅ Success Indicators:</h4>
+            <ul>
+                <li>Console shows detailed status for each representative</li>
+                <li>Online representatives have recent location data (&lt; 65 seconds)</li>
+                <li>Offline representatives have old or no location data</li>
+                <li>Status changes are logged when they occur</li>
+                <li>Live map shows correct online/offline markers</li>
+            </ul>
+        </div>
+        
+        <div class="test-section">
+            <h3>Step 5: Test with Real Data</h3>
+            <p>Insert test location data to verify the system works:</p>
+            
+            <div class="sql-test">
+-- Insert test location data (replace REP_ID with actual representative ID)
+INSERT INTO representative_live_locations (
+    representative_id,
+    latitude,
+    longitude,
+    timestamp
+) VALUES (
+    'REP_ID_HERE',
+    33.3152,
+    44.3661,
+    NOW()
+);
+
+-- Check if representative is now online
+SELECT * FROM get_representative_status_details('REP_ID_HERE');
+            </div>
+        </div>
+    </div>
+</body>
+</html>

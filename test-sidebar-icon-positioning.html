@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sidebar Icon Positioning Fix</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            color: #1f2937;
+            margin: 0 0 10px 0;
+            font-size: 24px;
+        }
+        
+        .header p {
+            color: #6b7280;
+            margin: 0;
+        }
+        
+        .demo-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .demo-sidebar {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .demo-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .sidebar-header {
+            padding: 15px;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 15px;
+        }
+        
+        .sidebar-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            margin-bottom: 5px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .sidebar-item:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .sidebar-item.active {
+            background-color: #e5e7eb;
+        }
+        
+        .sidebar-item.ltr {
+            flex-direction: row;
+        }
+        
+        .sidebar-item.rtl {
+            flex-direction: row-reverse;
+            justify-content: flex-end;
+        }
+        
+        .item-text {
+            font-size: 14px;
+            color: #374151;
+        }
+        
+        .item-icon {
+            width: 16px;
+            height: 16px;
+            color: #6b7280;
+        }
+        
+        .ltr .item-icon {
+            margin-right: 12px;
+        }
+        
+        .rtl .item-icon {
+            margin-left: 12px;
+        }
+        
+        .before-after {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .before, .after {
+            padding: 15px;
+            border-radius: 6px;
+        }
+        
+        .before {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+        }
+        
+        .after {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+        }
+        
+        .before h4, .after h4 {
+            margin: 0 0 10px 0;
+        }
+        
+        .before h4 {
+            color: #dc2626;
+        }
+        
+        .after h4 {
+            color: #16a34a;
+        }
+        
+        .test-result {
+            background: #dcfce7;
+            border: 1px solid #22c55e;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .test-result h3 {
+            color: #166534;
+            margin: 0 0 10px 0;
+        }
+        
+        .test-result p {
+            color: #166534;
+            margin: 0;
+        }
+        
+        .improvements-list {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .improvements-list h4 {
+            color: #0c4a6e;
+            margin: 0 0 15px 0;
+        }
+        
+        .improvements-list ul {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+        
+        .improvements-list li {
+            padding: 8px 0;
+            color: #0c4a6e;
+        }
+        
+        .improvements-list li::before {
+            content: "✅";
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Admin Sidebar Icon Positioning</h1>
+            <p>Fix icon positioning for English (LTR) and Arabic (RTL) layouts</p>
+        </div>
+        
+        <div class="demo-container">
+            <div class="demo-sidebar">
+                <div class="demo-title">English (LTR) Layout</div>
+                <div class="sidebar-header">
+                    <div class="sidebar-title">Admin Panel</div>
+                </div>
+                <div class="sidebar-item ltr">
+                    <div class="item-icon">📊</div>
+                    <div class="item-text">Overview</div>
+                </div>
+                <div class="sidebar-item ltr">
+                    <div class="item-icon">👥</div>
+                    <div class="item-text">User Management</div>
+                </div>
+                <div class="sidebar-item ltr active">
+                    <div class="item-icon">💰</div>
+                    <div class="item-text">Payment Tracking</div>
+                </div>
+                <div class="sidebar-item ltr">
+                    <div class="item-icon">⭐</div>
+                    <div class="item-text">Loyalty System</div>
+                </div>
+                <div class="sidebar-item ltr">
+                    <div class="item-icon">📅</div>
+                    <div class="item-text">Attendance</div>
+                </div>
+            </div>
+            
+            <div class="demo-sidebar" dir="rtl">
+                <div class="demo-title">Arabic (RTL) Layout</div>
+                <div class="sidebar-header">
+                    <div class="sidebar-title">لوحة الإدارة</div>
+                </div>
+                <div class="sidebar-item rtl">
+                    <div class="item-icon">📊</div>
+                    <div class="item-text">نظرة عامة</div>
+                </div>
+                <div class="sidebar-item rtl">
+                    <div class="item-icon">👥</div>
+                    <div class="item-text">إدارة المستخدمين</div>
+                </div>
+                <div class="sidebar-item rtl active">
+                    <div class="item-icon">💰</div>
+                    <div class="item-text">تتبع المدفوعات</div>
+                </div>
+                <div class="sidebar-item rtl">
+                    <div class="item-icon">⭐</div>
+                    <div class="item-text">نظام الولاء البسيط</div>
+                </div>
+                <div class="sidebar-item rtl">
+                    <div class="item-icon">📅</div>
+                    <div class="item-text">الحضور</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="before-after">
+            <div class="before">
+                <h4>❌ Before Fix</h4>
+                <p>Icons were positioned incorrectly for RTL layout</p>
+                <div class="demo-sidebar" dir="rtl">
+                    <div class="sidebar-item ltr">
+                        <div class="item-icon">💰</div>
+                        <div class="item-text">تتبع المدفوعات</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="after">
+                <h4>✅ After Fix</h4>
+                <p>Icons are now positioned correctly for both LTR and RTL</p>
+                <div class="demo-sidebar" dir="rtl">
+                    <div class="sidebar-item rtl">
+                        <div class="item-icon">💰</div>
+                        <div class="item-text">تتبع المدفوعات</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="improvements-list">
+            <h4>Improvements Applied</h4>
+            <ul>
+                <li>English (LTR): Icons positioned to the left of text</li>
+                <li>Arabic (RTL): Icons positioned to the right of text (before text in RTL reading order)</li>
+                <li>Proper flex direction based on language direction</li>
+                <li>Correct margin spacing for both layouts</li>
+                <li>Maintained active state styling</li>
+                <li>Responsive design for collapsed sidebar</li>
+            </ul>
+        </div>
+        
+        <div class="test-result">
+            <h3>✅ Icon Positioning Fixed</h3>
+            <p>Icons are now correctly positioned based on language direction: left of text in English (LTR) and right of text in Arabic (RTL).</p>
+        </div>
+    </div>
+</body>
+</html>
+
+

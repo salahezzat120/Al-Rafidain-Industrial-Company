@@ -48,9 +48,9 @@ export async function getRepresentativeLiveLocations(): Promise<{
           console.warn(`Error fetching location for representative ${rep.id}:`, locError)
         }
 
-        // Calculate online status (within last 30 minutes - more lenient)
+        // Calculate online status (within last 65 seconds - 60s + 5s buffer)
         const isOnline = latestLocation ? 
-          ((new Date().getTime() - new Date(latestLocation.timestamp).getTime()) / (1000 * 60) <= 30) : 
+          ((new Date().getTime() - new Date(latestLocation.timestamp).getTime()) / (1000 * 60) <= 1.08) : 
           false
 
         return {
@@ -178,7 +178,7 @@ export async function getRepresentativesWithLastLocation(): Promise<{
     const results: RepresentativeWithLocation[] = reps.map(rep => {
       const latestLocation = locationMap.get(rep.id)
       const isOnline = latestLocation ? 
-        ((new Date().getTime() - new Date(latestLocation.timestamp).getTime()) / (1000 * 60) <= 30) : 
+        ((new Date().getTime() - new Date(latestLocation.timestamp).getTime()) / (1000 * 60) <= 1.08) : 
         false
 
       return {
@@ -436,7 +436,7 @@ export async function getChatRepresentatives(): Promise<{ data: { id: string; na
         .limit(1)
         .maybeSingle()
       
-      const is_online = loc ? ((new Date().getTime() - new Date(loc.timestamp).getTime()) / (1000 * 60) <= 30) : false
+      const is_online = loc ? ((new Date().getTime() - new Date(loc.timestamp).getTime()) / (1000 * 60) <= 1.08) : false
       
       results.push({
         ...rep,
@@ -449,6 +449,181 @@ export async function getChatRepresentatives(): Promise<{ data: { id: string; na
     return { data: results, error: null };
   } catch (err) {
     return { data: null, error: 'An unexpected error occurred' };
+  }
+}
+
+// Get representatives with actual online status (simple and reliable)
+export async function getRepresentativesWithActualStatus(): Promise<{
+  data: RepresentativeWithLocation[] | null
+  error: string | null
+}> {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_representatives_with_actual_status')
+
+    if (error) {
+      console.error('Error fetching representatives with actual status:', error)
+      // Fallback to regular method
+      return await getRepresentativeLiveLocations()
+    }
+
+    // Log actual status for debugging
+    if (data) {
+      const onlineCount = data.filter(r => r.is_online).length
+      const offlineCount = data.length - onlineCount
+      console.log(`Actual Status Check - Online: ${onlineCount}, Offline: ${offlineCount}`)
+      
+      // Log each representative's actual status
+      data.forEach(rep => {
+        const secondsAgo = rep.seconds_since_last_location ? Math.round(rep.seconds_since_last_location) : 'never'
+        const status = rep.is_online ? 'ONLINE' : 'OFFLINE'
+        console.log(`${rep.name}: ${status} (last seen: ${secondsAgo}s ago)`)
+        
+        // Additional debugging info
+        if (rep.last_seen) {
+          console.log(`  - Last location: ${rep.latitude}, ${rep.longitude}`)
+          console.log(`  - Timestamp: ${new Date(rep.last_seen).toLocaleString()}`)
+        } else {
+          console.log(`  - No location data found`)
+        }
+      })
+    }
+
+    return { data, error: null }
+  } catch (err) {
+    console.error('Unexpected error in getRepresentativesWithActualStatus:', err)
+    // Fallback to regular method
+    return await getRepresentativeLiveLocations()
+  }
+}
+
+// Get only online representatives (within last 60 seconds)
+export async function getOnlineRepresentatives60s(): Promise<{
+  data: RepresentativeWithLocation[] | null
+  error: string | null
+}> {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_online_representatives_60s')
+
+    if (error) {
+      console.error('Error fetching online representatives:', error)
+      return { data: null, error: error.message }
+    }
+
+    return { data, error: null }
+  } catch (err) {
+    console.error('Unexpected error in getOnlineRepresentatives60s:', err)
+    return { data: null, error: 'An unexpected error occurred' }
+  }
+}
+
+// Get only offline representatives (no location within last 60 seconds)
+export async function getOfflineRepresentatives60s(): Promise<{
+  data: RepresentativeWithLocation[] | null
+  error: string | null
+}> {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_offline_representatives_60s')
+
+    if (error) {
+      console.error('Error fetching offline representatives:', error)
+      return { data: null, error: error.message }
+    }
+
+    return { data, error: null }
+  } catch (err) {
+    console.error('Unexpected error in getOfflineRepresentatives60s:', err)
+    return { data: null, error: 'An unexpected error occurred' }
+  }
+}
+
+// Update all representative statuses based on actual data (simple and reliable)
+export async function updateRepresentativeStatusFromActualData(): Promise<{
+  data: any[] | null
+  error: string | null
+}> {
+  try {
+    const { data, error } = await supabase
+      .rpc('update_representative_status_from_actual_data')
+
+    if (error) {
+      console.error('Error updating representative statuses from actual data:', error)
+      return { data: null, error: error.message }
+    }
+
+    // Log status changes
+    if (data && data.length > 0) {
+      console.log('Representative Status Updates (Based on Actual Data):')
+      data.forEach(change => {
+        if (change.old_status !== change.new_status) {
+          const secondsAgo = Math.round(change.seconds_since_location || 0)
+          console.log(`${change.name}: ${change.old_status} → ${change.new_status} (last seen: ${secondsAgo}s ago)`)
+        } else {
+          const secondsAgo = Math.round(change.seconds_since_location || 0)
+          console.log(`${change.name}: ${change.new_status} (no change, last seen: ${secondsAgo}s ago)`)
+        }
+      })
+    }
+
+    return { data, error: null }
+  } catch (err) {
+    console.error('Unexpected error in updateRepresentativeStatusFromActualData:', err)
+    return { data: null, error: 'An unexpected error occurred' }
+  }
+}
+
+// Check if a specific representative is online
+export async function isRepresentativeOnline(representativeId: string): Promise<{
+  data: boolean | null
+  error: string | null
+}> {
+  try {
+    const { data, error } = await supabase
+      .rpc('is_representative_online', { rep_id: representativeId })
+
+    if (error) {
+      console.error('Error checking representative online status:', error)
+      return { data: null, error: error.message }
+    }
+
+    return { data, error: null }
+  } catch (err) {
+    console.error('Unexpected error in isRepresentativeOnline:', err)
+    return { data: null, error: 'An unexpected error occurred' }
+  }
+}
+
+// Get detailed status for a specific representative
+export async function getRepresentativeStatusDetails(representativeId: string): Promise<{
+  data: any | null
+  error: string | null
+}> {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_representative_status_details', { rep_id: representativeId })
+
+    if (error) {
+      console.error('Error getting representative status details:', error)
+      return { data: null, error: error.message }
+    }
+
+    if (data && data.length > 0) {
+      const details = data[0]
+      console.log(`Representative ${details.name} Status:`)
+      console.log(`  - Online: ${details.is_online}`)
+      console.log(`  - Last seen: ${details.last_seen ? new Date(details.last_seen).toLocaleString() : 'Never'}`)
+      console.log(`  - Seconds ago: ${Math.round(details.seconds_since_location || 0)}`)
+      if (details.latitude && details.longitude) {
+        console.log(`  - Location: ${details.latitude}, ${details.longitude}`)
+      }
+    }
+
+    return { data: data?.[0] || null, error: null }
+  } catch (err) {
+    console.error('Unexpected error in getRepresentativeStatusDetails:', err)
+    return { data: null, error: 'An unexpected error occurred' }
   }
 }
 
