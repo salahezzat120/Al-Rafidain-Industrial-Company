@@ -217,6 +217,61 @@ export function MovementTrackingModal({ representative, isOpen, onClose }: Movem
     }
   };
 
+  // Filter movements based on current filters
+  const filteredMovements = movements.filter((movement) => {
+    // Filter by activity type
+    if (filters.activity_type && movement.activity_type !== filters.activity_type) {
+      return false;
+    }
+
+    // Filter by location name
+    if (filters.location_name && 
+        !movement.location_name.toLowerCase().includes(filters.location_name.toLowerCase())) {
+      return false;
+    }
+
+    // Filter by date range
+    if (dateRange.from || dateRange.to) {
+      const movementDate = new Date(movement.created_at);
+      
+      if (dateRange.from && movementDate < dateRange.from) {
+        return false;
+      }
+      
+      if (dateRange.to) {
+        const endOfDay = new Date(dateRange.to);
+        endOfDay.setHours(23, 59, 59, 999);
+        if (movementDate > endOfDay) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  });
+
+  // Filter visits based on current filters
+  const filteredVisits = visits.filter((visit) => {
+    // Filter by date range
+    if (dateRange.from || dateRange.to) {
+      const visitDate = new Date(visit.created_at);
+      
+      if (dateRange.from && visitDate < dateRange.from) {
+        return false;
+      }
+      
+      if (dateRange.to) {
+        const endOfDay = new Date(dateRange.to);
+        endOfDay.setHours(23, 59, 59, 999);
+        if (visitDate > endOfDay) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  });
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
@@ -304,15 +359,38 @@ export function MovementTrackingModal({ representative, isOpen, onClose }: Movem
                     />
                   </div>
                 </div>
+                
+                {/* Clear Filters Button */}
+                {(filters.activity_type || filters.location_name || dateRange.from || dateRange.to) && (
+                  <div className="mt-4 pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setFilters({});
+                        setDateRange({ from: undefined, to: undefined });
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <Filter className="h-4 w-4" />
+                      Clear All Filters
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
             {/* Movements List */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="h-5 w-5" />
-                  Movement History
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    Movement History
+                  </div>
+                  <Badge variant="outline" className="text-sm">
+                    {filteredMovements.length} of {movements.length} movements
+                  </Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -320,7 +398,12 @@ export function MovementTrackingModal({ representative, isOpen, onClose }: Movem
                   <div className="text-center py-8">Loading movements...</div>
                 ) : (
                   <div className="space-y-4">
-                    {movements.map((movement) => (
+                    {filteredMovements.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        No movements found matching the current filters.
+                      </div>
+                    ) : (
+                      filteredMovements.map((movement) => (
                       <div key={movement.id} className="flex items-center gap-4 p-4 border rounded-lg">
                         <div className="flex-shrink-0">
                           <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
@@ -355,7 +438,8 @@ export function MovementTrackingModal({ representative, isOpen, onClose }: Movem
                           </div>
                         </div>
                       </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -365,14 +449,24 @@ export function MovementTrackingModal({ representative, isOpen, onClose }: Movem
           <TabsContent value="visits" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Visit History
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Visit History
+                  </div>
+                  <Badge variant="outline" className="text-sm">
+                    {filteredVisits.length} of {visits.length} visits
+                  </Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {visits.map((visit) => (
+                  {filteredVisits.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      No visits found matching the current filters.
+                    </div>
+                  ) : (
+                    filteredVisits.map((visit) => (
                     <div key={visit.id} className="p-4 border rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <Badge className={getStatusColor(visit.status)}>
@@ -397,7 +491,8 @@ export function MovementTrackingModal({ representative, isOpen, onClose }: Movem
                         )}
                       </div>
                     </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -429,7 +524,7 @@ export function MovementTrackingModal({ representative, isOpen, onClose }: Movem
                           {formatDate(selectedDate, "EEEE, MMMM do, yyyy")}
                         </p>
                         <div className="space-y-2">
-                          {movements
+                          {filteredMovements
                             .filter((movement) => 
                               new Date(movement.created_at).toDateString() === selectedDate.toDateString()
                             )
@@ -467,27 +562,13 @@ export function MovementTrackingModal({ representative, isOpen, onClose }: Movem
               </CardHeader>
               <CardContent>
                 {stats && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-1 gap-4 mb-6">
                     <div className="p-4 bg-blue-50 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
                         <Activity className="h-5 w-5 text-blue-600" />
                         <span className="font-medium">Total Movements</span>
                       </div>
                       <p className="text-2xl font-bold text-blue-600">{stats.total_movements}</p>
-                    </div>
-                    <div className="p-4 bg-green-50 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Route className="h-5 w-5 text-green-600" />
-                        <span className="font-medium">Total Distance</span>
-                      </div>
-                      <p className="text-2xl font-bold text-green-600">{stats.total_distance_km} km</p>
-                    </div>
-                    <div className="p-4 bg-purple-50 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Clock className="h-5 w-5 text-purple-600" />
-                        <span className="font-medium">Total Duration</span>
-                      </div>
-                      <p className="text-2xl font-bold text-purple-600">{stats.total_duration_hours} hrs</p>
                     </div>
                   </div>
                 )}
