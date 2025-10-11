@@ -158,8 +158,8 @@ export function MovementTrackingModal({ representative, isOpen, onClose }: Movem
 
       const filters = {
         representative_id: representative.id,
-        start_date: dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
-        end_date: dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+        start_date: dateRange.from ? formatDate(dateRange.from, 'yyyy-MM-dd') : formatDate(new Date(), 'yyyy-MM-dd'),
+        end_date: dateRange.to ? formatDate(dateRange.to, 'yyyy-MM-dd') : formatDate(new Date(), 'yyyy-MM-dd'),
         include_movements: true,
         include_visits: true,
         include_summary: true,
@@ -173,7 +173,7 @@ export function MovementTrackingModal({ representative, isOpen, onClose }: Movem
         filename = `movement-report-${representative.name}-${formatDate(new Date(), 'yyyy-MM-dd')}.xlsx`;
       } else {
         blob = await MovementReportGenerator.generatePDFReport(reportData, filters);
-        filename = `movement-report-${representative.name}-${formatDate(new Date(), 'yyyy-MM-dd')}.txt`;
+        filename = `movement-report-${representative.name}-${formatDate(new Date(), 'yyyy-MM-dd')}.pdf`;
       }
 
       MovementReportGenerator.downloadBlob(blob, filename);

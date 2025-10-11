@@ -11,7 +11,7 @@ import { AddRepresentativeModal } from "./add-representative-modal";
 import { AssignTaskModal } from "./assign-task-modal";
 import { MovementTrackingModal } from "./movement-tracking-modal";
 import { useLanguage } from "@/contexts/language-context";
-import { getRepresentatives, generateRepresentativeId, testRepresentativesTable, testSimpleInsert } from "@/lib/supabase-utils";
+import { getRepresentatives, generateRepresentativeId } from "@/lib/supabase-utils";
 import * as XLSX from 'xlsx';
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertCircle } from "@/components/ui/alert";
@@ -295,34 +295,6 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
     }
   };
 
-  const testTableConnection = async () => {
-    console.log('Testing representatives table connection...');
-    const result = await testRepresentativesTable();
-    if (result.success) {
-      console.log('✅ Table connection successful!');
-      alert('✅ Table connection successful!');
-    } else {
-      console.log('❌ Table connection failed:', result.error);
-      alert(`❌ Table connection failed: ${result.error}`);
-    }
-  };
-
-  const testInsert = async () => {
-    console.log('Testing simple insert...');
-    const result = await testSimpleInsert();
-    if (result.success) {
-      console.log('✅ Insert test successful!');
-      alert('✅ Insert test successful!');
-      // Refresh the representatives list
-      const { data, error } = await getRepresentatives();
-      if (!error) {
-        setRepresentatives(data || []);
-      }
-    } else {
-      console.log('❌ Insert test failed:', result.error);
-      alert(`❌ Insert test failed: ${result.error}`);
-    }
-  };
 
   return (
     <div className={`space-y-6 ${isRTL ? 'text-right' : 'text-left'}`} dir={isRTL ? 'rtl' : 'ltr'}>
@@ -333,12 +305,6 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
           <p className="text-gray-600">{t("manageDeliveryTeam")}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={testTableConnection}>
-            🔧 Test Table
-          </Button>
-          <Button variant="outline" onClick={testInsert}>
-            🧪 Test Insert
-          </Button>
           <Button variant="outline" onClick={() => exportToExcel(representatives)}>
             <Download className="h-4 w-4 mr-2" />
             {t("export")}
