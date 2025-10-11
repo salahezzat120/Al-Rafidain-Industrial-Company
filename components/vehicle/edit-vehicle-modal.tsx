@@ -518,7 +518,7 @@ export function EditVehicleModal({ isOpen, onClose, onUpdate, vehicle }: EditVeh
               </div>
 
               <div>
-                <Label htmlFor="purchase_price">Purchase Price ($)</Label>
+                <Label htmlFor="purchase_price">Purchase Price (ر.س)</Label>
                 <Input
                   id="purchase_price"
                   type="number"

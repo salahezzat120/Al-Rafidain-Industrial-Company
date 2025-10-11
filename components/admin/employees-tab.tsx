@@ -294,9 +294,9 @@ export default function EmployeesTab() {
             <DollarSign className={`h-4 w-4 text-muted-foreground ${isRTL ? 'ml-2' : 'mr-2'}`} />
           </CardHeader>
           <CardContent className={isRTL ? 'text-right' : 'text-left'}>
-            <div className="text-2xl font-bold">${stats.averageSalary.toFixed(0)}</div>
+            <div className="text-2xl font-bold">{new Intl.NumberFormat('ar-SA', { style: 'currency', currency: 'SAR' }).format(stats.averageSalary)}</div>
             <p className="text-xs text-muted-foreground">
-              {isRTL ? "الإجمالي:" : "Total:"} ${stats.totalSalary.toFixed(0)}
+              {isRTL ? "الإجمالي:" : "Total:"} {new Intl.NumberFormat('ar-SA', { style: 'currency', currency: 'SAR' }).format(stats.totalSalary)}
             </p>
           </CardContent>
         </Card>
@@ -468,7 +468,7 @@ export default function EmployeesTab() {
                 {employee.salary && (
                   <div className={`flex items-center text-sm text-muted-foreground ${isRTL ? 'flex-row-reverse justify-end' : ''}`}>
                     <DollarSign className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
-                    <span className={isRTL ? 'text-right' : 'text-left'}>${employee.salary.toLocaleString()}</span>
+                    <span className={isRTL ? 'text-right' : 'text-left'}>{new Intl.NumberFormat('ar-SA', { style: 'currency', currency: 'SAR' }).format(employee.salary)}</span>
                   </div>
                 )}
               </div>

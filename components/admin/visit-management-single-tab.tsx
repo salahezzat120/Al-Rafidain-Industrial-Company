@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -27,7 +27,9 @@ import {
   Mail,
   Edit,
   Trash2,
-  Eye
+  Eye,
+  ChevronUp,
+  ChevronDown
 } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
 import { 
@@ -95,7 +97,7 @@ interface VisitManagementRecord {
 }
 
 export function VisitManagementSingleTab() {
-  const { t } = useLanguage()
+  const { t, isRTL } = useLanguage()
   const [visits, setVisits] = useState<VisitManagementRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
@@ -106,6 +108,12 @@ export function VisitManagementSingleTab() {
   const [selectedVisit, setSelectedVisit] = useState<VisitManagementRecord | null>(null)
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("visits")
+  
+  // Scroll functionality state
+  const [scrollProgress, setScrollProgress] = useState(0)
+  const [showScrollHint, setShowScrollHint] = useState(false)
+  const createModalRef = useRef<HTMLDivElement>(null)
+  const detailsModalRef = useRef<HTMLDivElement>(null)
 
   // Function to generate unique Visit ID
   const generateVisitId = () => {
@@ -289,6 +297,58 @@ export function VisitManagementSingleTab() {
     startMonitoring()
   }, [])
 
+  // Track scroll progress for create modal
+  useEffect(() => {
+    const handleScroll = () => {
+      if (createModalRef.current) {
+        const { scrollTop, scrollHeight, clientHeight } = createModalRef.current;
+        const progress = (scrollTop / (scrollHeight - clientHeight)) * 100;
+        setScrollProgress(Math.min(100, Math.max(0, progress)));
+      }
+    };
+
+    const modal = createModalRef.current;
+    if (modal) {
+      modal.addEventListener('scroll', handleScroll);
+      return () => modal.removeEventListener('scroll', handleScroll);
+    }
+  }, [isCreateModalOpen]);
+
+  // Show scroll hint when create modal opens
+  useEffect(() => {
+    if (isCreateModalOpen) {
+      const timer = setTimeout(() => {
+        setShowScrollHint(true);
+        setTimeout(() => setShowScrollHint(false), 3000);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isCreateModalOpen]);
+
+  const scrollToTop = () => {
+    if (createModalRef.current) {
+      createModalRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const scrollToBottom = () => {
+    if (createModalRef.current) {
+      createModalRef.current.scrollTo({ top: createModalRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 'Home') {
+        e.preventDefault();
+        scrollToTop();
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        scrollToBottom();
+      }
+    }
+  };
+
   const loadVisits = async () => {
     setLoading(true)
     try {
@@ -446,56 +506,83 @@ export function VisitManagementSingleTab() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Visit Management</h2>
-          <p className="text-gray-600">Manage all visits, delegates, and communications in one place</p>
-          <p className="text-sm text-gray-500">Database records: {visits.length}</p>
+        <div className={isRTL ? 'text-right' : 'text-left'}>
+          <h2 className="text-2xl font-bold text-gray-900">
+            {isRTL ? 'إدارة الزيارات' : 'Visit Management'}
+          </h2>
+          <p className="text-gray-600">
+            {isRTL ? 'إدارة جميع الزيارات والمندوبين والاتصالات في مكان واحد' : 'Manage all visits, delegates, and communications in one place'}
+          </p>
+          <p className="text-sm text-gray-500">
+            {isRTL ? 'سجلات قاعدة البيانات:' : 'Database records:'} {visits.length}
+          </p>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className={`flex items-center ${isRTL ? 'space-x-reverse space-x-2' : 'space-x-2'}`}>
           {unreadAlerts.length > 0 && (
             <Badge variant="destructive" className="flex items-center gap-1">
               <Bell className="h-3 w-3" />
-              {unreadAlerts.length} Alerts
+              {unreadAlerts.length} {isRTL ? 'تنبيهات' : 'Alerts'}
             </Badge>
           )}
           <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
             <DialogTrigger asChild>
               <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Visit
+                <Plus className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                {isRTL ? 'إضافة زيارة' : 'Add Visit'}
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl">
-              <DialogHeader>
-                <DialogTitle>Add New Visit</DialogTitle>
-                <DialogDescription>
-                  Create a new visit with delegate and customer information
+            <DialogContent 
+              ref={createModalRef} 
+              onKeyDown={handleKeyDown}
+              className="max-w-6xl max-h-[95vh] overflow-hidden"
+            >
+              {/* Scroll progress bar */}
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gray-200 z-30 rounded-t-[20px]">
+                <div 
+                  className="h-full bg-gradient-to-r from-gray-400 to-gray-500 transition-all duration-150 ease-out rounded-t-[20px]"
+                  style={{ width: `${scrollProgress}%` }}
+                />
+              </div>
+              
+              <DialogHeader className="pb-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50 -m-6 mb-0 p-6">
+                <DialogTitle className={isRTL ? 'text-right' : 'text-left'}>
+                  {isRTL ? 'إضافة زيارة جديدة' : 'Add New Visit'}
+                </DialogTitle>
+                <DialogDescription className={isRTL ? 'text-right' : 'text-left'}>
+                  {isRTL ? 'إنشاء زيارة جديدة مع معلومات المندوب والعميل' : 'Create a new visit with delegate and customer information'}
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid grid-cols-2 gap-4">
+              
+              <div className="overflow-y-auto max-h-[calc(95vh-200px)] px-6">
+                <div className="py-6">
+                  <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="visit_id">Visit ID (Auto-generated)</Label>
-                  <div className="flex space-x-2">
+                  <Label htmlFor="visit_id" className={isRTL ? 'text-right' : 'text-left'}>
+                    {isRTL ? 'معرف الزيارة (يتم إنشاؤه تلقائياً)' : 'Visit ID (Auto-generated)'}
+                  </Label>
+                  <div className={`flex ${isRTL ? 'space-x-reverse space-x-2' : 'space-x-2'}`}>
                     <Input
                       id="visit_id"
                       value={newVisit.visit_id}
                       readOnly
                       className="bg-gray-50 cursor-not-allowed"
-                      placeholder="Auto-generated"
+                      placeholder={isRTL ? 'يتم إنشاؤه تلقائياً' : 'Auto-generated'}
                     />
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={() => setNewVisit(prev => ({ ...prev, visit_id: generateVisitId() }))}
-                      title="Generate new Visit ID"
+                      title={isRTL ? 'إنشاء معرف زيارة جديد' : 'Generate new Visit ID'}
                     >
                       🔄
                     </Button>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="delegate_id">Delegate ID</Label>
+                  <Label htmlFor="delegate_id" className={isRTL ? 'text-right' : 'text-left'}>
+                    {isRTL ? 'معرف المندوب' : 'Delegate ID'}
+                  </Label>
                   <Input
                     id="delegate_id"
                     value={newVisit.delegate_id}
@@ -508,21 +595,26 @@ export function VisitManagementSingleTab() {
                       }
                     }}
                     placeholder="REP001"
+                    className={isRTL ? 'text-right' : 'text-left'}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="delegate_name">Delegate Name {autoFilledFields.delegate_name ? '(Auto-filled)' : ''}</Label>
+                  <Label htmlFor="delegate_name" className={isRTL ? 'text-right' : 'text-left'}>
+                    {isRTL ? 'اسم المندوب' : 'Delegate Name'} {autoFilledFields.delegate_name ? (isRTL ? '(تم ملؤه تلقائياً)' : '(Auto-filled)') : ''}
+                  </Label>
                   <Input
                     id="delegate_name"
                     value={newVisit.delegate_name}
                     onChange={(e) => setNewVisit(prev => ({ ...prev, delegate_name: e.target.value }))}
-                    placeholder="John Doe"
+                    placeholder={isRTL ? 'أحمد محمد' : 'John Doe'}
                     readOnly={autoFilledFields.delegate_name}
-                    className={autoFilledFields.delegate_name ? 'bg-gray-50' : ''}
+                    className={`${autoFilledFields.delegate_name ? 'bg-gray-50' : ''} ${isRTL ? 'text-right' : 'text-left'}`}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="delegate_email">Delegate Email {autoFilledFields.delegate_email ? '(Auto-filled)' : ''}</Label>
+                  <Label htmlFor="delegate_email" className={isRTL ? 'text-right' : 'text-left'}>
+                    {isRTL ? 'بريد المندوب الإلكتروني' : 'Delegate Email'} {autoFilledFields.delegate_email ? (isRTL ? '(تم ملؤه تلقائياً)' : '(Auto-filled)') : ''}
+                  </Label>
                   <Input
                     id="delegate_email"
                     type="email"
@@ -681,15 +773,75 @@ export function VisitManagementSingleTab() {
                   onChange={(e) => setNewVisit(prev => ({ ...prev, notes: e.target.value }))}
                   placeholder="Additional notes..."
                 />
+                  </div>
+                </div>
               </div>
-              <DialogFooter>
+              
+              <DialogFooter className="px-6">
                 <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
-                  Cancel
+                  {isRTL ? 'إلغاء' : 'Cancel'}
                 </Button>
                 <Button onClick={handleCreateVisit}>
-                  Create Visit
+                  {isRTL ? 'إنشاء الزيارة' : 'Create Visit'}
                 </Button>
               </DialogFooter>
+              
+              {/* Scroll hint overlay */}
+              {showScrollHint && (
+                <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px] flex items-center justify-center z-30 animate-in fade-in duration-500">
+                  <div className="bg-white/95 px-6 py-4 rounded-xl shadow-xl border border-gray-200 backdrop-blur-sm">
+                    <div className="flex items-center gap-3 text-sm text-gray-700">
+                      <div className="flex gap-1">
+                        <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                        <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                        <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                      </div>
+                      <span className="font-medium">{isRTL ? 'مرر لأسفل لرؤية جميع أقسام النموذج' : 'Scroll down to see all form sections'}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Scroll indicator - only show when at top */}
+              {scrollProgress < 10 && !showScrollHint && (
+                <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-2 text-xs text-gray-500 bg-white/90 px-3 py-1.5 rounded-full shadow-sm border border-gray-200 backdrop-blur-sm animate-in fade-in duration-300 z-30">
+                  <div className="flex gap-1">
+                    <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                  <span className="font-medium">{isRTL ? 'مرر للاستكشاف' : 'Scroll to explore'}</span>
+                </div>
+              )}
+              
+              {/* Scroll navigation buttons */}
+              <div className="absolute top-6 right-6 flex flex-col gap-2 z-40">
+                {/* Scroll to top - only show when scrolled down */}
+                {scrollProgress > 5 && (
+                  <Button
+                    onClick={scrollToTop}
+                    size="sm"
+                    variant="outline"
+                    className="h-7 w-7 p-0 bg-white/95 hover:bg-white shadow-md border-gray-200 hover:border-gray-400 hover:shadow-lg transition-all duration-200 animate-in slide-in-from-top active:scale-95"
+                    title={isRTL ? 'التمرير إلى الأعلى (Ctrl+Home)' : 'Scroll to top (Ctrl+Home)'}
+                  >
+                    <ChevronUp className="h-3 w-3" />
+                  </Button>
+                )}
+                
+                {/* Scroll to bottom - only show when not at bottom */}
+                {scrollProgress < 95 && (
+                  <Button
+                    onClick={scrollToBottom}
+                    size="sm"
+                    variant="outline"
+                    className="h-7 w-7 p-0 bg-white/95 hover:bg-white shadow-md border-gray-200 hover:border-gray-400 hover:shadow-lg transition-all duration-200 animate-in slide-in-from-top active:scale-95"
+                    title={isRTL ? 'التمرير إلى الأسفل (Ctrl+End)' : 'Scroll to bottom (Ctrl+End)'}
+                  >
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
             </DialogContent>
           </Dialog>
         </div>
@@ -701,11 +853,27 @@ export function VisitManagementSingleTab() {
           <AlertTriangle className="h-4 w-4 text-red-600" />
           <AlertDescription className="text-red-800">
             <div className="space-y-2">
-              <p className="font-medium">Active Alerts ({unreadAlerts.length})</p>
+              <p className={`font-medium ${isRTL ? 'text-right' : 'text-left'}`}>
+                {isRTL ? 'التنبيهات النشطة' : 'Active Alerts'} ({unreadAlerts.length})
+              </p>
               {unreadAlerts.map(visit => (
-                <div key={visit.id} className="flex items-center justify-between p-2 bg-white rounded border">
-                  <div>
-                    <p className="text-sm font-medium">{visit.alert_message}</p>
+                <div key={visit.id} className={`flex items-center justify-between p-2 bg-white rounded border ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <div className={isRTL ? 'text-right' : 'text-left'}>
+                    <p className="text-sm font-medium">
+                      {visit.alert_message ? (
+                        visit.alert_message.includes('exceeded allowed time') ? (
+                          isRTL ? 
+                            `المندوب ${visit.delegate_name} تجاوز الوقت المسموح للزيارة في ${visit.customer_name}` :
+                            `Delegate ${visit.delegate_name} has exceeded allowed time for visit at ${visit.customer_name}`
+                        ) : visit.alert_message.includes('is late for visit') ? (
+                          isRTL ? 
+                            `المندوب ${visit.delegate_name} متأخر للزيارة في ${visit.customer_name}` :
+                            `Delegate ${visit.delegate_name} is late for visit at ${visit.customer_name}`
+                        ) : visit.alert_message
+                      ) : (
+                        isRTL ? 'تنبيه غير محدد' : 'Unspecified alert'
+                      )}
+                    </p>
                     <p className="text-xs text-gray-600">
                       {new Date(visit.created_at).toLocaleString()}
                     </p>
@@ -714,8 +882,9 @@ export function VisitManagementSingleTab() {
                     size="sm"
                     variant="outline"
                     onClick={() => handleMarkAlertAsRead(visit.id)}
+                    className={isRTL ? 'mr-2' : 'ml-2'}
                   >
-                    Mark as Read
+                    {isRTL ? 'تمييز كمقروء' : 'Mark as Read'}
                   </Button>
                 </div>
               ))}
@@ -828,19 +997,32 @@ export function VisitManagementSingleTab() {
                   <div className="flex items-center space-x-3 mb-2">
                     <h3 className="text-lg font-semibold">{visit.visit_id} - {visit.customer_name}</h3>
                     <Badge className={getStatusColor(visit.status)}>
-                      {visit.status.replace('_', ' ').toUpperCase()}
+                      {visit.status === 'in_progress' ? (isRTL ? 'قيد التنفيذ' : 'IN PROGRESS') :
+                       visit.status === 'completed' ? (isRTL ? 'مكتمل' : 'COMPLETED') :
+                       visit.status === 'scheduled' ? (isRTL ? 'مجدول' : 'SCHEDULED') :
+                       visit.status === 'cancelled' ? (isRTL ? 'ملغي' : 'CANCELLED') :
+                       visit.status.replace('_', ' ').toUpperCase()}
                     </Badge>
                     <Badge className={getPriorityColor(visit.priority)}>
-                      {visit.priority.toUpperCase()}
+                      {visit.priority === 'high' ? (isRTL ? 'عالي' : 'HIGH') :
+                       visit.priority === 'medium' ? (isRTL ? 'متوسط' : 'MEDIUM') :
+                       visit.priority === 'low' ? (isRTL ? 'منخفض' : 'LOW') :
+                       visit.priority.toUpperCase()}
                     </Badge>
                     {visit.is_late && (
-                      <Badge variant="destructive">LATE</Badge>
+                      <Badge variant="destructive">
+                        {isRTL ? 'متأخر' : 'LATE'}
+                      </Badge>
                     )}
                     {visit.exceeds_time_limit && (
-                      <Badge variant="destructive">TIME EXCEEDED</Badge>
+                      <Badge variant="destructive">
+                        {isRTL ? 'تجاوز الوقت' : 'TIME EXCEEDED'}
+                      </Badge>
                     )}
                     {visit.alert_type && !visit.is_alert_read && (
-                      <Badge variant="destructive">ALERT</Badge>
+                      <Badge variant="destructive">
+                        {isRTL ? 'تنبيه' : 'ALERT'}
+                      </Badge>
                     )}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600">
@@ -870,7 +1052,19 @@ export function VisitManagementSingleTab() {
                   )}
                   {visit.alert_message && (
                     <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
-                      <p className="text-sm text-red-800 font-medium">Alert: {visit.alert_message}</p>
+                      <p className={`text-sm text-red-800 font-medium ${isRTL ? 'text-right' : 'text-left'}`}>
+                        {isRTL ? 'تنبيه:' : 'Alert:'} {
+                          visit.alert_message.includes('exceeded allowed time') ? (
+                            isRTL ? 
+                              `المندوب ${visit.delegate_name} تجاوز الوقت المسموح للزيارة في ${visit.customer_name}` :
+                              `Delegate ${visit.delegate_name} has exceeded allowed time for visit at ${visit.customer_name}`
+                          ) : visit.alert_message.includes('is late for visit') ? (
+                            isRTL ? 
+                              `المندوب ${visit.delegate_name} متأخر للزيارة في ${visit.customer_name}` :
+                              `Delegate ${visit.delegate_name} is late for visit at ${visit.customer_name}`
+                          ) : visit.alert_message
+                        }
+                      </p>
                     </div>
                   )}
                 </div>
@@ -907,12 +1101,27 @@ export function VisitManagementSingleTab() {
 
       {/* Visit Details Modal */}
       <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Visit Details - {selectedVisit?.visit_id}</DialogTitle>
+        <DialogContent 
+          ref={detailsModalRef} 
+          className="max-w-6xl max-h-[95vh] overflow-hidden"
+        >
+          {/* Scroll progress bar */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gray-200 z-30 rounded-t-[20px]">
+            <div 
+              className="h-full bg-gradient-to-r from-gray-400 to-gray-500 transition-all duration-150 ease-out rounded-t-[20px]"
+              style={{ width: `${scrollProgress}%` }}
+            />
+          </div>
+          
+          <DialogHeader className="pb-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50 -m-6 mb-0 p-6">
+            <DialogTitle className={isRTL ? 'text-right' : 'text-left'}>
+              {isRTL ? 'تفاصيل الزيارة' : 'Visit Details'} - {selectedVisit?.visit_id}
+            </DialogTitle>
           </DialogHeader>
+          
           {selectedVisit && (
-            <div className="space-y-4">
+            <div className="overflow-y-auto max-h-[calc(95vh-200px)] px-6">
+              <div className="py-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium text-gray-500">Visit ID</Label>
@@ -1001,8 +1210,46 @@ export function VisitManagementSingleTab() {
                   <p className="bg-green-50 p-3 rounded">{selectedVisit.chat_message}</p>
                 </div>
               )}
+              </div>
             </div>
           )}
+          
+          {/* Scroll navigation buttons for details modal */}
+          <div className="absolute top-6 right-6 flex flex-col gap-2 z-40">
+            {/* Scroll to top - only show when scrolled down */}
+            {scrollProgress > 5 && (
+              <Button
+                onClick={() => {
+                  if (detailsModalRef.current) {
+                    detailsModalRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
+                }}
+                size="sm"
+                variant="outline"
+                className="h-7 w-7 p-0 bg-white/95 hover:bg-white shadow-md border-gray-200 hover:border-gray-400 hover:shadow-lg transition-all duration-200 animate-in slide-in-from-top active:scale-95"
+                title={isRTL ? 'التمرير إلى الأعلى (Ctrl+Home)' : 'Scroll to top (Ctrl+Home)'}
+              >
+                <ChevronUp className="h-3 w-3" />
+              </Button>
+            )}
+            
+            {/* Scroll to bottom - only show when not at bottom */}
+            {scrollProgress < 95 && (
+              <Button
+                onClick={() => {
+                  if (detailsModalRef.current) {
+                    detailsModalRef.current.scrollTo({ top: detailsModalRef.current.scrollHeight, behavior: 'smooth' });
+                  }
+                }}
+                size="sm"
+                variant="outline"
+                className="h-7 w-7 p-0 bg-white/95 hover:bg-white shadow-md border-gray-200 hover:border-gray-400 hover:shadow-lg transition-all duration-200 animate-in slide-in-from-top active:scale-95"
+                title={isRTL ? 'التمرير إلى الأسفل (Ctrl+End)' : 'Scroll to bottom (Ctrl+End)'}
+              >
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

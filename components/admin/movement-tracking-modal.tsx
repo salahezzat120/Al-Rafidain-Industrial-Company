@@ -13,7 +13,7 @@ import {
   MapPin, Clock, Navigation, Activity, Download, Calendar as CalendarIcon,
   Filter, Search, BarChart3, Route, User, Phone, Mail, Truck, Star
 } from "lucide-react";
-import { format } from "date-fns";
+import { format as formatDate } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/language-context";
 import { RepresentativeMovement, RepresentativeVisit, MovementTrackingFilters, MovementTrackingStats, MovementReportData } from "@/types/movement-tracking";
@@ -140,8 +140,8 @@ export function MovementTrackingModal({ representative, isOpen, onClose }: Movem
         representative_name: representative.name,
         representative_id: representative.id,
         date_range: {
-          start_date: dateRange.from ? format(dateRange.from, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
-          end_date: dateRange.to ? format(dateRange.to, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+          start_date: dateRange.from ? formatDate(dateRange.from, 'yyyy-MM-dd') : formatDate(new Date(), 'yyyy-MM-dd'),
+          end_date: dateRange.to ? formatDate(dateRange.to, 'yyyy-MM-dd') : formatDate(new Date(), 'yyyy-MM-dd'),
         },
         movements,
         visits,
@@ -170,10 +170,10 @@ export function MovementTrackingModal({ representative, isOpen, onClose }: Movem
 
       if (format === 'excel') {
         blob = await MovementReportGenerator.generateExcelReport(reportData, filters);
-        filename = `movement-report-${representative.name}-${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+        filename = `movement-report-${representative.name}-${formatDate(new Date(), 'yyyy-MM-dd')}.xlsx`;
       } else {
         blob = await MovementReportGenerator.generatePDFReport(reportData, filters);
-        filename = `movement-report-${representative.name}-${format(new Date(), 'yyyy-MM-dd')}.txt`;
+        filename = `movement-report-${representative.name}-${formatDate(new Date(), 'yyyy-MM-dd')}.txt`;
       }
 
       MovementReportGenerator.downloadBlob(blob, filename);
@@ -274,9 +274,9 @@ export function MovementTrackingModal({ representative, isOpen, onClose }: Movem
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {dateRange.from ? (
                             dateRange.to ? (
-                              `${format(dateRange.from, "MMM dd")} - ${format(dateRange.to, "MMM dd")}`
+                              `${formatDate(dateRange.from, "MMM dd")} - ${formatDate(dateRange.to, "MMM dd")}`
                             ) : (
-                              format(dateRange.from, "MMM dd")
+                              formatDate(dateRange.from, "MMM dd")
                             )
                           ) : (
                             "Select date range"
@@ -426,7 +426,7 @@ export function MovementTrackingModal({ representative, isOpen, onClose }: Movem
                     {selectedDate ? (
                       <div className="space-y-2">
                         <p className="text-sm text-gray-600">
-                          {format(selectedDate, "EEEE, MMMM do, yyyy")}
+                          {formatDate(selectedDate, "EEEE, MMMM do, yyyy")}
                         </p>
                         <div className="space-y-2">
                           {movements

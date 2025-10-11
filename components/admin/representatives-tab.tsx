@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Star, Truck, Filter, Download, Navigation, User, Calendar, Shield, Car, Clock, Copy, X, Activity, History } from "lucide-react";
+import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Star, Truck, Filter, Download, Navigation, User, Calendar, Shield, Car, Clock, Copy, X, Activity, History, ChevronUp, ChevronDown } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AddRepresentativeModal } from "./add-representative-modal";
@@ -15,6 +15,8 @@ import { getRepresentatives, generateRepresentativeId, testRepresentativesTable,
 import * as XLSX from 'xlsx';
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertCircle } from "@/components/ui/alert";
+import { MovementReportGenerator } from "@/lib/movement-reports";
+import { getAllRepresentativesMovementData } from "@/lib/movement-data";
 
 interface RepresentativesTabProps {
   onNavigateToChatSupport?: () => void
@@ -34,6 +36,9 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
   const [selectedMovementRepresentative, setSelectedMovementRepresentative] = useState<any>(null);
   const [formData, setFormData] = useState({ id: '' });
   const [errors, setErrors] = useState({ id: '' });
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [showScrollHint, setShowScrollHint] = useState(false);
+  const profileModalRef = useRef<HTMLDivElement>(null);
 
   const { t, isRTL } = useLanguage();
 
@@ -50,6 +55,34 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
     fetchRepresentatives();
   }, []);
 
+  // Track scroll progress for profile modal
+  useEffect(() => {
+    const handleScroll = () => {
+      if (profileModalRef.current) {
+        const { scrollTop, scrollHeight, clientHeight } = profileModalRef.current;
+        const progress = (scrollTop / (scrollHeight - clientHeight)) * 100;
+        setScrollProgress(Math.min(100, Math.max(0, progress)));
+      }
+    };
+
+    const modal = profileModalRef.current;
+    if (modal) {
+      modal.addEventListener('scroll', handleScroll);
+      return () => modal.removeEventListener('scroll', handleScroll);
+    }
+  }, [isProfileInfoModalOpen]);
+
+  // Show scroll hint when profile modal opens
+  useEffect(() => {
+    if (isProfileInfoModalOpen) {
+      const timer = setTimeout(() => {
+        setShowScrollHint(true);
+        setTimeout(() => setShowScrollHint(false), 3000);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isProfileInfoModalOpen]);
+
 
   const handleAddRepresentative = (newRepresentative: any) => {
     setRepresentatives((prev) => [...prev, newRepresentative]);
@@ -65,6 +98,29 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     // You could add a toast notification here
+  };
+
+  // Scroll functionality for profile modal
+  const scrollToTop = () => {
+    if (profileModalRef.current) {
+      profileModalRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const scrollToBottom = () => {
+    if (profileModalRef.current) {
+      profileModalRef.current.scrollTo({ top: profileModalRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowUp' && e.ctrlKey) {
+      e.preventDefault();
+      scrollToTop();
+    } else if (e.key === 'ArrowDown' && e.ctrlKey) {
+      e.preventDefault();
+      scrollToBottom();
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -145,6 +201,100 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
     setFormData(prev => ({ ...prev, id: representativeId }));
   };
 
+  const handleDownloadPDFReport = async () => {
+    try {
+      console.log('Generating PDF report for all representatives...');
+      
+      // Get date range (last 30 days)
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+      
+      const { data: movementData, error } = await getAllRepresentativesMovementData({
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString()
+      });
+      
+      if (error) {
+        console.error('Error fetching movement data:', error);
+        alert('Error generating report: ' + error);
+        return;
+      }
+      
+      if (!movementData || movementData.length === 0) {
+        alert('No movement data found for the selected period.');
+        return;
+      }
+      
+      // Generate PDF report for the first representative (or combine all)
+      const reportData = movementData[0]; // For now, use first representative
+      const filters = {
+        representative_id: reportData.representative_id,
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString(),
+        include_movements: true,
+        include_visits: true,
+        include_summary: true
+      };
+      
+      const pdfBlob = await MovementReportGenerator.generatePDFReport(reportData, filters);
+      const filename = `movement_report_${reportData.representative_name.replace(/\s+/g, '_')}_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}.pdf`;
+      
+      MovementReportGenerator.downloadBlob(pdfBlob, filename);
+      console.log('PDF report downloaded successfully');
+    } catch (error) {
+      console.error('Error generating PDF report:', error);
+      alert('Error generating PDF report. Please try again.');
+    }
+  };
+
+  const handleDownloadExcelReport = async () => {
+    try {
+      console.log('Generating Excel report for all representatives...');
+      
+      // Get date range (last 30 days)
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+      
+      const { data: movementData, error } = await getAllRepresentativesMovementData({
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString()
+      });
+      
+      if (error) {
+        console.error('Error fetching movement data:', error);
+        alert('Error generating report: ' + error);
+        return;
+      }
+      
+      if (!movementData || movementData.length === 0) {
+        alert('No movement data found for the selected period.');
+        return;
+      }
+      
+      // Generate Excel report for the first representative (or combine all)
+      const reportData = movementData[0]; // For now, use first representative
+      const filters = {
+        representative_id: reportData.representative_id,
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString(),
+        include_movements: true,
+        include_visits: true,
+        include_summary: true
+      };
+      
+      const excelBlob = await MovementReportGenerator.generateExcelReport(reportData, filters);
+      const filename = `movement_report_${reportData.representative_name.replace(/\s+/g, '_')}_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}.xlsx`;
+      
+      MovementReportGenerator.downloadBlob(excelBlob, filename);
+      console.log('Excel report downloaded successfully');
+    } catch (error) {
+      console.error('Error generating Excel report:', error);
+      alert('Error generating Excel report. Please try again.');
+    }
+  };
+
   const testTableConnection = async () => {
     console.log('Testing representatives table connection...');
     const result = await testRepresentativesTable();
@@ -197,6 +347,39 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
             <Plus className="h-4 w-4 mr-2" />
             {t("add")} {t("representative")}
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => {
+                if (representatives.length > 0) {
+                  handleViewMovementHistory(representatives[0]);
+                }
+              }}>
+                <History className="h-4 w-4 mr-2" />
+                {t("viewHistoricalLogs")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                if (representatives.length > 0) {
+                  handleViewMovementHistory(representatives[0]);
+                }
+              }}>
+                <Calendar className="h-4 w-4 mr-2" />
+                {t("calendarView")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadPDFReport}>
+                <Download className="h-4 w-4 mr-2" />
+                {t("downloadPDFReport")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadExcelReport}>
+                <Download className="h-4 w-4 mr-2" />
+                {t("downloadExcelReport")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -276,66 +459,6 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
         </Button>
       </div>
 
-      {/* Movement Tracking Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Movement Tracking & Reports
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button 
-              variant="outline" 
-              className="flex items-center gap-2 h-auto p-4"
-              onClick={() => {
-                if (representatives.length > 0) {
-                  handleViewMovementHistory(representatives[0]);
-                }
-              }}
-            >
-              <History className="h-5 w-5" />
-              <div className="text-left">
-                <div className="font-medium">View Historical Logs</div>
-                <div className="text-sm text-gray-600">Track representative movements and activities</div>
-              </div>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="flex items-center gap-2 h-auto p-4"
-              onClick={() => {
-                // Navigate to calendar view
-                if (representatives.length > 0) {
-                  handleViewMovementHistory(representatives[0]);
-                }
-              }}
-            >
-              <Calendar className="h-5 w-5" />
-              <div className="text-left">
-                <div className="font-medium">Calendar View</div>
-                <div className="text-sm text-gray-600">Select dates to view specific activities</div>
-              </div>
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="flex items-center gap-2 h-auto p-4"
-              onClick={() => {
-                // Download reports for all representatives
-                console.log('Downloading comprehensive movement reports...');
-              }}
-            >
-              <Download className="h-5 w-5" />
-              <div className="text-left">
-                <div className="font-medium">Download Reports</div>
-                <div className="text-sm text-gray-600">Generate PDF/Excel reports for date ranges</div>
-              </div>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Representatives List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -385,7 +508,7 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleViewMovementHistory(representative)}>
                         <Activity className="h-4 w-4 mr-2" />
-                        View Movement History
+                        {t("viewMovementHistory")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -482,8 +605,20 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
 
       {/* Enhanced Profile Information Modal */}
       <Dialog open={isProfileInfoModalOpen} onOpenChange={setIsProfileInfoModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent 
+          ref={profileModalRef}
+          onKeyDown={handleKeyDown}
+          className="max-w-4xl max-h-[95vh] overflow-hidden"
+        >
+          {/* Scroll Progress Bar */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gray-200 z-10">
+            <div 
+              className="h-full bg-blue-500 transition-all duration-300 ease-out"
+              style={{ width: `${scrollProgress}%` }}
+            />
+          </div>
+
+          <DialogHeader className="pb-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50 -m-6 mb-0 p-6">
             <DialogTitle className="flex items-center gap-3">
               <Avatar className="h-12 w-12">
                 <AvatarImage src={selectedProfileRepresentative?.avatar_url} />
@@ -501,7 +636,8 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6">
+          <div className="overflow-y-auto max-h-[calc(95vh-200px)] px-6">
+            <div className="space-y-6 py-6">
             {/* Basic Information */}
             <Card>
               <CardHeader>
@@ -684,9 +820,51 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
                 </div>
               </CardContent>
             </Card>
+            </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          {/* Scroll Navigation Buttons */}
+          {scrollProgress > 5 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={scrollToTop}
+              className="absolute top-20 right-4 z-20 bg-white shadow-lg"
+              title="Scroll to top (Ctrl+↑)"
+            >
+              <ChevronUp className="h-4 w-4" />
+            </Button>
+          )}
+          
+          {scrollProgress < 95 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={scrollToBottom}
+              className="absolute bottom-20 right-4 z-20 bg-white shadow-lg"
+              title="Scroll to bottom (Ctrl+↓)"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          )}
+
+          {/* Scroll Hint Overlay */}
+          {showScrollHint && (
+            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-30">
+              <div className="bg-white p-6 rounded-lg shadow-lg text-center">
+                <div className="text-lg font-semibold mb-2">📜 Scrollable Content</div>
+                <div className="text-sm text-gray-600 mb-4">
+                  Use mouse wheel, scrollbar, or keyboard shortcuts to navigate
+                </div>
+                <div className="text-xs text-gray-500">
+                  <div>Ctrl + ↑ : Scroll to top</div>
+                  <div>Ctrl + ↓ : Scroll to bottom</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4 border-t px-6">
             <Button
               variant="outline"
               onClick={() => {

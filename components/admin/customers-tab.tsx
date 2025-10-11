@@ -618,7 +618,7 @@ export default function CustomersTab() {
             <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
               <div>
                 <p className={`text-sm text-gray-600 ${isRTL ? 'text-right' : 'text-left'}`}>{t("totalRevenue")}</p>
-                <p className={`text-xl font-bold ${isRTL ? 'text-right' : 'text-left'}`}>${stats.totalRevenue.toLocaleString()}</p>
+                <p className={`text-xl font-bold ${isRTL ? 'text-right' : 'text-left'}`}>{new Intl.NumberFormat('ar-SA', { style: 'currency', currency: 'SAR' }).format(stats.totalRevenue)}</p>
               </div>
               <div className="p-2 bg-blue-100 rounded-lg">
                 <Package className="h-4 w-4 text-blue-600" />
@@ -795,7 +795,7 @@ export default function CustomersTab() {
 
                   <div className={isRTL ? 'text-right' : 'text-left'}>
                     <p className="text-sm font-medium">{customer.total_orders} orders</p>
-                    <p className="text-sm text-gray-600">${customer.total_spent.toLocaleString()}</p>
+                    <p className="text-sm text-gray-600">{new Intl.NumberFormat('ar-SA', { style: 'currency', currency: 'SAR' }).format(customer.total_spent)}</p>
                   </div>
 
                   <div className={isRTL ? 'text-right' : 'text-left'}>

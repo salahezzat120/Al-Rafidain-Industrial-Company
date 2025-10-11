@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { User, Truck, MapPin, Sparkles, UserPlus, Shield, Clock, CheckCircle, AlertCircle, Loader2, ChevronUp, ChevronDown } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
 import { addRepresentative } from "@/lib/supabase-utils";
+import { getVehicles } from "@/lib/vehicle";
+import type { Vehicle } from "@/types/vehicle";
 
 export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boolean; onClose: () => void; onAdd: (representative: any) => void; }) {
   const { t } = useLanguage();
@@ -30,6 +32,8 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [scrollProgress, setScrollProgress] = useState(0);
   const [showScrollHint, setShowScrollHint] = useState(false);
@@ -62,6 +66,27 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
+
+  // Load vehicles when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadVehicles();
+    }
+  }, [isOpen]);
+
+  const loadVehicles = async () => {
+    try {
+      setLoadingVehicles(true);
+      const response = await getVehicles();
+      if (response.data) {
+        setVehicles(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading vehicles:', error);
+    } finally {
+      setLoadingVehicles(false);
+    }
+  };
 
   const scrollToTop = () => {
     if (dialogRef.current) {
@@ -585,11 +610,32 @@ export function AddRepresentativeModal({ isOpen, onClose, onAdd }: { isOpen: boo
                           <SelectValue placeholder={t("selectVehicle")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="VH-001">🚐 VH-001 - Ford Transit</SelectItem>
-                          <SelectItem value="VH-002">🚛 VH-002 - Mercedes Sprinter</SelectItem>
-                          <SelectItem value="VH-003">🚚 VH-003 - Isuzu NPR</SelectItem>
-                          <SelectItem value="VH-004">🚐 VH-004 - Ford Transit</SelectItem>
-                          <SelectItem value="VH-005">🚛 VH-005 - Chevrolet Express</SelectItem>
+                          {loadingVehicles ? (
+                            <SelectItem value="" disabled>
+                              <div className="flex items-center gap-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Loading vehicles...
+                              </div>
+                            </SelectItem>
+                          ) : vehicles.length > 0 ? (
+                            vehicles.map((vehicle) => (
+                              <SelectItem key={vehicle.id} value={vehicle.id}>
+                                <div className="flex items-center gap-2">
+                                  <span>🚛</span>
+                                  <span>{vehicle.license_plate} - {vehicle.make} {vehicle.model}</span>
+                                  {vehicle.status === 'active' && (
+                                    <Badge variant="secondary" className="ml-2 text-xs">
+                                      Active
+                                    </Badge>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="" disabled>
+                              No vehicles available
+                            </SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                       {errors.vehicle && (
