@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollableDialog } from '@/components/ui/scrollable-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -231,80 +231,137 @@ export function EditVehicleModal({ isOpen, onClose, onUpdate, vehicle }: EditVeh
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Truck className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">Edit Vehicle</h2>
-              <p className="text-gray-600">Update vehicle information</p>
-            </div>
-          </DialogTitle>
-          <DialogDescription>
-            Update the vehicle information below. All fields marked with * are required.
-          </DialogDescription>
-        </DialogHeader>
+    <ScrollableDialog
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Edit Vehicle"
+      description="Update vehicle information"
+      maxWidth="max-w-6xl"
+      footer={
+        <div className="flex justify-end gap-3">
+          <Button variant="outline" onClick={onClose} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Updating...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Update Vehicle
+              </>
+            )}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-8 py-4 overflow-y-auto flex-1 max-h-[calc(90vh-200px)] scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 min-h-[600px]">
+        {/* Header */}
+        <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
+          <div className="p-2 bg-blue-100 rounded-lg">
+            <Truck className="h-6 w-6 text-blue-600" />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Vehicle Information</h2>
+            <p className="text-base text-muted-foreground mt-2">Update the vehicle information below. All fields marked with * are required.</p>
+          </div>
+        </div>
 
+        {/* Error Messages */}
         {errors.submit && (
-          <Alert className="mb-6">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>{errors.submit}</AlertDescription>
+          <Alert className="border-red-200 bg-red-50">
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+            <AlertDescription className="text-red-600">
+              {errors.submit}
+            </AlertDescription>
           </Alert>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
-          <div className="bg-gray-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Car className="h-5 w-5" />
-              Basic Information
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="vehicle_id">Vehicle ID *</Label>
+          {/* Basic Information Section */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-1 h-6 bg-blue-600 rounded-full"></div>
+              <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="vehicle_id" className="text-sm font-medium text-gray-700">
+                  Vehicle ID *
+                </Label>
                 <Input
                   id="vehicle_id"
                   value={formData.vehicle_id}
                   onChange={(e) => handleInputChange('vehicle_id', e.target.value)}
-                  className={errors.vehicle_id ? 'border-red-500' : ''}
+                  placeholder="e.g., ABC-123"
+                  className="h-11 border-gray-300 focus:border-blue-500"
                 />
-                {errors.vehicle_id && <p className="text-red-500 text-sm mt-1">{errors.vehicle_id}</p>}
+                {errors.vehicle_id && (
+                  <div className="flex items-center gap-1 text-red-600 text-sm">
+                    <AlertTriangle className="h-4 w-4" />
+                    {errors.vehicle_id}
+                  </div>
+                )}
               </div>
 
-              <div>
-                <Label htmlFor="license_plate">License Plate *</Label>
+              <div className="space-y-2">
+                <Label htmlFor="license_plate" className="text-sm font-medium text-gray-700">
+                  License Plate *
+                </Label>
                 <Input
                   id="license_plate"
                   value={formData.license_plate}
                   onChange={(e) => handleInputChange('license_plate', e.target.value)}
-                  className={errors.license_plate ? 'border-red-500' : ''}
+                  placeholder="License plate number"
+                  className="h-11 border-gray-300 focus:border-blue-500"
                 />
-                {errors.license_plate && <p className="text-red-500 text-sm mt-1">{errors.license_plate}</p>}
+                {errors.license_plate && (
+                  <div className="flex items-center gap-1 text-red-600 text-sm">
+                    <AlertTriangle className="h-4 w-4" />
+                    {errors.license_plate}
+                  </div>
+                )}
               </div>
 
-              <div>
-                <Label htmlFor="make">Make *</Label>
+              <div className="space-y-2">
+                <Label htmlFor="make" className="text-sm font-medium text-gray-700">
+                  Make *
+                </Label>
                 <Input
                   id="make"
                   value={formData.make}
                   onChange={(e) => handleInputChange('make', e.target.value)}
-                  className={errors.make ? 'border-red-500' : ''}
+                  placeholder="e.g., Toyota"
+                  className="h-11 border-gray-300 focus:border-blue-500"
                 />
-                {errors.make && <p className="text-red-500 text-sm mt-1">{errors.make}</p>}
+                {errors.make && (
+                  <div className="flex items-center gap-1 text-red-600 text-sm">
+                    <AlertTriangle className="h-4 w-4" />
+                    {errors.make}
+                  </div>
+                )}
               </div>
 
-              <div>
-                <Label htmlFor="model">Model *</Label>
+              <div className="space-y-2">
+                <Label htmlFor="model" className="text-sm font-medium text-gray-700">
+                  Model *
+                </Label>
                 <Input
                   id="model"
                   value={formData.model}
                   onChange={(e) => handleInputChange('model', e.target.value)}
-                  className={errors.model ? 'border-red-500' : ''}
+                  placeholder="e.g., Hilux"
+                  className="h-11 border-gray-300 focus:border-blue-500"
                 />
-                {errors.model && <p className="text-red-500 text-sm mt-1">{errors.model}</p>}
+                {errors.model && (
+                  <div className="flex items-center gap-1 text-red-600 text-sm">
+                    <AlertTriangle className="h-4 w-4" />
+                    {errors.model}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -372,12 +429,12 @@ export function EditVehicleModal({ isOpen, onClose, onUpdate, vehicle }: EditVeh
             </div>
           </div>
 
-          {/* Technical Specifications */}
-          <div className="bg-gray-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Truck className="h-5 w-5" />
-              Technical Specifications
-            </h3>
+          {/* Technical Specifications Section */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-1 h-6 bg-green-600 rounded-full"></div>
+              <h3 className="text-lg font-semibold text-gray-900">Technical Specifications</h3>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="engine_type">Engine Type</Label>
@@ -492,12 +549,12 @@ export function EditVehicleModal({ isOpen, onClose, onUpdate, vehicle }: EditVeh
             </div>
           </div>
 
-          {/* Additional Information */}
-          <div className="bg-gray-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
-              Additional Information
-            </h3>
+          {/* Additional Information Section */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-1 h-6 bg-purple-600 rounded-full"></div>
+              <h3 className="text-lg font-semibold text-gray-900">Additional Information</h3>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="current_location">Current Location</Label>
@@ -543,27 +600,8 @@ export function EditVehicleModal({ isOpen, onClose, onUpdate, vehicle }: EditVeh
             </div>
           </div>
 
-          {/* Form Actions */}
-          <div className="flex justify-end gap-3 pt-6 border-t">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Updating...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Update Vehicle
-                </>
-              )}
-            </Button>
-          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </ScrollableDialog>
   );
 }

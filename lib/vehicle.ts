@@ -1,7 +1,7 @@
 // Vehicle Fleet Management API Functions
 // This file contains all API functions for interacting with the vehicle fleet management database
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import type {
   Vehicle,
   Driver,
@@ -27,17 +27,41 @@ import type {
   PaginatedResponse
 } from '@/types/vehicle';
 
-// Initialize Supabase client with fallback values
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Helper function to map database vehicle to TypeScript interface
+function mapDbVehicleToInterface(dbVehicle: any): Vehicle {
+  return {
+    id: dbVehicle.id.toString(),
+    vehicle_id: dbVehicle.vehicle_id,
+    license_plate: dbVehicle.license_plate,
+    make: dbVehicle.make,
+    model: dbVehicle.model,
+    year: dbVehicle.year,
+    vehicle_type: dbVehicle.vehicle_type,
+    engine_type: dbVehicle.engine_type,
+    fuel_type: dbVehicle.fuel_type,
+    capacity_kg: dbVehicle.capacity_kg,
+    fuel_capacity_l: dbVehicle.fuel_capacity, // Map fuel_capacity to fuel_capacity_l
+    status: dbVehicle.status?.toLowerCase() as any, // Convert to lowercase
+    fuel_level_percent: dbVehicle.current_fuel_level, // Map current_fuel_level to fuel_level_percent
+    mileage_km: dbVehicle.mileage, // Map mileage to mileage_km
+    current_location: dbVehicle.current_location,
+    insurance_company: dbVehicle.insurance_company,
+    purchase_price: dbVehicle.purchase_price,
+    service_interval_km: dbVehicle.service_interval_km,
+    speed_limit_kmh: dbVehicle.speed_limit_kmh,
+    color: dbVehicle.color,
+    fuel_consumption: dbVehicle.fuel_consumption,
+    created_at: dbVehicle.created_at,
+    updated_at: dbVehicle.updated_at
+  };
+}
 
 // Vehicle CRUD Operations
 export async function getVehicles(filters?: VehicleFilters, pagination?: PaginationParams): Promise<PaginatedResponse<Vehicle>> {
   try {
-    // Check if Supabase is properly configured
-    if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeholder-key') {
-      console.log('Supabase not configured, using mock data');
+    // Check if Supabase client is available
+    if (!supabase) {
+      console.log('Supabase client not available, using mock data');
       return {
         data: mockVehicleData.vehicles,
         pagination: {
@@ -92,8 +116,11 @@ export async function getVehicles(filters?: VehicleFilters, pagination?: Paginat
 
     if (error) throw error;
 
+    // Map database vehicles to TypeScript interface
+    const mappedVehicles = (data || []).map(mapDbVehicleToInterface);
+
     return {
-      data: data || [],
+      data: mappedVehicles,
       pagination: {
         page: pagination?.page || 1,
         limit: pagination?.limit || 10,
@@ -116,7 +143,7 @@ export async function getVehicleById(id: string): Promise<Vehicle | null> {
       .single();
 
     if (error) throw error;
-    return data;
+    return data ? mapDbVehicleToInterface(data) : null;
   } catch (error) {
     console.error('Error fetching vehicle:', error);
     return null;
@@ -125,9 +152,9 @@ export async function getVehicleById(id: string): Promise<Vehicle | null> {
 
 export async function createVehicle(vehicleData: CreateVehicleData): Promise<Vehicle> {
   try {
-    // Check if Supabase is properly configured
-    if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeholder-key') {
-      console.log('Supabase not configured, simulating vehicle creation');
+    // Check if Supabase client is available
+    if (!supabase) {
+      console.log('Supabase client not available, simulating vehicle creation');
       // Create a mock vehicle with the provided data
       const mockVehicle: Vehicle = {
         id: `mock-${Date.now()}`,
@@ -157,14 +184,38 @@ export async function createVehicle(vehicleData: CreateVehicleData): Promise<Veh
       return mockVehicle;
     }
 
+    // Map the data to match database column names
+    const dbVehicleData = {
+      vehicle_id: vehicleData.vehicle_id,
+      license_plate: vehicleData.license_plate,
+      make: vehicleData.make,
+      model: vehicleData.model,
+      year: vehicleData.year,
+      vehicle_type: vehicleData.vehicle_type,
+      engine_type: vehicleData.engine_type,
+      fuel_type: vehicleData.fuel_type,
+      capacity_kg: vehicleData.capacity_kg,
+      fuel_capacity: vehicleData.fuel_capacity_l, // Map fuel_capacity_l to fuel_capacity
+      status: vehicleData.status?.toUpperCase() || 'ACTIVE', // Convert to uppercase
+      current_fuel_level: vehicleData.fuel_level_percent, // Map fuel_level_percent to current_fuel_level
+      mileage: vehicleData.mileage_km, // Map mileage_km to mileage
+      current_location: vehicleData.current_location,
+      insurance_company: vehicleData.insurance_company,
+      purchase_price: vehicleData.purchase_price,
+      service_interval_km: vehicleData.service_interval_km,
+      speed_limit_kmh: vehicleData.speed_limit_kmh,
+      color: vehicleData.color,
+      fuel_consumption: vehicleData.fuel_consumption
+    };
+
     const { data, error } = await supabase
       .from('vehicles')
-      .insert(vehicleData)
+      .insert(dbVehicleData)
       .select()
       .single();
 
     if (error) throw error;
-    return data;
+    return mapDbVehicleToInterface(data);
   } catch (error) {
     console.error('Error creating vehicle:', error);
     throw error;
@@ -205,9 +256,9 @@ export async function deleteVehicle(id: string): Promise<void> {
 // Driver CRUD Operations
 export async function getDrivers(filters?: DriverFilters, pagination?: PaginationParams): Promise<PaginatedResponse<Driver>> {
   try {
-    // Check if Supabase is properly configured
-    if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeholder-key') {
-      console.log('Supabase not configured, using mock data');
+    // Check if Supabase client is available
+    if (!supabase) {
+      console.log('Supabase client not available, using mock data');
       return {
         data: mockVehicleData.drivers,
         pagination: {
@@ -498,9 +549,9 @@ export async function createTrackingRecord(trackingData: CreateTrackingData): Pr
 // Statistics and Analytics
 export async function getVehicleStats(): Promise<VehicleStats> {
   try {
-    // Check if Supabase is properly configured
-    if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeholder-key') {
-      console.log('Supabase not configured, using mock stats');
+    // Check if Supabase client is available
+    if (!supabase) {
+      console.log('Supabase client not available, using mock stats');
       return mockVehicleData.stats;
     }
 
@@ -509,30 +560,30 @@ export async function getVehicleStats(): Promise<VehicleStats> {
       .from('vehicles')
       .select('*', { count: 'exact', head: true });
 
-    // Get active vehicles
+    // Get active vehicles (status is uppercase in database)
     const { count: activeVehicles } = await supabase
       .from('vehicles')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'active');
+      .eq('status', 'ACTIVE');
 
-    // Get maintenance vehicles
+    // Get maintenance vehicles (status is uppercase in database)
     const { count: maintenanceVehicles } = await supabase
       .from('vehicles')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'maintenance');
+      .eq('status', 'MAINTENANCE');
 
-    // Get low fuel vehicles
+    // Get low fuel vehicles (using correct column name: current_fuel_level)
     const { count: lowFuelVehicles } = await supabase
       .from('vehicles')
       .select('*', { count: 'exact', head: true })
-      .lt('fuel_level_percent', 25);
+      .lt('current_fuel_level', 25);
 
     // Get total drivers
     const { count: totalDrivers } = await supabase
       .from('drivers')
       .select('*', { count: 'exact', head: true });
 
-    // Get active drivers
+    // Get active drivers (status is lowercase in database)
     const { count: activeDrivers } = await supabase
       .from('drivers')
       .select('*', { count: 'exact', head: true })
@@ -610,12 +661,12 @@ export async function getDashboardData(): Promise<DashboardData> {
       .order('next_maintenance_date', { ascending: true })
       .limit(5);
 
-    // Get low fuel vehicles
+    // Get low fuel vehicles (using correct column name: current_fuel_level)
     const { data: lowFuelVehicles } = await supabase
       .from('vehicles')
       .select('*')
-      .lt('fuel_level_percent', 25)
-      .order('fuel_level_percent', { ascending: true });
+      .lt('current_fuel_level', 25)
+      .order('current_fuel_level', { ascending: true });
 
     // Get active assignments
     const { data: activeAssignments } = await supabase
