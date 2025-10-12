@@ -495,12 +495,19 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
                     <span className="truncate">{representative.address}</span>
                   </div>
                 )}
-                {representative.vehicle && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Truck className="h-4 w-4" />
-                    <span>{representative.vehicle}</span>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Truck className="h-4 w-4" />
+                  <div className="flex flex-col">
+                    <span>
+                      {representative.vehicle_display || representative.vehicle || 'No vehicle assigned'}
+                    </span>
+                    {representative.vehicle_details && (
+                      <span className="text-xs text-gray-500">
+                        {representative.vehicle_details.license_plate} • {representative.vehicle_details.status}
+                      </span>
+                    )}
                   </div>
-                )}
+                </div>
                 <div className="flex items-center justify-between">
                   <Badge className={getStatusColor(representative.status)}>
                     {representative.status}
