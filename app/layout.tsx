@@ -7,6 +7,7 @@ import "leaflet/dist/leaflet.css"
 import "../styles/chat-overflow.css"
 import { AuthProvider } from "@/contexts/auth-context"
 import { LanguageProvider } from "@/contexts/language-context"
+import { CurrencyProvider } from "@/contexts/currency-context"
 import { SettingsProvider } from "@/contexts/settings-context"
 
 export const metadata: Metadata = {
@@ -31,11 +32,13 @@ export default function RootLayout({
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body className={GeistSans.className} suppressHydrationWarning={true}>
         <LanguageProvider>
-          <AuthProvider>
-            <SettingsProvider>
-              {children}
-            </SettingsProvider>
-          </AuthProvider>
+          <CurrencyProvider>
+            <AuthProvider>
+              <SettingsProvider>
+                {children}
+              </SettingsProvider>
+            </AuthProvider>
+          </CurrencyProvider>
         </LanguageProvider>
       </body>
     </html>

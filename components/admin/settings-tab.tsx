@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Settings, Users, Database, Bell, Globe, Save, RefreshCw, AlertCircle, CheckCircle, Loader2 } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
+import { useCurrency } from "@/contexts/currency-context"
 import { useSettings } from "@/contexts/settings-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { UsersTab } from "@/components/admin/users-tab"
@@ -32,7 +33,8 @@ import {
 } from "@/lib/backup"
 
 export function SettingsTab() {
-  const { t } = useLanguage()
+  const { t, setLanguage } = useLanguage()
+  const { setCurrency } = useCurrency()
   const { 
     systemSettings, 
     updateSystemSettings, 
@@ -137,6 +139,13 @@ export function SettingsTab() {
   const handleSettingChange = (key: string, value: any) => {
     setLocalSettings((prev) => ({ ...prev, [key]: value }))
     setHasChanges(true)
+    
+    // Automatically apply currency and language changes system-wide
+    if (key === 'currency') {
+      setCurrency(value)
+    } else if (key === 'language') {
+      setLanguage(value)
+    }
   }
 
   // Backup operations
