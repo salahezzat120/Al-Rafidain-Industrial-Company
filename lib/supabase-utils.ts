@@ -88,80 +88,90 @@ export const getRepresentatives = async (): Promise<{ data: any[]; error: string
   try {
     console.log('🔍 Fetching representatives from supabase-utils...')
     
-    // First, try to get representatives with vehicle information
-    const { data, error } = await supabase
+    // Get representatives first
+    const { data: representatives, error: repsError } = await supabase
       .from('representatives')
-      .select(`
-        *,
-        vehicles!representatives_vehicle_fkey (
-          vehicle_id,
-          make,
-          model,
-          license_plate,
-          status
-        )
-      `)
+      .select('*')
       .in('status', ['active', 'on-route'])
       .order('name', { ascending: true })
 
-    if (error) {
-      console.error('❌ Error fetching representatives with vehicles:', error)
-      console.log('🔄 Trying fallback without vehicle join...')
-      
-      // Fallback: get representatives without vehicle join
-      const { data: fallbackData, error: fallbackError } = await supabase
-        .from('representatives')
-        .select('*')
-        .in('status', ['active', 'on-route'])
-        .order('name', { ascending: true })
-
-      if (fallbackError) {
-        console.error('❌ Error fetching representatives:', fallbackError)
-        console.error('❌ Error details:', JSON.stringify(fallbackError, null, 2))
-        
-        // Try a simpler query as final fallback
-        console.log('🔄 Trying final fallback query...')
-        const { data: finalFallbackData, error: finalFallbackError } = await supabase
-          .from('representatives')
-          .select('*')
-          .limit(10)
-        
-        if (finalFallbackError) {
-          console.error('❌ Final fallback query also failed:', finalFallbackError)
-          return { data: [], error: finalFallbackError.message || 'Failed to fetch representatives' }
-        }
-        
-        console.log('✅ Final fallback query successful:', finalFallbackData?.length || 0)
-        return { data: finalFallbackData || [], error: null }
-      }
-      
-      console.log('✅ Fallback query successful:', fallbackData?.length || 0)
-      return { data: fallbackData || [], error: null }
+    if (repsError) {
+      console.error('❌ Error fetching representatives:', repsError)
+      return { data: [], error: repsError.message || 'Failed to fetch representatives' }
     }
 
-    // Process the data to include vehicle information
-    const processedData = (data || []).map(rep => {
-      if (rep.vehicles) {
-        // If vehicle information is available, format it nicely
-        const vehicle = rep.vehicles
-        rep.vehicle_display = `${vehicle.vehicle_id} - ${vehicle.make} ${vehicle.model}`
-        rep.vehicle_details = {
-          id: vehicle.vehicle_id,
-          make: vehicle.make,
-          model: vehicle.model,
-          license_plate: vehicle.license_plate,
-          status: vehicle.status
-        }
+    if (!representatives || representatives.length === 0) {
+      console.log('✅ No representatives found')
+      return { data: [], error: null }
+    }
+
+    console.log('✅ Successfully fetched representatives:', representatives.length)
+
+    // Try to get vehicle assignments if possible
+    try {
+      const { data: vehicleAssignments, error: assignmentsError } = await supabase
+        .from('vehicle_assignments')
+        .select(`
+          *,
+          vehicles (
+            vehicle_id,
+            make,
+            model,
+            license_plate,
+            status
+          )
+        `)
+        .eq('status', 'active')
+
+      if (!assignmentsError && vehicleAssignments) {
+        console.log('✅ Found vehicle assignments:', vehicleAssignments.length)
+        
+        // Create a map of representative_id to vehicle
+        const vehicleMap = new Map()
+        vehicleAssignments.forEach(assignment => {
+          if (assignment.representative_id && assignment.vehicles) {
+            vehicleMap.set(assignment.representative_id, assignment.vehicles)
+          }
+        })
+
+        // Process representatives with vehicle information
+        const processedData = representatives.map(rep => {
+          const vehicle = vehicleMap.get(rep.id)
+          if (vehicle) {
+            rep.vehicle_display = `${vehicle.vehicle_id} - ${vehicle.make} ${vehicle.model}`
+            rep.vehicle_details = {
+              id: vehicle.vehicle_id,
+              make: vehicle.make,
+              model: vehicle.model,
+              license_plate: vehicle.license_plate,
+              status: vehicle.status
+            }
+          } else {
+            // No vehicle assigned
+            rep.vehicle_display = null
+            rep.vehicle_details = null
+          }
+          return rep
+        })
+
+        console.log('✅ Successfully processed representatives with vehicle assignments')
+        return { data: processedData, error: null }
       } else {
-        // No vehicle assigned
-        rep.vehicle_display = null
-        rep.vehicle_details = null
+        console.log('⚠️ No vehicle assignments found, using basic representative data')
       }
+    } catch (vehicleError) {
+      console.log('⚠️ Could not fetch vehicle assignments:', vehicleError)
+    }
+
+    // Fallback: return representatives without vehicle information
+    const processedData = representatives.map(rep => {
+      rep.vehicle_display = rep.vehicle || null
+      rep.vehicle_details = null
       return rep
     })
 
-    console.log('✅ Successfully fetched representatives with vehicle info:', processedData?.length || 0)
-    return { data: processedData || [], error: null }
+    console.log('✅ Returning representatives with basic vehicle info')
+    return { data: processedData, error: null }
   } catch (err) {
     console.error('❌ Exception in getRepresentatives:', err)
     return { data: [], error: 'Failed to fetch representatives' }
