@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Star, Truck, Filter, Download, Navigation, User, Calendar, Shield, Car, Clock, Copy, X, Activity, History, ChevronUp, ChevronDown } from "lucide-react";
+import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Star, Truck, Filter, Download, Navigation, User, Calendar, Shield, Car, Clock, Copy, X, Activity, History, ChevronUp, ChevronDown, FileText } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AddRepresentativeModal } from "./add-representative-modal";
 import { AssignTaskModal } from "./assign-task-modal";
 import { MovementTrackingModal } from "./movement-tracking-modal";
+import { RepresentativeVisitReportModal } from "./representative-visit-report-modal";
 import { useLanguage } from "@/contexts/language-context";
 import { getRepresentatives, generateRepresentativeId } from "@/lib/supabase-utils";
 import * as XLSX from 'xlsx';
@@ -33,6 +34,8 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
   const [selectedProfileRepresentative, setSelectedProfileRepresentative] = useState<any>(null);
   const [isMovementTrackingModalOpen, setIsMovementTrackingModalOpen] = useState(false);
   const [selectedMovementRepresentative, setSelectedMovementRepresentative] = useState<any>(null);
+  const [isVisitReportModalOpen, setIsVisitReportModalOpen] = useState(false);
+  const [selectedVisitReportRepresentative, setSelectedVisitReportRepresentative] = useState<any>(null);
   const [formData, setFormData] = useState({ id: '' });
   const [errors, setErrors] = useState({ id: '' });
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -206,6 +209,12 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
     console.log('Opening movement tracking for:', representative);
     setSelectedMovementRepresentative(representative);
     setIsMovementTrackingModalOpen(true);
+  };
+
+  const handleViewVisitReport = (representative: any) => {
+    console.log('Opening visit report for:', representative);
+    setSelectedVisitReportRepresentative(representative);
+    setIsVisitReportModalOpen(true);
   };
 
   const getStatusStats = () => {
@@ -583,6 +592,10 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
                         <Activity className="h-4 w-4 mr-2" />
                         {t("viewMovementHistory")}
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleViewVisitReport(representative)}>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Visit Report
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -683,6 +696,12 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
         representative={selectedMovementRepresentative}
         isOpen={isMovementTrackingModalOpen}
         onClose={() => setIsMovementTrackingModalOpen(false)}
+      />
+
+      <RepresentativeVisitReportModal
+        representative={selectedVisitReportRepresentative}
+        isOpen={isVisitReportModalOpen}
+        onClose={() => setIsVisitReportModalOpen(false)}
       />
 
       {/* Enhanced Profile Information Modal */}
