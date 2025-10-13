@@ -11,6 +11,7 @@ import { AddRepresentativeModal } from "./add-representative-modal";
 import { AssignTaskModal } from "./assign-task-modal";
 import { MovementTrackingModal } from "./movement-tracking-modal";
 import { RepresentativeVisitReportModal } from "./representative-visit-report-modal";
+import { RepresentativePerformanceReportModal } from "./representative-performance-report-modal";
 import { useLanguage } from "@/contexts/language-context";
 import { getRepresentatives, generateRepresentativeId } from "@/lib/supabase-utils";
 import * as XLSX from 'xlsx';
@@ -36,6 +37,8 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
   const [selectedMovementRepresentative, setSelectedMovementRepresentative] = useState<any>(null);
   const [isVisitReportModalOpen, setIsVisitReportModalOpen] = useState(false);
   const [selectedVisitReportRepresentative, setSelectedVisitReportRepresentative] = useState<any>(null);
+  const [isPerformanceReportModalOpen, setIsPerformanceReportModalOpen] = useState(false);
+  const [selectedPerformanceReportRepresentative, setSelectedPerformanceReportRepresentative] = useState<any>(null);
   const [formData, setFormData] = useState({ id: '' });
   const [errors, setErrors] = useState({ id: '' });
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -215,6 +218,12 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
     console.log('Opening visit report for:', representative);
     setSelectedVisitReportRepresentative(representative);
     setIsVisitReportModalOpen(true);
+  };
+
+  const handleViewPerformanceReport = (representative: any) => {
+    console.log('Opening performance report for:', representative);
+    setSelectedPerformanceReportRepresentative(representative);
+    setIsPerformanceReportModalOpen(true);
   };
 
   const getStatusStats = () => {
@@ -596,6 +605,10 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
                         <FileText className="h-4 w-4 mr-2" />
                         Visit Report
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleViewPerformanceReport(representative)}>
+                        <Star className="h-4 w-4 mr-2" />
+                        Performance Report
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -702,6 +715,12 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
         representative={selectedVisitReportRepresentative}
         isOpen={isVisitReportModalOpen}
         onClose={() => setIsVisitReportModalOpen(false)}
+      />
+
+      <RepresentativePerformanceReportModal
+        representative={selectedPerformanceReportRepresentative}
+        isOpen={isPerformanceReportModalOpen}
+        onClose={() => setIsPerformanceReportModalOpen(false)}
       />
 
       {/* Enhanced Profile Information Modal */}

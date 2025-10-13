@@ -42,8 +42,89 @@ export function RepresentativeVisitReportModal({
   onClose, 
   representative 
 }: RepresentativeVisitReportModalProps) {
-  const { t } = useLanguage();
+  const { t, isRTL, language } = useLanguage();
   const { formatCurrency } = useCurrency();
+  
+  // Translation functions
+  const translate = (key: string) => {
+    const translations = {
+      en: {
+        'visit_report': 'Visit Report',
+        'comprehensive_visit_tracking': 'Comprehensive visit tracking and performance report for',
+        'representative_info': 'Representative Information',
+        'total_visits': 'Total Visits',
+        'completed': 'Completed',
+        'success_rate': 'Success Rate',
+        'avg_duration': 'Avg Duration',
+        'visit_details': 'Visit Details',
+        'client_name': 'Client Name',
+        'client_location': 'Client Location',
+        'client_phone': 'Client Phone',
+        'visit_type': 'Visit Type',
+        'scheduled_time': 'Scheduled Time',
+        'actual_time': 'Actual Time',
+        'status': 'Status',
+        'success': 'Success',
+        'export_to_excel': 'Export to Excel',
+        'search_visits': 'Search visits...',
+        'all_status': 'All Status',
+        'all_time': 'All Time',
+        'today': 'Today',
+        'this_week': 'This Week',
+        'this_month': 'This Month',
+        'loading_visit_data': 'Loading visit data...',
+        'no_visits_found': 'No visits found',
+        'no_visits_recorded': 'No visits have been recorded for this representative',
+        'try_adjusting_filters': 'Try adjusting your search or filter criteria',
+        'completed_status': 'Completed',
+        'cancelled_status': 'Cancelled',
+        'no_show_status': 'No Show',
+        'in_progress_status': 'In Progress',
+        'scheduled_status': 'Scheduled',
+        'yes': 'Yes',
+        'no': 'No',
+        'n_a': 'N/A'
+      },
+      ar: {
+        'visit_report': 'تقرير الزيارات',
+        'comprehensive_visit_tracking': 'تقرير شامل لتتبع الزيارات والأداء لـ',
+        'representative_info': 'معلومات المندوب',
+        'total_visits': 'إجمالي الزيارات',
+        'completed': 'مكتملة',
+        'success_rate': 'معدل النجاح',
+        'avg_duration': 'متوسط المدة',
+        'visit_details': 'تفاصيل الزيارات',
+        'client_name': 'اسم العميل',
+        'client_location': 'موقع العميل',
+        'client_phone': 'هاتف العميل',
+        'visit_type': 'نوع الزيارة',
+        'scheduled_time': 'الوقت المجدول',
+        'actual_time': 'الوقت الفعلي',
+        'status': 'الحالة',
+        'success': 'النجاح',
+        'export_to_excel': 'تصدير إلى Excel',
+        'search_visits': 'البحث في الزيارات...',
+        'all_status': 'جميع الحالات',
+        'all_time': 'كل الوقت',
+        'today': 'اليوم',
+        'this_week': 'هذا الأسبوع',
+        'this_month': 'هذا الشهر',
+        'loading_visit_data': 'جاري تحميل بيانات الزيارات...',
+        'no_visits_found': 'لم يتم العثور على زيارات',
+        'no_visits_recorded': 'لم يتم تسجيل أي زيارات لهذا المندوب',
+        'try_adjusting_filters': 'حاول تعديل معايير البحث أو التصفية',
+        'completed_status': 'مكتملة',
+        'cancelled_status': 'ملغية',
+        'no_show_status': 'لم يحضر',
+        'in_progress_status': 'قيد التنفيذ',
+        'scheduled_status': 'مجدولة',
+        'yes': 'نعم',
+        'no': 'لا',
+        'n_a': 'غير متوفر'
+      }
+    };
+    return translations[language as keyof typeof translations]?.[key as keyof typeof translations.en] || key;
+  };
   
   const [visits, setVisits] = useState<Visit[]>([]);
   const [stats, setStats] = useState<VisitStats>({
@@ -158,20 +239,20 @@ export function RepresentativeVisitReportModal({
 
   const exportToExcel = () => {
     const exportData = filteredVisits.map(visit => ({
-      'Representative Name': representative.name,
-      'Representative ID': representative.id,
-      'Client Name': visit.customer_name,
-      'Client Location': visit.customer_address,
-      'Client Phone Number': visit.customer_phone || 'N/A',
-      'Visit Type': visit.visit_type,
-      'Scheduled Start': formatDate(visit.scheduled_start_time),
-      'Scheduled End': formatDate(visit.scheduled_end_time),
-      'Actual Start': visit.actual_start_time ? formatDate(visit.actual_start_time) : 'N/A',
-      'Actual End': visit.actual_end_time ? formatDate(visit.actual_end_time) : 'N/A',
-      'Status': visit.status,
-      'Success': visit.status === 'completed' ? 'Yes' : 'No',
-      'Notes': visit.notes || 'N/A',
-      'Created At': formatDate(visit.created_at)
+      [language === 'ar' ? 'اسم المندوب' : 'Representative Name']: representative.name,
+      [language === 'ar' ? 'رقم المندوب' : 'Representative ID']: representative.id,
+      [language === 'ar' ? 'اسم العميل' : 'Client Name']: visit.customer_name,
+      [language === 'ar' ? 'موقع العميل' : 'Client Location']: visit.customer_address,
+      [language === 'ar' ? 'رقم هاتف العميل' : 'Client Phone Number']: visit.customer_phone || translate('n_a'),
+      [language === 'ar' ? 'نوع الزيارة' : 'Visit Type']: visit.visit_type,
+      [language === 'ar' ? 'البداية المجدولة' : 'Scheduled Start']: formatDate(visit.scheduled_start_time),
+      [language === 'ar' ? 'النهاية المجدولة' : 'Scheduled End']: formatDate(visit.scheduled_end_time),
+      [language === 'ar' ? 'البداية الفعلية' : 'Actual Start']: visit.actual_start_time ? formatDate(visit.actual_start_time) : translate('n_a'),
+      [language === 'ar' ? 'النهاية الفعلية' : 'Actual End']: visit.actual_end_time ? formatDate(visit.actual_end_time) : translate('n_a'),
+      [language === 'ar' ? 'الحالة' : 'Status']: visit.status,
+      [language === 'ar' ? 'النجاح' : 'Success']: visit.status === 'completed' ? translate('yes') : translate('no'),
+      [language === 'ar' ? 'ملاحظات' : 'Notes']: visit.notes || translate('n_a'),
+      [language === 'ar' ? 'تاريخ الإنشاء' : 'Created At']: formatDate(visit.created_at)
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -186,10 +267,10 @@ export function RepresentativeVisitReportModal({
   if (!representative) return null;
 
   const footer = (
-    <div className="flex justify-end gap-3">
+    <div className={`flex ${isRTL ? 'justify-start' : 'justify-end'} gap-3`}>
       <Button onClick={exportToExcel} className="flex items-center gap-2">
         <Download className="h-4 w-4" />
-        Export to Excel
+        {translate('export_to_excel')}
       </Button>
     </div>
   );
@@ -198,8 +279,8 @@ export function RepresentativeVisitReportModal({
     <ScrollableDialog
       isOpen={isOpen}
       onClose={onClose}
-      title={`Visit Report - ${representative.name}`}
-      description={`Comprehensive visit tracking and performance report for ${representative.name}`}
+      title={`${translate('visit_report')} - ${representative.name}`}
+      description={`${translate('comprehensive_visit_tracking')} ${representative.name}`}
       maxWidth="max-w-6xl"
       showScrollButtons={true}
       scrollAmount={300}
@@ -208,16 +289,16 @@ export function RepresentativeVisitReportModal({
           {/* Representative Info */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-3">
+              <CardTitle className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
                 <Avatar className="h-12 w-12">
                   <AvatarImage src={representative.avatar_url || "/representative-avatar.png"} />
                   <AvatarFallback>
                     {representative.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <div>
+                <div className={isRTL ? 'text-right' : 'text-left'}>
                   <h3 className="text-xl font-semibold">{representative.name}</h3>
-                  <p className="text-sm text-gray-600">ID: {representative.id}</p>
+                  <p className="text-sm text-gray-600">{translate('representative_info')} - ID: {representative.id}</p>
                 </div>
               </CardTitle>
             </CardHeader>
@@ -243,12 +324,12 @@ export function RepresentativeVisitReportModal({
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="p-4">
-                <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
                   <div className="p-2 bg-blue-100 rounded-lg">
                     <BarChart3 className="h-6 w-6 text-blue-600" />
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Total Visits</p>
+                  <div className={isRTL ? 'text-right' : 'text-left'}>
+                    <p className="text-sm text-gray-600">{translate('total_visits')}</p>
                     <p className="text-2xl font-bold">{stats.totalVisits}</p>
                   </div>
                 </div>
@@ -257,12 +338,12 @@ export function RepresentativeVisitReportModal({
 
             <Card>
               <CardContent className="p-4">
-                <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
                   <div className="p-2 bg-green-100 rounded-lg">
                     <CheckCircle className="h-6 w-6 text-green-600" />
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Completed</p>
+                  <div className={isRTL ? 'text-right' : 'text-left'}>
+                    <p className="text-sm text-gray-600">{translate('completed')}</p>
                     <p className="text-2xl font-bold">{stats.completedVisits}</p>
                   </div>
                 </div>
@@ -271,12 +352,12 @@ export function RepresentativeVisitReportModal({
 
             <Card>
               <CardContent className="p-4">
-                <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
                   <div className="p-2 bg-yellow-100 rounded-lg">
                     <TrendingUp className="h-6 w-6 text-yellow-600" />
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Success Rate</p>
+                  <div className={isRTL ? 'text-right' : 'text-left'}>
+                    <p className="text-sm text-gray-600">{translate('success_rate')}</p>
                     <p className="text-2xl font-bold">{stats.successRate.toFixed(1)}%</p>
                   </div>
                 </div>
@@ -285,12 +366,12 @@ export function RepresentativeVisitReportModal({
 
             <Card>
               <CardContent className="p-4">
-                <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
                   <div className="p-2 bg-purple-100 rounded-lg">
                     <Clock className="h-6 w-6 text-purple-600" />
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Avg Duration</p>
+                  <div className={isRTL ? 'text-right' : 'text-left'}>
+                    <p className="text-sm text-gray-600">{translate('avg_duration')}</p>
                     <p className="text-2xl font-bold">{stats.averageDuration.toFixed(0)}m</p>
                   </div>
                 </div>
@@ -299,15 +380,16 @@ export function RepresentativeVisitReportModal({
           </div>
 
           {/* Filters */}
-          <div className="flex gap-4 items-center">
+          <div className={`flex gap-4 items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4`} />
               <input
                 type="text"
-                placeholder="Search visits..."
+                placeholder={translate('search_visits')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                dir={isRTL ? 'rtl' : 'ltr'}
               />
             </div>
             
@@ -316,12 +398,12 @@ export function RepresentativeVisitReportModal({
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="all">All Status</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="no_show">No Show</option>
-              <option value="in_progress">In Progress</option>
-              <option value="scheduled">Scheduled</option>
+              <option value="all">{translate('all_status')}</option>
+              <option value="completed">{translate('completed_status')}</option>
+              <option value="cancelled">{translate('cancelled_status')}</option>
+              <option value="no_show">{translate('no_show_status')}</option>
+              <option value="in_progress">{translate('in_progress_status')}</option>
+              <option value="scheduled">{translate('scheduled_status')}</option>
             </select>
 
             <select
@@ -329,32 +411,32 @@ export function RepresentativeVisitReportModal({
               onChange={(e) => setDateFilter(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="all">All Time</option>
-              <option value="today">Today</option>
-              <option value="week">This Week</option>
-              <option value="month">This Month</option>
+              <option value="all">{translate('all_time')}</option>
+              <option value="today">{translate('today')}</option>
+              <option value="week">{translate('this_week')}</option>
+              <option value="month">{translate('this_month')}</option>
             </select>
           </div>
 
           {/* Visits Table */}
           <Card>
             <CardHeader>
-              <CardTitle>Visit Details</CardTitle>
+              <CardTitle className={isRTL ? 'text-right' : 'text-left'}>{translate('visit_details')}</CardTitle>
             </CardHeader>
             <CardContent>
               {loading ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="mt-2 text-gray-600">Loading visit data...</p>
+                  <p className="mt-2 text-gray-600">{translate('loading_visit_data')}</p>
                 </div>
               ) : filteredVisits.length === 0 ? (
                 <div className="text-center py-8">
                   <FileText className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No visits found</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">{translate('no_visits_found')}</h3>
                   <p className="text-gray-500">
                     {searchTerm || statusFilter !== 'all' || dateFilter !== 'all'
-                      ? 'Try adjusting your search or filter criteria'
-                      : 'No visits have been recorded for this representative'
+                      ? translate('try_adjusting_filters')
+                      : translate('no_visits_recorded')
                     }
                   </p>
                 </div>
@@ -363,69 +445,69 @@ export function RepresentativeVisitReportModal({
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Client Name</TableHead>
-                        <TableHead>Location</TableHead>
-                        <TableHead>Phone</TableHead>
-                        <TableHead>Visit Type</TableHead>
-                        <TableHead>Scheduled Time</TableHead>
-                        <TableHead>Actual Time</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Success</TableHead>
-                        <TableHead>Notes</TableHead>
+                        <TableHead className={isRTL ? 'text-right' : 'text-left'}>{translate('client_name')}</TableHead>
+                        <TableHead className={isRTL ? 'text-right' : 'text-left'}>{translate('client_location')}</TableHead>
+                        <TableHead className={isRTL ? 'text-right' : 'text-left'}>{translate('client_phone')}</TableHead>
+                        <TableHead className={isRTL ? 'text-right' : 'text-left'}>{translate('visit_type')}</TableHead>
+                        <TableHead className={isRTL ? 'text-right' : 'text-left'}>{translate('scheduled_time')}</TableHead>
+                        <TableHead className={isRTL ? 'text-right' : 'text-left'}>{translate('actual_time')}</TableHead>
+                        <TableHead className={isRTL ? 'text-right' : 'text-left'}>{translate('status')}</TableHead>
+                        <TableHead className={isRTL ? 'text-right' : 'text-left'}>{translate('success')}</TableHead>
+                        <TableHead className={isRTL ? 'text-right' : 'text-left'}>Notes</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredVisits.map((visit) => (
                         <TableRow key={visit.id}>
-                          <TableCell className="font-medium">{visit.customer_name}</TableCell>
+                          <TableCell className={`font-medium ${isRTL ? 'text-right' : 'text-left'}`}>{visit.customer_name}</TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-1">
+                            <div className={`flex items-center gap-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
                               <MapPin className="h-3 w-3 text-gray-400" />
                               <span className="text-sm">{visit.customer_address}</span>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-1">
+                            <div className={`flex items-center gap-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
                               <Phone className="h-3 w-3 text-gray-400" />
-                              <span className="text-sm">{visit.customer_phone || 'N/A'}</span>
+                              <span className="text-sm">{visit.customer_phone || translate('n_a')}</span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">{visit.visit_type}</Badge>
                           </TableCell>
                           <TableCell>
-                            <div className="text-sm">
+                            <div className={`text-sm ${isRTL ? 'text-right' : 'text-left'}`}>
                               <div>{formatDate(visit.scheduled_start_time)}</div>
-                              <div className="text-gray-500">to {formatDate(visit.scheduled_end_time)}</div>
+                              <div className="text-gray-500">{isRTL ? 'إلى' : 'to'} {formatDate(visit.scheduled_end_time)}</div>
                             </div>
                           </TableCell>
                           <TableCell>
                             {visit.actual_start_time && visit.actual_end_time ? (
-                              <div className="text-sm">
+                              <div className={`text-sm ${isRTL ? 'text-right' : 'text-left'}`}>
                                 <div>{formatDate(visit.actual_start_time)}</div>
-                                <div className="text-gray-500">to {formatDate(visit.actual_end_time)}</div>
+                                <div className="text-gray-500">{isRTL ? 'إلى' : 'to'} {formatDate(visit.actual_end_time)}</div>
                               </div>
                             ) : (
-                              <span className="text-gray-500 text-sm">N/A</span>
+                              <span className="text-gray-500 text-sm">{translate('n_a')}</span>
                             )}
                           </TableCell>
                           <TableCell>{getStatusBadge(visit.status)}</TableCell>
                           <TableCell>
                             {visit.status === 'completed' ? (
                               <Badge className="bg-green-100 text-green-800">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Yes
+                                <CheckCircle className={`h-3 w-3 ${isRTL ? 'ml-1' : 'mr-1'}`} />
+                                {translate('yes')}
                               </Badge>
                             ) : (
                               <Badge className="bg-red-100 text-red-800">
-                                <XCircle className="h-3 w-3 mr-1" />
-                                No
+                                <XCircle className={`h-3 w-3 ${isRTL ? 'ml-1' : 'mr-1'}`} />
+                                {translate('no')}
                               </Badge>
                             )}
                           </TableCell>
                           <TableCell>
-                            <span className="text-sm text-gray-600">
-                              {visit.notes || 'No notes'}
+                            <span className={`text-sm text-gray-600 ${isRTL ? 'text-right' : 'text-left'}`}>
+                              {visit.notes || (language === 'ar' ? 'لا توجد ملاحظات' : 'No notes')}
                             </span>
                           </TableCell>
                         </TableRow>
