@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Star, Truck, Filter, Download, Navigation, User, Calendar, Shield, Car, Clock, Copy, X, Activity, History, ChevronUp, ChevronDown, FileText } from "lucide-react";
+import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Star, Truck, Filter, Download, Navigation, User, Calendar, Shield, Car, Clock, Copy, X, Activity, History, ChevronUp, ChevronDown, FileText, Package } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AddRepresentativeModal } from "./add-representative-modal";
@@ -12,6 +12,7 @@ import { AssignTaskModal } from "./assign-task-modal";
 import { MovementTrackingModal } from "./movement-tracking-modal";
 import { RepresentativeVisitReportModal } from "./representative-visit-report-modal";
 import { RepresentativePerformanceReportModal } from "./representative-performance-report-modal";
+import { RepresentativeDeliveryReportModal } from "./representative-delivery-report-modal";
 import { useLanguage } from "@/contexts/language-context";
 import { getRepresentatives, generateRepresentativeId } from "@/lib/supabase-utils";
 import * as XLSX from 'xlsx';
@@ -39,6 +40,8 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
   const [selectedVisitReportRepresentative, setSelectedVisitReportRepresentative] = useState<any>(null);
   const [isPerformanceReportModalOpen, setIsPerformanceReportModalOpen] = useState(false);
   const [selectedPerformanceReportRepresentative, setSelectedPerformanceReportRepresentative] = useState<any>(null);
+  const [isDeliveryReportModalOpen, setIsDeliveryReportModalOpen] = useState(false);
+  const [selectedDeliveryReportRepresentative, setSelectedDeliveryReportRepresentative] = useState<any>(null);
   const [formData, setFormData] = useState({ id: '' });
   const [errors, setErrors] = useState({ id: '' });
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -224,6 +227,12 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
     console.log('Opening performance report for:', representative);
     setSelectedPerformanceReportRepresentative(representative);
     setIsPerformanceReportModalOpen(true);
+  };
+
+  const handleViewDeliveryReport = (representative: any) => {
+    console.log('Opening delivery report for:', representative);
+    setSelectedDeliveryReportRepresentative(representative);
+    setIsDeliveryReportModalOpen(true);
   };
 
   const getStatusStats = () => {
@@ -609,6 +618,10 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
                         <Star className="h-4 w-4 mr-2" />
                         Performance Report
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleViewDeliveryReport(representative)}>
+                        <Package className="h-4 w-4 mr-2" />
+                        Delivery Report
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -721,6 +734,12 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
         representative={selectedPerformanceReportRepresentative}
         isOpen={isPerformanceReportModalOpen}
         onClose={() => setIsPerformanceReportModalOpen(false)}
+      />
+
+      <RepresentativeDeliveryReportModal
+        representative={selectedDeliveryReportRepresentative}
+        isOpen={isDeliveryReportModalOpen}
+        onClose={() => setIsDeliveryReportModalOpen(false)}
       />
 
       {/* Enhanced Profile Information Modal */}
