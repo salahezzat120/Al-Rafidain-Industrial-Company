@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Star, Truck, Filter, Download, Navigation, User, Calendar, Shield, Car, Clock, Copy, X, Activity, History, ChevronUp, ChevronDown, FileText, Package } from "lucide-react";
+import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Star, Truck, Filter, Download, Navigation, User, Calendar, Shield, Car, Clock, Copy, X, Activity, History, ChevronUp, ChevronDown, FileText, Package, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AddRepresentativeModal } from "./add-representative-modal";
 import { AssignTaskModal } from "./assign-task-modal";
@@ -15,6 +16,7 @@ import { RepresentativePerformanceReportModal } from "./representative-performan
 import { RepresentativeDeliveryReportModal } from "./representative-delivery-report-modal";
 import { useLanguage } from "@/contexts/language-context";
 import { getRepresentatives, generateRepresentativeId } from "@/lib/supabase-utils";
+import { supabase } from "@/lib/supabase";
 import * as XLSX from 'xlsx';
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertCircle } from "@/components/ui/alert";
@@ -42,6 +44,7 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
   const [selectedPerformanceReportRepresentative, setSelectedPerformanceReportRepresentative] = useState<any>(null);
   const [isDeliveryReportModalOpen, setIsDeliveryReportModalOpen] = useState(false);
   const [selectedDeliveryReportRepresentative, setSelectedDeliveryReportRepresentative] = useState<any>(null);
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [formData, setFormData] = useState({ id: '' });
   const [errors, setErrors] = useState({ id: '' });
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -233,6 +236,48 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
     console.log('Opening delivery report for:', representative);
     setSelectedDeliveryReportRepresentative(representative);
     setIsDeliveryReportModalOpen(true);
+  };
+
+  const handleDeleteRepresentative = async (representativeId: string) => {
+    setDeleteLoading(representativeId);
+    try {
+      // Delete from representatives table
+      const { error: repError } = await supabase
+        .from('representatives')
+        .delete()
+        .eq('id', representativeId);
+
+      if (repError) {
+        console.error('Error deleting representative:', repError);
+        alert(t("representative.deleteError") || `Failed to delete representative: ${repError.message}`);
+        return;
+      }
+
+      // Delete from users table if exists
+      const { error: userError } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', representativeId)
+        .eq('role', 'representative');
+
+      if (userError) {
+        console.error('Error deleting user entry:', userError);
+        // Don't fail if user entry doesn't exist
+      }
+
+      // Refresh the list
+      const { data, error } = await getRepresentatives();
+      if (error) {
+        console.error('Error fetching representatives:', error);
+      } else {
+        setRepresentatives(data || []);
+      }
+    } catch (error: any) {
+      console.error('Error deleting representative:', error);
+      alert(t("representative.deleteError") || `Failed to delete representative: ${error.message}`);
+    } finally {
+      setDeleteLoading(null);
+    }
   };
 
   const getStatusStats = () => {
@@ -612,16 +657,48 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleViewVisitReport(representative)}>
                         <FileText className="h-4 w-4 mr-2" />
-                        Visit Report
+                        {t("representative.visitReport")}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleViewPerformanceReport(representative)}>
                         <Star className="h-4 w-4 mr-2" />
-                        Performance Report
+                        {t("representative.performanceReport")}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleViewDeliveryReport(representative)}>
                         <Package className="h-4 w-4 mr-2" />
-                        Delivery Report
+                        {t("representative.deliveryReport")}
                       </DropdownMenuItem>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600 focus:text-red-600">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            {t("representative.removeRepresentative")}
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{t("representative.removeRepresentative")}</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {t("representative.removeConfirmation").replace("{name}", representative.name)}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteRepresentative(representative.id)}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              {deleteLoading === representative.id ? (
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                  <span>{t("representative.deleting")}</span>
+                                </div>
+                              ) : (
+                                t("representative.removeRepresentative")
+                              )}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

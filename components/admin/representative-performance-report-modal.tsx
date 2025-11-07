@@ -223,24 +223,24 @@ export function RepresentativePerformanceReportModal({
   if (!representative) return null;
 
   const footer = (
-    <div className={`flex justify-between items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
-      <div className="flex gap-2">
-        <select
-          value={periodDays}
-          onChange={(e) => setPeriodDays(Number(e.target.value))}
-          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value={7}>{translate('last_7_days')}</option>
-          <option value={30}>{translate('last_30_days')}</option>
-          <option value={90}>{translate('last_90_days')}</option>
-          <option value={365}>{translate('last_year')}</option>
-        </select>
+      <div className={`flex justify-between items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
+        <div className="flex gap-2">
+          <select
+            value={periodDays}
+            onChange={(e) => setPeriodDays(Number(e.target.value))}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value={7}>{translate('last_7_days')}</option>
+            <option value={30}>{translate('last_30_days')}</option>
+            <option value={90}>{translate('last_90_days')}</option>
+            <option value={365}>{translate('last_year')}</option>
+          </select>
+        </div>
+        <Button onClick={exportToExcel} className="flex items-center gap-2">
+          <Download className="h-4 w-4" />
+          {translate('export_to_excel')}
+        </Button>
       </div>
-      <Button onClick={exportToExcel} className="flex items-center gap-2">
-        <Download className="h-4 w-4" />
-        {translate('export_to_excel')}
-      </Button>
-    </div>
   );
 
   return (

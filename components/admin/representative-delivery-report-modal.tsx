@@ -22,7 +22,7 @@ import {
   BarChart3,
   Activity,
   Target,
-  Award
+  Award,
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/language-context';
 import { useCurrency } from '@/contexts/currency-context';
