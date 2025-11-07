@@ -54,7 +54,6 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
     { id: "analytics", label: t("nav.analytics"), icon: BarChart3 },
     { id: "alerts", label: t("nav.alerts"), icon: Bell },
     { id: "visits", label: t("nav.visitManagement"), icon: Calendar },
-    { id: "messaging", label: t("nav.internalMessaging"), icon: MessageSquare },
     { id: "after-sales", label: t("nav.afterSalesSupport"), icon: Headphones },
     { id: "settings", label: t("nav.settings"), icon: Settings },
   ]

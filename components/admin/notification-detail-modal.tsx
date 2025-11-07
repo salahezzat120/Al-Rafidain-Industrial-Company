@@ -536,3 +536,4 @@ export function NotificationDetailModal({ isOpen, onClose, alertId }: Notificati
   )
 }
 
+

@@ -28,7 +28,6 @@ import LoyaltyTab from "@/components/admin/loyalty-tab"
 import { AlertsTab } from "@/components/admin/alerts-tab"
 import { SettingsTab } from "@/components/admin/settings-tab"
 import { VisitManagementSingleTab } from "@/components/admin/visit-management-single-tab"
-import { MessagingTab } from "@/components/admin/messaging-tab"
 import { AfterSalesTab } from "@/components/admin/after-sales-tab"
 import { WarehouseTab } from "@/components/admin/warehouse-tab"
 import SimpleLoyaltyTab from "@/components/admin/simple-loyalty-tab"
@@ -156,8 +155,7 @@ function Dashboard() {
             {activeTab === "loyalty" && <LoyaltyTab />}
             {activeTab === "alerts" && <AlertsTab />}
             {activeTab === "visits" && <VisitManagementSingleTab />}
-            {activeTab === "messaging" && <MessagingTab />}
-            {activeTab === "after-sales" && <AfterSalesTab onNavigateToLiveMap={(representativeName) => {
+                {activeTab === "after-sales" && <AfterSalesTab onNavigateToLiveMap={(representativeName) => {
               setActiveTab("live-map");
               // Store representative name in URL for the live map to pick up
               if (representativeName) {
