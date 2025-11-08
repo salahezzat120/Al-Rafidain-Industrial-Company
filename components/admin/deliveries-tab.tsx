@@ -17,6 +17,7 @@ import { TaskDetailsModal } from "./task-details-modal"
 import { ProofPhotosInline } from "@/components/ui/proof-photos-display"
 import { useLanguage } from "@/contexts/language-context"
 import { getDeliveryTasks, getDeliveryTaskStats, deleteDeliveryTask } from "@/lib/delivery-tasks"
+import { exportDeliveryTasksToExcel } from "@/lib/excel-export"
 import { useToast } from "@/hooks/use-toast"
 import type { DeliveryTask } from "@/types/delivery-tasks"
 
@@ -132,6 +133,12 @@ export function DeliveriesTab() {
     in_progress: 0,
     completed: 0
   })
+  
+  // Date filtering states
+  const [dateFilter, setDateFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly' | 'custom'>('all')
+  const [customDateFrom, setCustomDateFrom] = useState('')
+  const [customDateTo, setCustomDateTo] = useState('')
+  const [showDateFilters, setShowDateFilters] = useState(false)
 
   // Fetch tasks from Supabase
   const fetchTasks = useCallback(async () => {
@@ -171,6 +178,85 @@ export function DeliveriesTab() {
     fetchStats()
   }, [fetchTasks, fetchStats])
 
+  // Date filtering functions
+  const getDateRange = () => {
+    const now = new Date()
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    
+    switch (dateFilter) {
+      case 'daily':
+        return {
+          from: startOfDay.toISOString(),
+          to: now.toISOString()
+        }
+      case 'weekly':
+        const startOfWeek = new Date(startOfDay)
+        startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay())
+        return {
+          from: startOfWeek.toISOString(),
+          to: now.toISOString()
+        }
+      case 'monthly':
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+        return {
+          from: startOfMonth.toISOString(),
+          to: now.toISOString()
+        }
+      case 'custom':
+        if (customDateFrom && customDateTo) {
+          return {
+            from: new Date(customDateFrom).toISOString(),
+            to: new Date(customDateTo).toISOString()
+          }
+        }
+        return null
+      default:
+        return null
+    }
+  }
+
+  const handleExportTasks = () => {
+    try {
+      const dateRange = getDateRange()
+      let tasksToExport = tasks
+
+      if (dateRange) {
+        tasksToExport = tasks.filter(task => {
+          const taskDate = new Date(task.created_at)
+          const fromDate = new Date(dateRange.from)
+          const toDate = new Date(dateRange.to)
+          return taskDate >= fromDate && taskDate <= toDate
+        })
+      }
+
+      if (tasksToExport.length === 0) {
+        toast({
+          title: "No tasks to export",
+          description: "No tasks found for the selected date range",
+          variant: "destructive",
+        })
+        return
+      }
+
+      exportDeliveryTasksToExcel(tasksToExport, {
+        filename: `delivery-tasks-${dateFilter}`,
+        sheetName: 'Delivery Tasks'
+      })
+
+      toast({
+        title: "Success",
+        description: `Exported ${tasksToExport.length} delivery tasks`,
+      })
+    } catch (error) {
+      console.error('Error exporting tasks:', error)
+      toast({
+        title: "Export failed",
+        description: "Failed to export delivery tasks",
+        variant: "destructive",
+      })
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "pending":
@@ -203,6 +289,7 @@ export function DeliveriesTab() {
     }
   }
 
+<<<<<<< HEAD
   // Get date range based on filter
   const getDateRange = () => {
     const now = new Date()
@@ -382,6 +469,27 @@ export function DeliveriesTab() {
     setCustomStartDate("")
     setCustomEndDate("")
   }
+=======
+  const filteredTasks = tasks.filter(
+    (task) => {
+      // Text search filter
+      const matchesSearch = 
+        task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.task_id.toLowerCase().includes(searchTerm.toLowerCase())
+
+      // Date filter
+      const dateRange = getDateRange()
+      if (!dateRange) return matchesSearch
+
+      const taskDate = new Date(task.created_at)
+      const fromDate = new Date(dateRange.from)
+      const toDate = new Date(dateRange.to)
+      
+      return matchesSearch && taskDate >= fromDate && taskDate <= toDate
+    }
+  )
+>>>>>>> d2eb7d878cc82f53ff6ce073b8b7ca71af0fbed2
 
   const handleViewDetails = (task: DeliveryTask) => {
     setSelectedTask(task)
@@ -445,9 +553,15 @@ export function DeliveriesTab() {
           <h2 className="text-2xl font-bold text-gray-900">{t("deliveryTaskManagement")}</h2>
           <p className="text-gray-600">{t("createAssignTrackTasks")}</p>
         </div>
+<<<<<<< HEAD
         <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
           <Button variant="outline" onClick={handleExport} className={isRTL ? 'flex-row-reverse' : ''}>
             <Download className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+=======
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExportTasks}>
+            <Download className="h-4 w-4 mr-2" />
+>>>>>>> d2eb7d878cc82f53ff6ce073b8b7ca71af0fbed2
             {t("export")}
           </Button>
           <Button onClick={() => setIsCreateModalOpen(true)} className={isRTL ? 'flex-row-reverse' : ''}>
@@ -530,6 +644,7 @@ export function DeliveriesTab() {
                 dir={isRTL ? 'rtl' : 'ltr'}
               />
             </div>
+<<<<<<< HEAD
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className={isRTL ? 'flex-row-reverse' : ''}>
@@ -612,7 +727,91 @@ export function DeliveriesTab() {
                 </div>
               </PopoverContent>
             </Popover>
+=======
+            <Button 
+              variant="outline" 
+              onClick={() => setShowDateFilters(!showDateFilters)}
+              className={showDateFilters ? "bg-blue-50 border-blue-200" : ""}
+            >
+              <Calendar className="h-4 w-4 mr-2" />
+              {t("dateFilter")}
+            </Button>
+            <Button variant="outline">
+              <Filter className="h-4 w-4 mr-2" />
+              {t("filter")}
+            </Button>
+>>>>>>> d2eb7d878cc82f53ff6ce073b8b7ca71af0fbed2
           </div>
+          
+          {/* Date Filter Options */}
+          {showDateFilters && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <div className="flex flex-wrap gap-2 mb-4">
+                <Button
+                  size="sm"
+                  variant={dateFilter === 'all' ? 'default' : 'outline'}
+                  onClick={() => setDateFilter('all')}
+                >
+                  {t("all")}
+                </Button>
+                <Button
+                  size="sm"
+                  variant={dateFilter === 'daily' ? 'default' : 'outline'}
+                  onClick={() => setDateFilter('daily')}
+                >
+                  {t("daily")}
+                </Button>
+                <Button
+                  size="sm"
+                  variant={dateFilter === 'weekly' ? 'default' : 'outline'}
+                  onClick={() => setDateFilter('weekly')}
+                >
+                  {t("weekly")}
+                </Button>
+                <Button
+                  size="sm"
+                  variant={dateFilter === 'monthly' ? 'default' : 'outline'}
+                  onClick={() => setDateFilter('monthly')}
+                >
+                  {t("monthly")}
+                </Button>
+                <Button
+                  size="sm"
+                  variant={dateFilter === 'custom' ? 'default' : 'outline'}
+                  onClick={() => setDateFilter('custom')}
+                >
+                  {t("custom")}
+                </Button>
+              </div>
+              
+              {dateFilter === 'custom' && (
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t("fromDate")}
+                    </label>
+                    <Input
+                      type="date"
+                      value={customDateFrom}
+                      onChange={(e) => setCustomDateFrom(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t("toDate")}
+                    </label>
+                    <Input
+                      type="date"
+                      value={customDateTo}
+                      onChange={(e) => setCustomDateTo(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {isLoading ? (

@@ -36,6 +36,7 @@ import {
   type VisitMonitoringConfig
 } from "@/lib/late-visit-monitor"
 import { initializeAlertsDatabase, createSampleAlerts, checkDatabaseConnection } from "@/lib/init-alerts-database"
+import { NotificationDetailModal } from "./notification-detail-modal"
 import { 
   visitAlertsSync,
   startVisitAlertsSync,
@@ -169,6 +170,10 @@ export function AlertsTab() {
   // Representative message monitoring state
   const [representativeMessageStatus, setRepresentativeMessageStatus] = useState<{ isActive: boolean; lastCheck: Date | null } | null>(null)
   const [messageSyncInProgress, setMessageSyncInProgress] = useState(false)
+
+  // Notification detail modal state
+  const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
 
   // Notification settings
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
@@ -864,7 +869,7 @@ export function AlertsTab() {
           {unreadVisitAlerts.length > 0 && (
             <Badge variant="destructive" className="flex items-center gap-1">
               <MessageSquare className="h-3 w-3" />
-              {unreadVisitAlerts.length} Visit Alerts
+              {unreadVisitAlerts.length} {t("alerts.visitAlerts")}
             </Badge>
           )}
           <Button 
@@ -948,16 +953,16 @@ export function AlertsTab() {
             {t("activeAlerts")} ({activeAlerts.length + unreadVisitAlerts.length})
           </TabsTrigger>
           <TabsTrigger value="visit-alerts">
-            Visit Alerts ({unreadVisitAlerts.length})
+            {t("alerts.visitAlerts")} ({unreadVisitAlerts.length})
           </TabsTrigger>
           <TabsTrigger value="late-visit-monitoring">
-            Late Visit Monitoring
+            {t("alerts.lateVisitMonitoring")}
           </TabsTrigger>
           <TabsTrigger value="visit-alerts-sync">
-            Visit Alerts Sync
+            {t("alerts.visitAlertsSync")}
           </TabsTrigger>
           <TabsTrigger value="representative-messages">
-            Representative Messages
+            {t("alerts.representativeMessages")}
           </TabsTrigger>
           <TabsTrigger value="resolved">{t("resolved")}</TabsTrigger>
           <TabsTrigger value="settings">{t("notificationSettings")}</TabsTrigger>
@@ -981,10 +986,17 @@ export function AlertsTab() {
               }
               const Icon = getCategoryIcon(alert.category)
               return (
-                <Card key={alert.id} className={getAlertColor(alert.type)}>
+                <Card 
+                  key={alert.id} 
+                  className={`${getAlertColor(alert.type)} cursor-pointer hover:shadow-lg transition-shadow`}
+                  onClick={() => {
+                    setSelectedAlertId(alert.id)
+                    setIsDetailModalOpen(true)
+                  }}
+                >
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-4">
+                      <div className="flex items-start space-x-4 flex-1">
                         <Icon className="h-6 w-6 mt-1" />
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
@@ -998,25 +1010,25 @@ export function AlertsTab() {
                             {alert.driver && (
                               <>
                                 <span>•</span>
-                                <span>Driver: {alert.driver}</span>
+                                <span>{t("alerts.driver") || "السائق"}: {alert.driver}</span>
                               </>
                             )}
                             {alert.vehicle && (
                               <>
                                 <span>•</span>
-                                <span>Vehicle: {alert.vehicle}</span>
+                                <span>{t("alerts.vehicle") || "المركبة"}: {alert.vehicle}</span>
                               </>
                             )}
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
                         <Button 
                           size="sm" 
                           variant="outline"
                           onClick={() => handleResolveAlert(alert.id)}
                         >
-                          Resolve
+                          {t("alerts.resolve") || "حل"}
                         </Button>
                         <Button 
                           size="sm" 
@@ -1081,40 +1093,47 @@ export function AlertsTab() {
             {unreadVisitAlerts.map((alert) => {
               const Icon = getVisitAlertIcon(alert.alert_type)
               return (
-                <Card key={alert.id} className={getVisitAlertColor(alert.severity)}>
+                <Card 
+                  key={alert.id} 
+                  className={`${getVisitAlertColor(alert.severity)} cursor-pointer hover:shadow-lg transition-shadow`}
+                  onClick={() => {
+                    setSelectedAlertId(alert.id)
+                    setIsDetailModalOpen(true)
+                  }}
+                >
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-4">
+                      <div className="flex items-start space-x-4 flex-1">
                         <Icon className="h-6 w-6 mt-1" />
                         <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-2">
                             <h3 className="font-semibold">
-                              {alert.alert_type === 'late_arrival' ? 'Late Visit Alert' :
-                               alert.alert_type === 'time_exceeded' ? 'Time Exceeded Alert' :
-                               alert.alert_type === 'no_show' ? 'No Show Alert' :
-                               'Early Completion Alert'}
+                              {alert.alert_type === 'late_arrival' ? (t("alerts.lateVisitAlert") || "تنبيه زيارة متأخرة") :
+                               alert.alert_type === 'time_exceeded' ? (t("alerts.timeExceededAlert") || "تنبيه تجاوز الوقت") :
+                               alert.alert_type === 'no_show' ? (t("alerts.noShowAlert") || "تنبيه عدم الحضور") :
+                               (t("alerts.earlyCompletionAlert") || "تنبيه إتمام مبكر")}
                             </h3>
                             <Badge className={getVisitAlertBadgeColor(alert.severity)}>
-                              {alert.severity}
+                              {t(`alerts.severity.${alert.severity}`) || alert.severity}
                             </Badge>
                           </div>
                           <p className="text-gray-700 mb-2">{alert.message}</p>
                           <div className="flex items-center space-x-4 text-sm text-gray-500">
                             <span>{new Date(alert.created_at).toLocaleString()}</span>
                             <span>•</span>
-                            <span>Visit ID: {alert.visit_id}</span>
+                            <span>{t("alerts.visitId") || "معرف الزيارة"}: {alert.visit_id}</span>
                             <span>•</span>
-                            <span>Delegate ID: {alert.delegate_id}</span>
+                            <span>{t("alerts.delegateId") || "معرف المندوب"}: {alert.delegate_id}</span>
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
                         <Button 
                           variant="outline" 
                           size="sm"
                           onClick={() => handleMarkAlertAsRead(alert.id)}
                         >
-                          Mark as Read
+                          {t("alerts.markAsRead") || "وضع علامة كمقروء"}
                         </Button>
                         <Button variant="ghost" size="sm">
                           <X className="h-4 w-4" />
@@ -1129,8 +1148,8 @@ export function AlertsTab() {
               <Card>
                 <CardContent className="p-6 text-center">
                   <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Visit Alerts</h3>
-                  <p className="text-gray-600">All visits are on schedule and within time limits.</p>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{t("alerts.noVisitAlerts")}</h3>
+                  <p className="text-gray-600">{t("alerts.allVisitsOnSchedule") || "جميع الزيارات في الموعد المحدد وفي حدود الوقت المسموح."}</p>
                 </CardContent>
               </Card>
             )}
@@ -1451,9 +1470,9 @@ export function AlertsTab() {
                 <div className="flex items-center justify-between">
                   <div>
                     <Label htmlFor="lateVisits" className="text-base font-medium">
-                      Late Visit Alerts
+                      {t("alerts.lateVisitAlerts")}
                     </Label>
-                    <p className="text-sm text-gray-500">Get notified when delegates are late to visits</p>
+                    <p className="text-sm text-gray-500">{t("alerts.getNotifiedLateVisits")}</p>
                   </div>
                   <Switch
                     id="lateVisits"
@@ -1465,9 +1484,9 @@ export function AlertsTab() {
                 <div className="flex items-center justify-between">
                   <div>
                     <Label htmlFor="timeExceeded" className="text-base font-medium">
-                      Time Exceeded Alerts
+                      {t("alerts.timeExceededAlerts")}
                     </Label>
-                    <p className="text-sm text-gray-500">Get notified when delegates exceed allowed visit time</p>
+                    <p className="text-sm text-gray-500">{t("alerts.getNotifiedTimeExceeded")}</p>
                   </div>
                   <Switch
                     id="timeExceeded"
@@ -1805,7 +1824,7 @@ export function AlertsTab() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <RefreshCw className="h-5 w-5" />
-                  Visit Alerts Sync Status
+                  {t("alerts.visitAlertsSyncStatus")}
                 </CardTitle>
                 <CardDescription>
                   Synchronize alerts from visit management table to unified alerts system
@@ -1920,7 +1939,7 @@ export function AlertsTab() {
                 </div>
 
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-2">How Visit Alerts Sync Works</h4>
+                  <h4 className="font-medium text-blue-900 mb-2">{t("alerts.howVisitAlertsSyncWorks")}</h4>
                   <ul className="text-sm text-blue-800 space-y-1">
                     <li>• Reads alerts from the <code>visit_management</code> table</li>
                     <li>• Syncs them to the <code>unified_alerts_notifications</code> table</li>
@@ -1949,14 +1968,14 @@ export function AlertsTab() {
                     <div className="text-2xl font-bold text-green-600">
                       {systemAlerts.filter(a => a.category === 'visit' || a.category === 'late_visit').length}
                     </div>
-                    <div className="text-sm text-gray-500">Synced Visit Alerts</div>
+                    <div className="text-sm text-gray-500">{t("alerts.syncedVisitAlerts")}</div>
                   </div>
                   
                   <div className="p-4 border rounded-lg text-center">
                     <div className="text-2xl font-bold text-blue-600">
                       {visitAlerts.length}
                     </div>
-                    <div className="text-sm text-gray-500">Active Visit Alerts</div>
+                    <div className="text-sm text-gray-500">{t("alerts.activeVisitAlerts")}</div>
                   </div>
                   
                   <div className="p-4 border rounded-lg text-center">
@@ -1982,6 +2001,16 @@ export function AlertsTab() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Notification Detail Modal */}
+      <NotificationDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => {
+          setIsDetailModalOpen(false)
+          setSelectedAlertId(null)
+        }}
+        alertId={selectedAlertId}
+      />
     </div>
   )
 }
