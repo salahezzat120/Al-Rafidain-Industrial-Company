@@ -207,10 +207,10 @@ export async function getDriverPerformance(dateFrom?: string | null, dateTo?: st
         .eq('representative_id', rep.id)
       
       // Apply date filter if provided
-      if (dateFrom) {
+      if (dateFrom && dateFrom !== null) {
         deliveriesQuery = deliveriesQuery.gte('created_at', dateFrom)
       }
-      if (dateTo) {
+      if (dateTo && dateTo !== null) {
         deliveriesQuery = deliveriesQuery.lte('created_at', dateTo)
       }
 
@@ -627,10 +627,10 @@ export async function getProductAnalytics(dateFrom?: string | null, dateTo?: str
       .select('*')
     
     // Apply date filter if provided (filter by created_at)
-    if (dateFrom) {
+    if (dateFrom && dateFrom !== null) {
       productsQuery = productsQuery.gte('created_at', dateFrom)
     }
-    if (dateTo) {
+    if (dateTo && dateTo !== null) {
       productsQuery = productsQuery.lte('created_at', dateTo)
     }
     
@@ -1119,11 +1119,11 @@ export async function getCustomerAnalytics(dateFrom?: string | null, dateTo?: st
       .from('customers')
       .select('*')
     
-    // Apply date filter if provided (filter by created_at or join_date)
-    if (dateFrom) {
+    // Apply date filter if provided (filter by created_at)
+    if (dateFrom && dateFrom !== null) {
       customersQuery = customersQuery.gte('created_at', dateFrom)
     }
-    if (dateTo) {
+    if (dateTo && dateTo !== null) {
       customersQuery = customersQuery.lte('created_at', dateTo)
     }
     
