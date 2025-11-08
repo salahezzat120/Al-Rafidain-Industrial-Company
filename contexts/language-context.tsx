@@ -2751,7 +2751,7 @@ const translations = {
 }
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>("en")
+  const [language, setLanguage] = useState<Language>("en")
   const [isClient, setIsClient] = useState(false)
 
   useEffect(() => {
@@ -2759,41 +2759,17 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     // Check for saved language only on client side
     const savedLang = localStorage.getItem("language") as Language
     if (savedLang && (savedLang === "en" || savedLang === "ar")) {
-      setLanguageState(savedLang)
+      setLanguage(savedLang)
     }
   }, [])
-
-  // Listen for settings changes
-  useEffect(() => {
-    const handleSettingsChange = (event: CustomEvent) => {
-      if (event.detail.type === 'system' && event.detail.settings.language) {
-        setLanguageState(event.detail.settings.language);
-      }
-    };
-
-    window.addEventListener('settingsChanged', handleSettingsChange as EventListener);
-    
-    return () => {
-      window.removeEventListener('settingsChanged', handleSettingsChange as EventListener);
-    };
-  }, []);
 
   useEffect(() => {
     if (isClient) {
       localStorage.setItem("language", language)
       document.documentElement.lang = language
       document.documentElement.dir = language === "ar" ? "rtl" : "ltr"
-      
-      // Broadcast language change to other components
-      window.dispatchEvent(new CustomEvent('languageChanged', { 
-        detail: { language } 
-      }));
     }
   }, [language, isClient])
-
-  const setLanguage = (newLanguage: Language) => {
-    setLanguageState(newLanguage);
-  }
 
   const t = useCallback((key: string): string => {
     return translations[language][key as keyof (typeof translations)[typeof language]] || key
@@ -2810,19 +2786,4 @@ export function useLanguage() {
     throw new Error("useLanguage must be used within a LanguageProvider")
   }
   return context
-}
-
-// Hook for listening to language changes
-export function useLanguageListener(callback: (language: Language) => void) {
-  useEffect(() => {
-    const handleLanguageChange = (event: CustomEvent) => {
-      callback(event.detail.language);
-    };
-
-    window.addEventListener('languageChanged', handleLanguageChange as EventListener);
-    
-    return () => {
-      window.removeEventListener('languageChanged', handleLanguageChange as EventListener);
-    };
-  }, [callback]);
 }

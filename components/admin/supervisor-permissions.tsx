@@ -7,9 +7,9 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, Edit, Shield, X, Settings, UserCheck } from "lucide-react"
+import { Eye, Edit, Shield, X, Settings, UserCheck, RefreshCw } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
-import { getUsers } from "@/lib/users"
+import { getUsers, getUsersByRole } from "@/lib/users"
 import type { User } from "@/lib/users"
 import type { PagePermission, PermissionLevel } from "@/types/permissions"
 
@@ -53,9 +53,14 @@ export function SupervisorPermissions({ onPermissionsChange }: SupervisorPermiss
   const loadSupervisors = async () => {
     setLoading(true)
     try {
-      const users = await getUsers()
-      const supervisorUsers = users.filter(user => user.role === 'supervisor')
+      // Directly fetch supervisors by role for better reliability
+      const supervisorUsers = await getUsersByRole('supervisor')
+      console.log('Loaded supervisors:', supervisorUsers.length, supervisorUsers)
       setSupervisors(supervisorUsers)
+      
+      if (supervisorUsers.length === 0) {
+        console.warn('No supervisors found in database. Make sure supervisors have role="supervisor"')
+      }
     } catch (error) {
       console.error('Error loading supervisors:', error)
       setMessage({ type: 'error', text: 'Failed to load supervisors' })
@@ -68,12 +73,8 @@ export function SupervisorPermissions({ onPermissionsChange }: SupervisorPermiss
     switch (level) {
       case 'none':
         return <X className="h-4 w-4 text-gray-400" />
-      case 'view':
-        return <Eye className="h-4 w-4 text-blue-500" />
       case 'edit':
         return <Edit className="h-4 w-4 text-green-500" />
-      case 'admin':
-        return <Shield className="h-4 w-4 text-red-500" />
       default:
         return <X className="h-4 w-4 text-gray-400" />
     }
@@ -83,12 +84,8 @@ export function SupervisorPermissions({ onPermissionsChange }: SupervisorPermiss
     switch (level) {
       case 'none':
         return 'bg-gray-100 text-gray-600'
-      case 'view':
-        return 'bg-blue-100 text-blue-700'
       case 'edit':
         return 'bg-green-100 text-green-700'
-      case 'admin':
-        return 'bg-red-100 text-red-700'
       default:
         return 'bg-gray-100 text-gray-600'
     }
@@ -202,18 +199,58 @@ export function SupervisorPermissions({ onPermissionsChange }: SupervisorPermiss
 
   return (
     <div className={`space-y-6 ${isRTL ? 'text-right' : 'text-left'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      <div className={isRTL ? 'text-right flex flex-col items-end' : ''}>
-        <h3 className={`text-lg font-semibold text-gray-900 mb-2 ${isRTL ? 'text-right' : 'text-left'}`}>
-          {isRTL ? "التحكم في صلاحيات المشرفين" : "Supervisor Permission Control"}
-        </h3>
-        <p className={`text-sm text-gray-600 ${isRTL ? 'text-right' : 'text-left'}`}>
-          {isRTL ? "التحكم في الصفحات التي يمكن لكل مشرف الوصول إليها. المسؤولون لديهم وصول كامل لجميع الصفحات." : "Control which pages each supervisor can access. Admins always have full access to all pages."}
-        </p>
+      <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+        <div className={isRTL ? 'text-right flex flex-col items-end' : ''}>
+          <h3 className={`text-lg font-semibold text-gray-900 mb-2 ${isRTL ? 'text-right' : 'text-left'}`}>
+            {isRTL ? "التحكم في صلاحيات المشرفين" : "Supervisor Permission Control"}
+          </h3>
+          <p className={`text-sm text-gray-600 ${isRTL ? 'text-right' : 'text-left'}`}>
+            {isRTL ? "التحكم في الصفحات التي يمكن لكل مشرف الوصول إليها. المسؤولون لديهم وصول كامل لجميع الصفحات." : "Control which pages each supervisor can access. Admins always have full access to all pages."}
+          </p>
+          {!loading && supervisors.length > 0 && (
+            <p className={`text-xs text-gray-500 mt-1 ${isRTL ? 'text-right' : 'text-left'}`}>
+              {isRTL ? `تم العثور على ${supervisors.length} مشرف` : `${supervisors.length} supervisor${supervisors.length !== 1 ? 's' : ''} found`}
+            </p>
+          )}
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={loadSupervisors}
+          disabled={loading}
+          className={isRTL ? 'flex-row-reverse' : ''}
+        >
+          <RefreshCw className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'} ${loading ? 'animate-spin' : ''}`} />
+          {isRTL ? "تحديث" : "Refresh"}
+        </Button>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      ) : supervisors.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <UserCheck className="h-8 w-8 text-gray-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            {isRTL ? "لا يوجد مشرفين" : "No Supervisors Found"}
+          </h3>
+          <p className="text-sm text-gray-600 mb-4">
+            {isRTL ? 
+              "لم يتم العثور على أي مشرفين في النظام. تأكد من أن المستخدمين لديهم دور 'supervisor'." :
+              "No supervisors found in the system. Make sure users have the 'supervisor' role."
+            }
+          </p>
+          <Button
+            variant="outline"
+            onClick={loadSupervisors}
+            className={isRTL ? 'flex-row-reverse' : ''}
+          >
+            <Settings className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+            {isRTL ? "إعادة التحميل" : "Refresh"}
+          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -290,7 +327,7 @@ export function SupervisorPermissions({ onPermissionsChange }: SupervisorPermiss
                       <Badge className={getPermissionColor(currentPermission)}>
                         {isRTL ? 
                           (currentPermission === 'none' ? 'لا يوجد وصول' : 
-                           currentPermission === 'edit' ? 'عرض وتعديل' : currentPermission) :
+                           currentPermission === 'edit' ? 'تعديل' : currentPermission) :
                           (currentPermission.charAt(0).toUpperCase() + currentPermission.slice(1))
                         }
                       </Badge>
@@ -317,7 +354,7 @@ export function SupervisorPermissions({ onPermissionsChange }: SupervisorPermiss
                           <SelectItem value="edit">
                             <div className={`flex items-center ${isRTL ? 'space-x-reverse space-x-2' : 'space-x-2'}`}>
                               <Edit className="h-4 w-4 text-green-500" />
-                              <span>{isRTL ? "عرض وتعديل" : "View & Edit"}</span>
+                              <span>{isRTL ? "تعديل" : "Edit"}</span>
                             </div>
                           </SelectItem>
                         </SelectContent>

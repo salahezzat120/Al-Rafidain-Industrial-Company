@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from "react"
-import { getChatMessages, sendChatMessage, getChatRepresentatives, logCallAttempt } from "@/lib/representative-live-locations"
+import { useEffect, useState, useRef, useMemo } from "react"
+import { getChatMessages, sendChatMessage, getAllChatRepresentatives, logCallAttempt, markMessagesAsRead } from "@/lib/representative-live-locations"
 import { ChatMessage } from "@/types/representative-live-locations"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -20,14 +20,15 @@ import {
   Smile,
   MoreVertical,
   Phone,
-  Info
+  Info,
+  Search
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useLanguage } from "@/contexts/language-context"
 
 export default function ChatSupportTab() {
-  const { language, t } = useLanguage()
-  const [representatives, setRepresentatives] = useState<{ id: string; name: string; is_online?: boolean; last_seen?: string; unread_count?: number }[]>([])
+  const { language, t, isRTL } = useLanguage()
+  const [representatives, setRepresentatives] = useState<{ id: string; name: string; phone?: string; is_online?: boolean; last_seen?: string; unread_count?: number; last_message_time?: string | null }[]>([])
   const [selectedRep, setSelectedRep] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(false)
@@ -36,18 +37,89 @@ export default function ChatSupportTab() {
   const [sending, setSending] = useState(false)
   const [repsLoading, setRepsLoading] = useState(true)
   const [isTyping, setIsTyping] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
   const subscriptionRef = useRef<any>(null)
   const chatEndRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Function to refresh representatives list
+  const refreshRepresentatives = async () => {
+    const res = await getAllChatRepresentatives()
+    if (res.error) {
+      console.error('Error refreshing representatives:', res.error)
+    } else {
+      setRepresentatives(res.data || [])
+    }
+  }
+
   useEffect(() => {
     setRepsLoading(true)
-    getChatRepresentatives().then(res => {
-      if (res.error) setError(res.error)
-      else setRepresentatives(res.data || [])
+    refreshRepresentatives().then(() => {
       setRepsLoading(false)
     })
+    
+    // Subscribe to all new messages to update unread counts
+    const allMessagesChannel = supabase.channel('all-chat-messages')
+    allMessagesChannel.on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_messages',
+      },
+      (payload: any) => {
+        const msg = payload.new as ChatMessage
+        // If message is from representative and unread, refresh representatives list
+        if (msg.sender_type === 'representative' && !msg.is_read) {
+          refreshRepresentatives()
+        }
+      }
+    )
+    allMessagesChannel.subscribe()
+    
+    // Refresh representatives list every 30 seconds to update unread counts
+    const interval = setInterval(() => {
+      refreshRepresentatives()
+    }, 30000) // 30 seconds
+    
+    return () => {
+      clearInterval(interval)
+      supabase.removeChannel(allMessagesChannel)
+    }
   }, [])
+
+  // Filter representatives based on search term while maintaining sort order
+  const filteredRepresentatives = useMemo(() => {
+    let filtered = representatives
+    
+    // Apply search filter if search term exists
+    if (searchTerm.trim()) {
+      const search = searchTerm.toLowerCase().trim()
+      filtered = representatives.filter(rep => 
+        rep.name.toLowerCase().includes(search) ||
+        rep.phone?.toLowerCase().includes(search) ||
+        rep.id.toLowerCase().includes(search)
+      )
+    }
+    
+    // Maintain sort order: unread first, then by last message time, then alphabetically
+    return filtered.sort((a, b) => {
+      // First priority: unread count (higher first)
+      if ((b.unread_count || 0) !== (a.unread_count || 0)) {
+        return (b.unread_count || 0) - (a.unread_count || 0)
+      }
+      
+      // Second priority: last message time (newer first)
+      if (a.last_message_time && b.last_message_time) {
+        return new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime()
+      }
+      if (a.last_message_time && !b.last_message_time) return -1
+      if (!a.last_message_time && b.last_message_time) return 1
+      
+      // Third priority: alphabetical by name
+      return a.name.localeCompare(b.name)
+    })
+  }, [representatives, searchTerm])
 
   // Fetch messages and subscribe to realtime updates
   useEffect(() => {
@@ -55,7 +127,14 @@ export default function ChatSupportTab() {
     setLoading(true)
     getChatMessages(selectedRep).then(res => {
       if (res.error) setError(res.error)
-      else setMessages(res.data || [])
+      else {
+        setMessages(res.data || [])
+        // Mark messages as read when opening the chat
+        markMessagesAsRead(selectedRep).then(() => {
+          // Refresh representatives list to update unread counts
+          refreshRepresentatives()
+        })
+      }
       setLoading(false)
     })
 
@@ -73,7 +152,7 @@ export default function ChatSupportTab() {
         table: 'chat_messages',
         filter: `representative_id=eq.${selectedRep}`,
       },
-      (payload) => {
+      (payload: any) => {
         const msg = payload.new as ChatMessage
         setMessages(prev => {
           // Prevent duplicates
@@ -112,6 +191,8 @@ export default function ChatSupportTab() {
     if (!res.error) {
       setNewMessage("")
       inputRef.current?.focus()
+      // Refresh representatives list to update last message time
+      refreshRepresentatives()
     }
   }
 
@@ -214,13 +295,35 @@ export default function ChatSupportTab() {
       <div className="w-80 border-r border-gray-200 bg-gray-50/50 flex flex-col overflow-hidden">
         {/* Header */}
         <div className="p-4 border-b border-gray-200 bg-white">
-          <h3 className="font-semibold text-lg text-gray-900 flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-blue-500" />
-            {language === 'ar' ? 'المندوبين' : 'Representatives'}
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-lg text-gray-900 flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-blue-500" />
+              {language === 'ar' ? 'المندوبين' : 'Representatives'}
+            </h3>
+            {!repsLoading && (
+              <Badge variant="secondary" className="text-xs">
+                {filteredRepresentatives.length} {language === 'ar' ? 'مندوب' : 'reps'}
+              </Badge>
+            )}
+          </div>
           <p className="text-sm text-gray-500 mt-1">
             {language === 'ar' ? 'اختر مندوب للبدء في المحادثة' : 'Select a representative to start chatting'}
           </p>
+        </div>
+
+        {/* Search Bar */}
+        <div className="p-4 border-b border-gray-200 bg-white">
+          <div className="relative">
+            <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400`} />
+            <Input
+              type="text"
+              placeholder={language === 'ar' ? 'بحث عن مندوب...' : 'Search representatives...'}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={isRTL ? 'pr-10' : 'pl-10'}
+              dir={isRTL ? 'rtl' : 'ltr'}
+            />
+          </div>
         </div>
 
         {/* Representatives List */}
@@ -229,14 +332,14 @@ export default function ChatSupportTab() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="animate-spin h-8 w-8 text-gray-400" />
             </div>
-          ) : representatives.length === 0 ? (
+          ) : filteredRepresentatives.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
               <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>{language === 'ar' ? 'لا يوجد مندوبين' : 'No representatives available'}</p>
+              <p>{language === 'ar' ? searchTerm ? 'لا توجد نتائج للبحث' : 'لا يوجد مندوبين' : searchTerm ? 'No search results' : 'No representatives available'}</p>
             </div>
           ) : (
             <div className="p-2 space-y-1">
-              {representatives.map(rep => (
+              {filteredRepresentatives.map(rep => (
                 <div
                   key={rep.id}
                   className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-100 ${

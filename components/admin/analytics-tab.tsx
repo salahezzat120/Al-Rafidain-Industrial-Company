@@ -18,8 +18,19 @@ import {
   Star,
   RefreshCw,
   Loader2,
+  Download,
+  Filter,
+  Calendar,
+  X,
+  FileSpreadsheet,
+  FileText,
 } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns"
 import { 
   getAnalyticsKPIs, 
   getDriverPerformance, 
@@ -56,6 +67,38 @@ export function AnalyticsTab() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [dateFilter, setDateFilter] = useState<string>("all") // all, today, week, month, custom
+  const [customStartDate, setCustomStartDate] = useState<string>("")
+  const [customEndDate, setCustomEndDate] = useState<string>("")
+
+  // Get date range based on filter
+  const getDateRange = () => {
+    const now = new Date()
+    switch (dateFilter) {
+      case "today":
+        return {
+          start: startOfDay(now).toISOString(),
+          end: endOfDay(now).toISOString()
+        }
+      case "week":
+        return {
+          start: startOfWeek(now, { weekStartsOn: 1 }).toISOString(),
+          end: endOfWeek(now, { weekStartsOn: 1 }).toISOString()
+        }
+      case "month":
+        return {
+          start: startOfMonth(now).toISOString(),
+          end: endOfMonth(now).toISOString()
+        }
+      case "custom":
+        return {
+          start: customStartDate ? new Date(customStartDate).toISOString() : null,
+          end: customEndDate ? new Date(customEndDate + 'T23:59:59').toISOString() : null
+        }
+      default:
+        return { start: null, end: null }
+    }
+  }
 
   const loadAnalyticsData = async (isRefresh = false) => {
     try {
@@ -68,19 +111,24 @@ export function AnalyticsTab() {
 
       console.log('📊 Loading analytics data...')
 
-      // Load all analytics data in parallel
+      // Get date range for filtering
+      const dateRange = getDateRange()
+      const dateFrom = dateRange.start
+      const dateTo = dateRange.end
+
+      // Load all analytics data in parallel with date filters
       const [kpisResult, driversResult, trendsResult, revenueResult, paymentResult, paymentStatusResult, productResult, productStockResult, attendanceResult, attendanceTrendsResult, customerResult, customerBehaviorResult] = await Promise.all([
-        getAnalyticsKPIs(),
-        getDriverPerformance(),
-        getDeliveryTrends(),
-        getRevenueAnalytics(),
-        getPaymentAnalytics(),
-        getPaymentStatusSummary(),
-        getProductAnalytics(),
+        getAnalyticsKPIs(dateFrom, dateTo),
+        getDriverPerformance(dateFrom, dateTo),
+        getDeliveryTrends(dateFrom, dateTo),
+        getRevenueAnalytics(dateFrom, dateTo),
+        getPaymentAnalytics(dateFrom, dateTo),
+        getPaymentStatusSummary(dateFrom, dateTo),
+        getProductAnalytics(dateFrom, dateTo),
         getProductStockAnalytics(),
-        getAttendanceAnalytics(),
-        getAttendanceTrends(),
-        getCustomerAnalytics(),
+        getAttendanceAnalytics(dateFrom, dateTo),
+        getAttendanceTrends(dateFrom, dateTo),
+        getCustomerAnalytics(dateFrom, dateTo),
         getCustomerBehaviorMetrics()
       ])
 
@@ -184,8 +232,212 @@ export function AnalyticsTab() {
     loadAnalyticsData()
   }, [])
 
+  // Reload data when filter changes
+  useEffect(() => {
+    if (dateFilter === "custom" && (!customStartDate || !customEndDate)) {
+      // Don't reload if custom filter is selected but dates are not set
+      return
+    }
+    // Only reload if not initial load
+    if (kpis !== null) {
+      loadAnalyticsData(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateFilter, customStartDate, customEndDate])
+
   const handleRefresh = () => {
     loadAnalyticsData(true)
+  }
+
+  // Helper function to escape CSV values
+  const escapeCSV = (value: any): string => {
+    if (value === null || value === undefined) return ''
+    const str = String(value)
+    return str.replace(/"/g, '""').replace(/\n/g, ' ').replace(/\r/g, '')
+  }
+
+  // Export to Excel (CSV)
+  const handleExportExcel = () => {
+    if (!kpis) return
+
+    const dateRange = getDateRange()
+    const filterLabel = dateFilter === "today" ? (isRTL ? "اليوم" : "today") : 
+                       dateFilter === "week" ? (isRTL ? "أسبوع" : "week") : 
+                       dateFilter === "month" ? (isRTL ? "شهر" : "month") : 
+                       dateFilter === "custom" ? (isRTL ? "مخصص" : "custom") : 
+                       (isRTL ? "الكل" : "all")
+
+    // Prepare CSV content
+    const headers = [
+      isRTL ? "المؤشر" : "Metric",
+      isRTL ? "القيمة" : "Value",
+      isRTL ? "الوصف" : "Description"
+    ]
+
+    const rows = [
+      [isRTL ? "إجمالي التوصيلات" : "Total Deliveries", formatNumber(kpis.totalDeliveries), ""],
+      [isRTL ? "إجمالي الإيرادات" : "Total Revenue", formatCurrency(kpis.totalRevenue), ""],
+      [isRTL ? "المندوبين النشطين" : "Active Drivers", kpis.activeDrivers.toString(), ""],
+      [isRTL ? "متوسط وقت التوصيل" : "Avg Delivery Time", `${kpis.avgDeliveryTime} min`, ""],
+      [isRTL ? "معدل التوصيل في الوقت المحدد" : "On-Time Delivery Rate", `${kpis.onTimeDeliveryRate}%`, ""],
+      [isRTL ? "الفترة" : "Period", filterLabel, ""],
+      [isRTL ? "تاريخ التصدير" : "Export Date", format(new Date(), 'yyyy-MM-dd HH:mm:ss'), ""]
+    ]
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${escapeCSV(cell)}"`).join(','))
+    ].join('\n')
+
+    // Add UTF-8 BOM for proper Arabic display
+    const BOM = '\uFEFF'
+    const csvWithBOM = BOM + csvContent
+
+    // Create and download file
+    const blob = new Blob([csvWithBOM], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    
+    const filename = isRTL ? 
+      `تحليلات_${filterLabel}_${format(new Date(), 'yyyy-MM-dd')}.csv` : 
+      `analytics_${filterLabel}_${format(new Date(), 'yyyy-MM-dd')}.csv`
+    
+    link.setAttribute('download', filename)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  // Export to PDF
+  const handleExportPDF = () => {
+    if (!kpis) return
+
+    const dateRange = getDateRange()
+    const filterLabel = dateRange.start && dateRange.end ? 
+      `${format(new Date(dateRange.start), 'yyyy-MM-dd')} - ${format(new Date(dateRange.end), 'yyyy-MM-dd')}` :
+      (isRTL ? "جميع البيانات" : "All Data")
+
+    // Create PDF content
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html dir="${isRTL ? 'rtl' : 'ltr'}" lang="${isRTL ? 'ar' : 'en'}">
+      <head>
+        <meta charset="UTF-8">
+        <title>${isRTL ? 'تقرير التحليلات' : 'Analytics Report'}</title>
+        <style>
+          body {
+            font-family: ${isRTL ? 'Arial, sans-serif' : 'Arial, sans-serif'};
+            direction: ${isRTL ? 'rtl' : 'ltr'};
+            padding: 20px;
+            color: #333;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #1f2937;
+          }
+          .header p {
+            margin: 5px 0;
+            color: #6b7280;
+          }
+          .metrics {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+          }
+          .metric-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f9fafb;
+          }
+          .metric-label {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 10px;
+          }
+          .metric-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1f2937;
+          }
+          .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+            color: #6b7280;
+            font-size: 12px;
+          }
+          @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>${isRTL ? 'تقرير التحليلات' : 'Analytics Report'}</h1>
+          <p>${isRTL ? 'شركة الرافدين الصناعية' : 'Al-Rafidain Industrial Company'}</p>
+          <p>${isRTL ? 'الفترة:' : 'Period:'} ${filterLabel}</p>
+          <p>${isRTL ? 'تاريخ التصدير:' : 'Export Date:'} ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')}</p>
+        </div>
+        <div class="metrics">
+          <div class="metric-card">
+            <div class="metric-label">${isRTL ? 'إجمالي التوصيلات' : 'Total Deliveries'}</div>
+            <div class="metric-value">${formatNumber(kpis.totalDeliveries)}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">${isRTL ? 'إجمالي الإيرادات' : 'Total Revenue'}</div>
+            <div class="metric-value">${formatCurrency(kpis.totalRevenue)}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">${isRTL ? 'المندوبين النشطين' : 'Active Drivers'}</div>
+            <div class="metric-value">${kpis.activeDrivers}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">${isRTL ? 'متوسط وقت التوصيل' : 'Avg Delivery Time'}</div>
+            <div class="metric-value">${kpis.avgDeliveryTime} ${isRTL ? 'دقيقة' : 'min'}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">${isRTL ? 'معدل التوصيل في الوقت المحدد' : 'On-Time Delivery Rate'}</div>
+            <div class="metric-value">${kpis.onTimeDeliveryRate}%</div>
+          </div>
+        </div>
+        <div class="footer">
+          <p>${isRTL ? 'تم إنشاء هذا التقرير تلقائياً من نظام إدارة التوصيل' : 'This report was automatically generated by the Delivery Management System'}</p>
+        </div>
+      </body>
+      </html>
+    `
+
+    printWindow.document.write(htmlContent)
+    printWindow.document.close()
+    
+    // Wait for content to load, then print
+    setTimeout(() => {
+      printWindow.print()
+    }, 250)
+  }
+
+  // Clear date filter
+  const clearDateFilter = () => {
+    setDateFilter("all")
+    setCustomStartDate("")
+    setCustomEndDate("")
   }
 
   const formatCurrency = (amount: number) => {
@@ -202,24 +454,124 @@ export function AnalyticsTab() {
   return (
     <div className="space-y-6" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
-      <div className="flex justify-between items-center">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">{t("analyticsDashboard")}</h2>
-        <p className="text-gray-600">{t("performanceInsights")}</p>
-      </div>
-        <Button 
-          onClick={handleRefresh} 
-          disabled={refreshing}
-          variant="outline"
-          size="sm"
-        >
-          {refreshing ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4 mr-2" />
-          )}
-          {refreshing ? 'Refreshing...' : 'Refresh'}
-        </Button>
+      <div className={`flex justify-between items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">{t("analyticsDashboard")}</h2>
+          <p className="text-gray-600">{t("performanceInsights")}</p>
+        </div>
+        <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+          {/* Date Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={isRTL ? 'flex-row-reverse' : ''}>
+                <Filter className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                {isRTL ? "تصفية" : "Filter"}
+                {dateFilter !== "all" && (
+                  <Badge variant="secondary" className={`ml-2 ${isRTL ? 'mr-2 ml-0' : ''}`}>
+                    {dateFilter === "today" ? (isRTL ? "اليوم" : "Today") :
+                     dateFilter === "week" ? (isRTL ? "أسبوع" : "Week") :
+                     dateFilter === "month" ? (isRTL ? "شهر" : "Month") :
+                     (isRTL ? "مخصص" : "Custom")}
+                  </Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80" align="end" dir={isRTL ? 'rtl' : 'ltr'}>
+              <div className="space-y-4">
+                <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <h4 className="font-medium">{isRTL ? "تصفية حسب التاريخ" : "Filter by Date"}</h4>
+                  {dateFilter !== "all" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearDateFilter}
+                      className={isRTL ? 'flex-row-reverse' : ''}
+                    >
+                      <X className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                      {isRTL ? "مسح" : "Clear"}
+                    </Button>
+                  )}
+                </div>
+                
+                <Select value={dateFilter} onValueChange={setDateFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={isRTL ? "اختر الفترة" : "Select period"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{isRTL ? "جميع التواريخ" : "All Dates"}</SelectItem>
+                    <SelectItem value="today">{isRTL ? "اليوم" : "Today"}</SelectItem>
+                    <SelectItem value="week">{isRTL ? "هذا الأسبوع" : "This Week"}</SelectItem>
+                    <SelectItem value="month">{isRTL ? "هذا الشهر" : "This Month"}</SelectItem>
+                    <SelectItem value="custom">{isRTL ? "فترة مخصصة" : "Custom Range"}</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {dateFilter === "custom" && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        {isRTL ? "تاريخ البداية" : "Start Date"}
+                      </label>
+                      <Input
+                        type="date"
+                        value={customStartDate}
+                        onChange={(e) => setCustomStartDate(e.target.value)}
+                        dir={isRTL ? 'rtl' : 'ltr'}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        {isRTL ? "تاريخ النهاية" : "End Date"}
+                      </label>
+                      <Input
+                        type="date"
+                        value={customEndDate}
+                        onChange={(e) => setCustomEndDate(e.target.value)}
+                        dir={isRTL ? 'rtl' : 'ltr'}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Export Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className={isRTL ? 'flex-row-reverse' : ''}>
+                <Download className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                {isRTL ? "تصدير" : "Export"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className={isRTL ? 'rtl' : 'ltr'}>
+              <DropdownMenuItem onClick={handleExportExcel} className={isRTL ? 'flex-row-reverse' : ''}>
+                <FileSpreadsheet className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                {isRTL ? "تصدير Excel" : "Export Excel"}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportPDF} className={isRTL ? 'flex-row-reverse' : ''}>
+                <FileText className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                {isRTL ? "تصدير PDF" : "Export PDF"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Refresh Button */}
+          <Button 
+            onClick={handleRefresh} 
+            disabled={refreshing}
+            variant="outline"
+            size="sm"
+            className={isRTL ? 'flex-row-reverse' : ''}
+          >
+            {refreshing ? (
+              <Loader2 className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'} animate-spin`} />
+            ) : (
+              <RefreshCw className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+            )}
+            {refreshing ? (isRTL ? 'جاري التحديث...' : 'Refreshing...') : (isRTL ? 'تحديث' : 'Refresh')}
+          </Button>
+        </div>
       </div>
 
       {/* Error State */}

@@ -146,6 +146,14 @@ export default function AttendanceTab() {
     setEndDate(undefined)
   }
 
+  // Helper function to format location coordinates
+  const formatLocation = (lat: number | null | undefined, lng: number | null | undefined): string => {
+    if (lat && lng) {
+      return `${lat.toFixed(6)}, ${lng.toFixed(6)}`
+    }
+    return ''
+  }
+
   const exportToCSV = () => {
     if (filteredRecords.length === 0) {
       alert(isRTL ? "لا توجد بيانات للتصدير" : "No data to export")
@@ -156,11 +164,12 @@ export default function AttendanceTab() {
       isRTL ? "المندوب" : "Representative",
       isRTL ? "الهاتف" : "Phone",
       isRTL ? "التاريخ" : "Date",
-      isRTL ? "وقت الدخول" : "Check In",
-      isRTL ? "وقت الخروج" : "Check Out",
+      isRTL ? "وقت الدخول" : "Check In Time",
+      isRTL ? "موقع الدخول" : "Check In Location",
+      isRTL ? "وقت الخروج" : "Check Out Time",
+      isRTL ? "موقع الخروج" : "Check Out Location",
       isRTL ? "المدة" : "Duration",
-      isRTL ? "الحالة" : "Status",
-      isRTL ? "الموقع" : "Location"
+      isRTL ? "الحالة" : "Status"
     ]
 
     const csvContent = [
@@ -170,10 +179,11 @@ export default function AttendanceTab() {
         `"${record.representative_phone || ''}"`,
         `"${record.check_in_time ? format(parseISO(record.check_in_time), 'yyyy-MM-dd') : ''}"`,
         `"${record.check_in_time ? format(parseISO(record.check_in_time), 'HH:mm') : ''}"`,
+        `"${formatLocation(record.check_in_latitude, record.check_in_longitude)}"`,
         `"${record.check_out_time ? format(parseISO(record.check_out_time), 'HH:mm') : ''}"`,
+        `"${formatLocation(record.check_out_latitude, record.check_out_longitude)}"`,
         `"${record.total_hours ? `${record.total_hours.toFixed(1)}h` : '0h'}"`,
-        `"${record.status || ''}"`,
-        `"${record.location || ''}"`
+        `"${record.status || ''}"`
       ].join(','))
     ].join('\n')
 
@@ -188,48 +198,6 @@ export default function AttendanceTab() {
     document.body.removeChild(link)
   }
 
-  const exportToExcel = () => {
-    if (filteredRecords.length === 0) {
-      alert(isRTL ? "لا توجد بيانات للتصدير" : "No data to export")
-      return
-    }
-
-    // Create Excel-like CSV with proper formatting
-    const headers = [
-      isRTL ? "المندوب" : "Representative",
-      isRTL ? "الهاتف" : "Phone", 
-      isRTL ? "التاريخ" : "Date",
-      isRTL ? "وقت الدخول" : "Check In",
-      isRTL ? "وقت الخروج" : "Check Out",
-      isRTL ? "المدة" : "Duration",
-      isRTL ? "الحالة" : "Status",
-      isRTL ? "الموقع" : "Location"
-    ]
-
-    const excelContent = [
-      headers.join('\t'),
-      ...filteredRecords.map(record => [
-        record.representative_name || '',
-        record.representative_phone || '',
-        record.check_in_time ? format(parseISO(record.check_in_time), 'yyyy-MM-dd') : '',
-        record.check_in_time ? format(parseISO(record.check_in_time), 'HH:mm') : '',
-        record.check_out_time ? format(parseISO(record.check_out_time), 'HH:mm') : '',
-        record.total_hours ? `${record.total_hours.toFixed(1)}h` : '0h',
-        record.status || '',
-        record.location || ''
-      ].join('\t'))
-    ].join('\n')
-
-    const blob = new Blob([excelContent], { type: 'application/vnd.ms-excel;charset=utf-8;' })
-    const link = document.createElement('a')
-    const url = URL.createObjectURL(blob)
-    link.setAttribute('href', url)
-    link.setAttribute('download', `attendance_records_${format(new Date(), 'yyyy-MM-dd')}.xls`)
-    link.style.visibility = 'hidden'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -263,7 +231,7 @@ export default function AttendanceTab() {
     return format(date, "MMM dd, yyyy")
   }
 
-  const calculateDuration = (checkIn: string, checkOut: string | null) => {
+  const calculateDuration = (checkIn: string, checkOut: string | null | undefined) => {
     if (!checkOut) return "Ongoing"
     const start = parseISO(checkIn)
     const end = parseISO(checkOut)
@@ -329,10 +297,6 @@ export default function AttendanceTab() {
               <DropdownMenuItem onClick={exportToCSV}>
                 <Download className="h-4 w-4 mr-2" />
                 {isRTL ? "تصدير CSV" : "Export CSV"}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={exportToExcel}>
-                <Download className="h-4 w-4 mr-2" />
-                {isRTL ? "تصدير Excel" : "Export Excel"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

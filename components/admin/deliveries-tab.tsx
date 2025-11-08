@@ -6,8 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Search, Plus, MoreHorizontal, MapPin, Clock, Package, Filter, Download, User, Truck, Trash2 } from "lucide-react"
+import { Search, Plus, MoreHorizontal, MapPin, Clock, Package, Filter, Download, User, Truck, Trash2, Calendar, X } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subWeeks, subMonths } from "date-fns"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { CreateTaskModal } from "./create-task-modal"
 import { TaskDetailsModal } from "./task-details-modal"
@@ -109,7 +112,7 @@ const mockTasks = [
 ]
 
 export function DeliveriesTab() {
-  const { t } = useLanguage()
+  const { t, isRTL } = useLanguage()
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [tasks, setTasks] = useState<DeliveryTask[]>([])
@@ -120,6 +123,9 @@ export function DeliveriesTab() {
   const [taskToDelete, setTaskToDelete] = useState<DeliveryTask | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [dateFilter, setDateFilter] = useState<string>("all") // all, today, week, month, custom
+  const [customStartDate, setCustomStartDate] = useState<string>("")
+  const [customEndDate, setCustomEndDate] = useState<string>("")
   const [stats, setStats] = useState({
     pending: 0,
     assigned: 0,
@@ -197,12 +203,185 @@ export function DeliveriesTab() {
     }
   }
 
-  const filteredTasks = tasks.filter(
-    (task) =>
+  // Get date range based on filter
+  const getDateRange = () => {
+    const now = new Date()
+    switch (dateFilter) {
+      case "today":
+        return {
+          start: startOfDay(now).toISOString(),
+          end: endOfDay(now).toISOString()
+        }
+      case "week":
+        return {
+          start: startOfWeek(now, { weekStartsOn: 1 }).toISOString(),
+          end: endOfWeek(now, { weekStartsOn: 1 }).toISOString()
+        }
+      case "month":
+        return {
+          start: startOfMonth(now).toISOString(),
+          end: endOfMonth(now).toISOString()
+        }
+      case "custom":
+        return {
+          start: customStartDate ? new Date(customStartDate).toISOString() : null,
+          end: customEndDate ? new Date(customEndDate + 'T23:59:59').toISOString() : null
+        }
+      default:
+        return { start: null, end: null }
+    }
+  }
+
+  // Filter tasks based on search and date filter
+  const filteredTasks = tasks.filter((task) => {
+    // Search filter
+    const matchesSearch = 
       task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       task.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.task_id.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      task.task_id.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    if (!matchesSearch) return false
+
+    // Date filter
+    if (dateFilter === "all") return true
+    
+    const dateRange = getDateRange()
+    if (!dateRange.start || !dateRange.end) return true
+    
+    const taskDate = task.created_at || task.scheduled_for
+    if (!taskDate) return true
+    
+    const taskDateObj = new Date(taskDate)
+    const startDate = new Date(dateRange.start)
+    const endDate = new Date(dateRange.end)
+    
+    return taskDateObj >= startDate && taskDateObj <= endDate
+  })
+
+  // Helper function to escape CSV values properly
+  const escapeCSV = (value: any): string => {
+    if (value === null || value === undefined) return ''
+    const str = String(value)
+    // Replace newlines and quotes
+    return str.replace(/"/g, '""').replace(/\n/g, ' ').replace(/\r/g, '')
+  }
+
+  // Helper function to translate status and priority
+  const translateStatus = (status: string): string => {
+    if (!isRTL) return status
+    const translations: { [key: string]: string } = {
+      'pending': 'قيد الانتظار',
+      'assigned': 'مُسند',
+      'in-progress': 'قيد التنفيذ',
+      'completed': 'مكتمل',
+      'cancelled': 'ملغي'
+    }
+    return translations[status] || status
+  }
+
+  const translatePriority = (priority: string): string => {
+    if (!isRTL) return priority
+    const translations: { [key: string]: string } = {
+      'urgent': 'عاجل',
+      'high': 'عالية',
+      'medium': 'متوسطة',
+      'low': 'منخفضة'
+    }
+    return translations[priority] || priority
+  }
+
+  // Export function
+  const handleExport = () => {
+    if (filteredTasks.length === 0) {
+      toast({
+        title: isRTL ? "لا توجد بيانات للتصدير" : "No data to export",
+        description: isRTL ? "لا توجد مهام للتصدير" : "No tasks to export",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Prepare CSV content with Arabic support
+    const headers = [
+      isRTL ? "رقم المهمة" : "Task ID",
+      isRTL ? "العنوان" : "Title",
+      isRTL ? "العميل" : "Customer",
+      isRTL ? "عنوان العميل" : "Customer Address",
+      isRTL ? "هاتف العميل" : "Customer Phone",
+      isRTL ? "المندوب" : "Representative",
+      isRTL ? "الحالة" : "Status",
+      isRTL ? "الأولوية" : "Priority",
+      isRTL ? "القيمة الإجمالية" : "Total Value",
+      isRTL ? "العملة" : "Currency",
+      isRTL ? "تاريخ الإنشاء" : "Created At",
+      isRTL ? "تاريخ الجدولة" : "Scheduled For",
+      isRTL ? "تاريخ الإكمال" : "Completed At",
+      isRTL ? "المدة المقدرة" : "Estimated Duration",
+      isRTL ? "الملاحظات" : "Notes"
+    ]
+
+    const csvRows = [
+      headers.join(','),
+      ...filteredTasks.map(task => [
+        `"${escapeCSV(task.task_id)}"`,
+        `"${escapeCSV(task.title)}"`,
+        `"${escapeCSV(task.customer_name)}"`,
+        `"${escapeCSV(task.customer_address)}"`,
+        `"${escapeCSV(task.customer_phone)}"`,
+        `"${escapeCSV(task.representative_name || (isRTL ? 'غير مُسند' : 'Unassigned'))}"`,
+        `"${escapeCSV(translateStatus(task.status))}"`,
+        `"${escapeCSV(translatePriority(task.priority))}"`,
+        `"${escapeCSV(task.total_value || 0)}"`,
+        `"${escapeCSV(task.currency || 'IQD')}"`,
+        `"${task.created_at ? format(new Date(task.created_at), 'yyyy-MM-dd HH:mm:ss') : ''}"`,
+        `"${task.scheduled_for ? format(new Date(task.scheduled_for), 'yyyy-MM-dd HH:mm:ss') : ''}"`,
+        `"${task.completed_at ? format(new Date(task.completed_at), 'yyyy-MM-dd HH:mm:ss') : ''}"`,
+        `"${escapeCSV(task.estimated_duration)}"`,
+        `"${escapeCSV(task.notes)}"`
+      ].join(','))
+    ]
+
+    const csvContent = csvRows.join('\n')
+
+    // Add UTF-8 BOM for proper Arabic display in Excel
+    const BOM = '\uFEFF'
+    const csvWithBOM = BOM + csvContent
+
+    // Create and download file
+    const blob = new Blob([csvWithBOM], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    
+    let filename = isRTL ? `مهام_التوصيل_${format(new Date(), 'yyyy-MM-dd')}.csv` : `delivery_tasks_${format(new Date(), 'yyyy-MM-dd')}.csv`
+    if (dateFilter !== "all") {
+      const filterLabel = dateFilter === "today" ? (isRTL ? "اليوم" : "today") : 
+                         dateFilter === "week" ? (isRTL ? "أسبوع" : "week") : 
+                         dateFilter === "month" ? (isRTL ? "شهر" : "month") : 
+                         (isRTL ? "مخصص" : "custom")
+      filename = isRTL ? `مهام_التوصيل_${filterLabel}_${format(new Date(), 'yyyy-MM-dd')}.csv` : 
+                `delivery_tasks_${filterLabel}_${format(new Date(), 'yyyy-MM-dd')}.csv`
+    }
+    
+    link.setAttribute('download', filename)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    
+    toast({
+      title: isRTL ? "تم التصدير بنجاح" : "Export successful",
+      description: isRTL ? `تم تصدير ${filteredTasks.length} مهمة` : `Exported ${filteredTasks.length} tasks`,
+    })
+  }
+
+  // Clear date filter
+  const clearDateFilter = () => {
+    setDateFilter("all")
+    setCustomStartDate("")
+    setCustomEndDate("")
+  }
 
   const handleViewDetails = (task: DeliveryTask) => {
     setSelectedTask(task)
@@ -266,13 +445,13 @@ export function DeliveriesTab() {
           <h2 className="text-2xl font-bold text-gray-900">{t("deliveryTaskManagement")}</h2>
           <p className="text-gray-600">{t("createAssignTrackTasks")}</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
+        <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+          <Button variant="outline" onClick={handleExport} className={isRTL ? 'flex-row-reverse' : ''}>
+            <Download className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
             {t("export")}
           </Button>
-          <Button onClick={() => setIsCreateModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button onClick={() => setIsCreateModalOpen(true)} className={isRTL ? 'flex-row-reverse' : ''}>
+            <Plus className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
             {t("createTask")}
           </Button>
         </div>
@@ -316,7 +495,7 @@ export function DeliveriesTab() {
               </div>
               <div>
                 <p className="text-sm text-gray-600">{t("inProgress")}</p>
-                <p className="text-xl font-bold">{stats.inProgress}</p>
+                <p className="text-xl font-bold">{stats.in_progress}</p>
               </div>
             </div>
           </CardContent>
@@ -340,20 +519,99 @@ export function DeliveriesTab() {
       {/* Search and Filters */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-4">
+          <div className={`flex items-center gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400`} />
               <Input
                 placeholder={t("searchTasksPlaceholder")}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className={isRTL ? 'pr-10' : 'pl-10'}
+                dir={isRTL ? 'rtl' : 'ltr'}
               />
             </div>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              {t("filter")}
-            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={isRTL ? 'flex-row-reverse' : ''}>
+                  <Filter className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                  {t("filter")}
+                  {dateFilter !== "all" && (
+                    <Badge variant="secondary" className={`ml-2 ${isRTL ? 'mr-2 ml-0' : ''}`}>
+                      {dateFilter === "today" ? (isRTL ? "اليوم" : "Today") :
+                       dateFilter === "week" ? (isRTL ? "أسبوع" : "Week") :
+                       dateFilter === "month" ? (isRTL ? "شهر" : "Month") :
+                       (isRTL ? "مخصص" : "Custom")}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="end" dir={isRTL ? 'rtl' : 'ltr'}>
+                <div className="space-y-4">
+                  <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+                    <h4 className="font-medium">{isRTL ? "تصفية حسب التاريخ" : "Filter by Date"}</h4>
+                    {dateFilter !== "all" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearDateFilter}
+                        className={isRTL ? 'flex-row-reverse' : ''}
+                      >
+                        <X className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                        {isRTL ? "مسح" : "Clear"}
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <Select value={dateFilter} onValueChange={setDateFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={isRTL ? "اختر الفترة" : "Select period"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{isRTL ? "جميع التواريخ" : "All Dates"}</SelectItem>
+                      <SelectItem value="today">{isRTL ? "اليوم" : "Today"}</SelectItem>
+                      <SelectItem value="week">{isRTL ? "هذا الأسبوع" : "This Week"}</SelectItem>
+                      <SelectItem value="month">{isRTL ? "هذا الشهر" : "This Month"}</SelectItem>
+                      <SelectItem value="custom">{isRTL ? "فترة مخصصة" : "Custom Range"}</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {dateFilter === "custom" && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">
+                          {isRTL ? "تاريخ البداية" : "Start Date"}
+                        </label>
+                        <Input
+                          type="date"
+                          value={customStartDate}
+                          onChange={(e) => setCustomStartDate(e.target.value)}
+                          dir={isRTL ? 'rtl' : 'ltr'}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">
+                          {isRTL ? "تاريخ النهاية" : "End Date"}
+                        </label>
+                        <Input
+                          type="date"
+                          value={customEndDate}
+                          onChange={(e) => setCustomEndDate(e.target.value)}
+                          dir={isRTL ? 'rtl' : 'ltr'}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {dateFilter !== "all" && (
+                    <div className="pt-2 border-t">
+                      <p className="text-xs text-gray-500">
+                        {isRTL ? "سيتم تصدير المهام المفلترة فقط" : "Only filtered tasks will be exported"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </CardHeader>
         <CardContent>
@@ -364,10 +622,24 @@ export function DeliveriesTab() {
             </div>
           ) : filteredTasks.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">No tasks found</p>
+              <p className="text-gray-500">{isRTL ? "لا توجد مهام" : "No tasks found"}</p>
             </div>
           ) : (
             <div className="space-y-4">
+              <div className={`flex items-center justify-between mb-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <p className="text-sm text-gray-600">
+                  {isRTL ? `تم العثور على ${filteredTasks.length} من ${tasks.length} مهمة` : `Showing ${filteredTasks.length} of ${tasks.length} tasks`}
+                </p>
+                {dateFilter !== "all" && (
+                  <Badge variant="outline" className={isRTL ? 'flex-row-reverse' : ''}>
+                    <Calendar className={`h-3 w-3 ${isRTL ? 'ml-1' : 'mr-1'}`} />
+                    {dateFilter === "today" ? (isRTL ? "اليوم" : "Today") :
+                     dateFilter === "week" ? (isRTL ? "هذا الأسبوع" : "This Week") :
+                     dateFilter === "month" ? (isRTL ? "هذا الشهر" : "This Month") :
+                     (isRTL ? "فترة مخصصة" : "Custom Range")}
+                  </Badge>
+                )}
+              </div>
               {filteredTasks.map((task) => (
               <div key={task.id} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50">
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-4">

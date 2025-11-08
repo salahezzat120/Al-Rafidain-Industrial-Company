@@ -407,27 +407,73 @@ export async function sendChatMessage(message: CreateChatMessageData): Promise<{
   }
 }
 
-// Fetch representatives who have at least one chat message
-export async function getChatRepresentatives(): Promise<{ data: { id: string; name: string; phone: string; is_online?: boolean; last_seen?: string; unread_count?: number }[] | null; error: string | null }> {
+// Mark messages as read for a representative
+export async function markMessagesAsRead(representative_id: string): Promise<{ error: string | null }> {
   try {
-    // 1. Get all unique representative_ids from chat_messages
-    const { data: chatIds, error: chatError } = await supabase
+    // Mark all unread messages from this representative as read
+    const { error } = await supabase
       .from('chat_messages')
-      .select('representative_id')
-    if (chatError) return { data: null, error: chatError.message };
-    const uniqueIds = Array.from(new Set((chatIds || []).map((row: any) => row.representative_id)));
-    if (uniqueIds.length === 0) return { data: [], error: null };
+      .update({ is_read: true })
+      .eq('representative_id', representative_id)
+      .eq('sender_type', 'representative')
+      .eq('is_read', false);
     
-    // 2. Fetch those representatives with phone numbers
+    if (error) {
+      console.error('Error marking messages as read:', error);
+      return { error: error.message };
+    }
+    
+    return { error: null };
+  } catch (err) {
+    console.error('Unexpected error marking messages as read:', err);
+    return { error: 'An unexpected error occurred' };
+  }
+}
+
+// Fetch all representatives for chat (not just those with messages)
+export async function getAllChatRepresentatives(): Promise<{ data: { id: string; name: string; phone: string; is_online?: boolean; last_seen?: string; unread_count?: number; last_message_time?: string | null }[] | null; error: string | null }> {
+  try {
+    // Fetch all representatives
     const { data: reps, error: repsError } = await supabase
       .from('representatives')
       .select('id, name, phone')
-      .in('id', uniqueIds)
-    if (repsError) return { data: null, error: repsError.message };
     
-    // 3. Get latest location for online status
+    if (repsError) return { data: null, error: repsError.message };
+    if (!reps || reps.length === 0) return { data: [], error: null };
+    
+    // Get all chat messages to calculate unread counts and last message time
+    const { data: allMessages, error: messagesError } = await supabase
+      .from('chat_messages')
+      .select('representative_id, is_read, sender_type, created_at')
+      .order('created_at', { ascending: false })
+    
+    if (messagesError) {
+      console.error('Error fetching messages:', messagesError);
+    }
+    
+    // Calculate unread counts (only messages from representatives that are unread)
+    const unreadCounts: { [key: string]: number } = {}
+    const lastMessageTimes: { [key: string]: string | null } = {}
+    
+    if (allMessages) {
+      allMessages.forEach((msg: any) => {
+        const repId = msg.representative_id
+        
+        // Count unread messages from representatives only
+        if (msg.sender_type === 'representative' && !msg.is_read) {
+          unreadCounts[repId] = (unreadCounts[repId] || 0) + 1
+        }
+        
+        // Track last message time for each representative
+        if (!lastMessageTimes[repId] || (msg.created_at && new Date(msg.created_at) > new Date(lastMessageTimes[repId] || 0))) {
+          lastMessageTimes[repId] = msg.created_at
+        }
+      })
+    }
+    
+    // Get latest location for online status
     const results = []
-    for (const rep of reps || []) {
+    for (const rep of reps) {
       const { data: loc } = await supabase
         .from('representative_live_locations')
         .select('timestamp')
@@ -442,14 +488,40 @@ export async function getChatRepresentatives(): Promise<{ data: { id: string; na
         ...rep,
         is_online,
         last_seen: loc?.timestamp || null,
-        unread_count: 0 // TODO: Implement unread count logic
+        unread_count: unreadCounts[rep.id] || 0,
+        last_message_time: lastMessageTimes[rep.id] || null
       })
     }
     
+    // Sort: unread messages first, then by last message time (newest first), then alphabetically
+    results.sort((a, b) => {
+      // First priority: unread count (higher first)
+      if ((b.unread_count || 0) !== (a.unread_count || 0)) {
+        return (b.unread_count || 0) - (a.unread_count || 0)
+      }
+      
+      // Second priority: last message time (newer first)
+      if (a.last_message_time && b.last_message_time) {
+        return new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime()
+      }
+      if (a.last_message_time && !b.last_message_time) return -1
+      if (!a.last_message_time && b.last_message_time) return 1
+      
+      // Third priority: alphabetical by name
+      return a.name.localeCompare(b.name)
+    })
+    
     return { data: results, error: null };
   } catch (err) {
+    console.error('Error in getAllChatRepresentatives:', err);
     return { data: null, error: 'An unexpected error occurred' };
   }
+}
+
+// Fetch representatives who have at least one chat message (legacy function for backward compatibility)
+export async function getChatRepresentatives(): Promise<{ data: { id: string; name: string; phone: string; is_online?: boolean; last_seen?: string; unread_count?: number }[] | null; error: string | null }> {
+  // Use the new function that gets all representatives
+  return await getAllChatRepresentatives()
 }
 
 // Get representatives with actual online status (simple and reliable)

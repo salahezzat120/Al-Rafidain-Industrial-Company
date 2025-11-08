@@ -64,32 +64,26 @@ export default function EmployeesTab() {
   const [showPerformanceModal, setShowPerformanceModal] = useState(false)
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
 
-  useEffect(() => {
-    fetchEmployees()
-    fetchStats()
-  }, [])
-
-  useEffect(() => {
-    filterEmployees()
-  }, [employees, searchQuery, selectedDepartment, selectedStatus])
-
-    const fetchEmployees = async () => {
-      try {
-        setIsLoading(true)
+  const fetchEmployees = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
       const { data, error } = await getEmployees()
-        if (error) {
-          setError(error)
+      if (error) {
+        setError(error)
         toast.error('Failed to fetch employees')
         return
       }
       setEmployees(data || [])
-      } catch (err) {
-        setError('An unexpected error occurred')
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred'
+      setError(errorMessage)
       toast.error('Failed to fetch employees')
-      } finally {
-        setIsLoading(false)
-      }
+      console.error('Error fetching employees:', err)
+    } finally {
+      setIsLoading(false)
     }
+  }
 
   const fetchStats = async () => {
     try {
@@ -128,6 +122,15 @@ export default function EmployeesTab() {
 
     setFilteredEmployees(filtered)
   }
+
+  useEffect(() => {
+    fetchEmployees()
+    fetchStats()
+  }, [])
+
+  useEffect(() => {
+    filterEmployees()
+  }, [employees, searchQuery, selectedDepartment, selectedStatus])
 
   const handleAddEmployee = (newEmployee: Employee) => {
     setEmployees(prev => [newEmployee, ...prev])

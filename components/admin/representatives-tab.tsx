@@ -25,6 +25,7 @@ interface RepresentativesTabProps {
 }
 
 export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDeliveryTasks, onNavigateToLiveMap }: RepresentativesTabProps = {}) {
+  const [searchTerm, setSearchTerm] = useState("");
   const [representatives, setRepresentatives] = useState<any[]>([]);
   const [selectedRepresentative, setSelectedRepresentative] = useState<any>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -38,12 +39,6 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
   const [scrollProgress, setScrollProgress] = useState(0);
   const [showScrollHint, setShowScrollHint] = useState(false);
   const profileModalRef = useRef<HTMLDivElement>(null);
-
-  // Filter states
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [vehicleFilter, setVehicleFilter] = useState("all");
-  const [showFilters, setShowFilters] = useState(false);
 
   const { t, isRTL } = useLanguage();
 
@@ -59,31 +54,6 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
 
     fetchRepresentatives();
   }, []);
-
-  // Filter representatives based on search term and filters
-  const filteredRepresentatives = representatives.filter((rep) => {
-    // Search filter
-    const matchesSearch = 
-      rep.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rep.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rep.phone?.includes(searchTerm) ||
-      rep.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rep.vehicle_display?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rep.vehicle?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    // Status filter
-    const matchesStatus = statusFilter === "all" || rep.status === statusFilter;
-
-    // Vehicle filter
-    let matchesVehicle = true;
-    if (vehicleFilter === "with_vehicle") {
-      matchesVehicle = !!(rep.vehicle_display || rep.vehicle);
-    } else if (vehicleFilter === "without_vehicle") {
-      matchesVehicle = !(rep.vehicle_display || rep.vehicle);
-    }
-
-    return matchesSearch && matchesStatus && matchesVehicle;
-  });
 
   // Track scroll progress for profile modal
   useEffect(() => {
@@ -439,109 +409,32 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
       </div>
 
       {/* Search and Filter */}
-      <div className="space-y-4">
-        <div className="flex gap-4 items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder={t("searchRepresentatives")}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Button 
-            variant="outline" 
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <Filter className="h-4 w-4 mr-2" />
-            {t("filter")}
-            {showFilters ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
-          </Button>
+      <div className="flex gap-4 items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <Input
+            placeholder={t("searchRepresentatives")}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
         </div>
-
-        {/* Advanced Filters */}
-        {showFilters && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
-            <div>
-              <Label htmlFor="status-filter" className="text-sm font-medium text-gray-700">
-                Status
-              </Label>
-              <select
-                id="status-filter"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="on-route">On Route</option>
-                <option value="offline">Offline</option>
-              </select>
-            </div>
-
-            <div>
-              <Label htmlFor="vehicle-filter" className="text-sm font-medium text-gray-700">
-                Vehicle Assignment
-              </Label>
-              <select
-                id="vehicle-filter"
-                value={vehicleFilter}
-                onChange={(e) => setVehicleFilter(e.target.value)}
-                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All Representatives</option>
-                <option value="with_vehicle">With Vehicle</option>
-                <option value="without_vehicle">Without Vehicle</option>
-              </select>
-            </div>
-
-            <div className="flex items-end">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setSearchTerm("");
-                  setStatusFilter("all");
-                  setVehicleFilter("all");
-                }}
-                className="w-full"
-              >
-                <X className="h-4 w-4 mr-2" />
-                Clear Filters
-              </Button>
-            </div>
-          </div>
-        )}
+        <Button variant="outline">
+          <Filter className="h-4 w-4 mr-2" />
+          {t("filter")}
+        </Button>
       </div>
 
 
       {/* Representatives List */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">
-            Representatives ({filteredRepresentatives.length})
-          </h3>
-          {filteredRepresentatives.length !== representatives.length && (
-            <p className="text-sm text-gray-500">
-              Showing {filteredRepresentatives.length} of {representatives.length} representatives
-            </p>
-          )}
-        </div>
-        
-        {filteredRepresentatives.length === 0 ? (
-          <div className="text-center py-12">
-            <User className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No representatives found</h3>
-            <p className="text-gray-500">
-              {searchTerm || statusFilter !== "all" || vehicleFilter !== "all" 
-                ? "Try adjusting your search or filter criteria"
-                : "No representatives available"
-              }
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredRepresentatives.map((representative) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {representatives
+          .filter((rep) =>
+            rep.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            rep.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            rep.phone?.includes(searchTerm)
+          )
+          .map((representative) => (
             <Card key={representative.id} className="hover:shadow-lg transition-shadow duration-200">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -602,19 +495,12 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
                     <span className="truncate">{representative.address}</span>
                   </div>
                 )}
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Truck className="h-4 w-4" />
-                  <div className="flex flex-col">
-                    <span>
-                      {representative.vehicle_display || representative.vehicle || 'No vehicle assigned'}
-                    </span>
-                    {representative.vehicle_details && (
-                      <span className="text-xs text-gray-500">
-                        {representative.vehicle_details.license_plate} • {representative.vehicle_details.status}
-                      </span>
-                    )}
+                {representative.vehicle && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Truck className="h-4 w-4" />
+                    <span>{representative.vehicle}</span>
                   </div>
-                </div>
+                )}
                 <div className="flex items-center justify-between">
                   <Badge className={getStatusColor(representative.status)}>
                     {representative.status}
@@ -643,9 +529,7 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
                 )}
               </CardContent>
             </Card>
-            ))}
-          </div>
-        )}
+          ))}
       </div>
 
       {/* Empty State */}

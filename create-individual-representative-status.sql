@@ -324,3 +324,6 @@ GRANT EXECUTE ON FUNCTION public.update_all_representative_statuses_individual()
 GRANT EXECUTE ON FUNCTION public.get_online_representatives_individual() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_offline_representatives_individual() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.update_representative_status_on_location_change() TO authenticated;
+
+
+

@@ -44,14 +44,24 @@ export interface DriverPerformanceData {
 }
 
 // Fetch analytics KPIs
-export async function getAnalyticsKPIs(): Promise<{ data: AnalyticsKPIs | null; error: string | null }> {
+export async function getAnalyticsKPIs(dateFrom?: string | null, dateTo?: string | null): Promise<{ data: AnalyticsKPIs | null; error: string | null }> {
   try {
-    console.log('📊 Fetching analytics KPIs...')
+    console.log('📊 Fetching analytics KPIs...', { dateFrom, dateTo })
 
-    // Get total deliveries from delivery_tasks table
-    const { data: deliveriesData, error: deliveriesError } = await supabase
+    // Build query for deliveries with optional date filter
+    let deliveriesQuery = supabase
       .from('delivery_tasks')
       .select('id, total_value, status, created_at, completed_at, start_timestamp, end_timestamp')
+    
+    // Apply date filter if provided
+    if (dateFrom) {
+      deliveriesQuery = deliveriesQuery.gte('created_at', dateFrom)
+    }
+    if (dateTo) {
+      deliveriesQuery = deliveriesQuery.lte('created_at', dateTo)
+    }
+
+    const { data: deliveriesData, error: deliveriesError } = await deliveriesQuery
 
     if (deliveriesError) {
       console.error('❌ Error fetching deliveries:', deliveriesError)
@@ -170,9 +180,9 @@ export async function getAnalyticsKPIs(): Promise<{ data: AnalyticsKPIs | null; 
 }
 
 // Fetch driver performance data
-export async function getDriverPerformance(): Promise<{ data: DriverPerformanceData[] | null; error: string | null }> {
+export async function getDriverPerformance(dateFrom?: string | null, dateTo?: string | null): Promise<{ data: DriverPerformanceData[] | null; error: string | null }> {
   try {
-    console.log('📊 Fetching driver performance data...')
+    console.log('📊 Fetching driver performance data...', { dateFrom, dateTo })
 
     // Get representatives from your representatives table
     const { data: representativesData, error: representativesError } = await supabase
@@ -190,11 +200,21 @@ export async function getDriverPerformance(): Promise<{ data: DriverPerformanceD
     const performanceData: DriverPerformanceData[] = []
     
     for (const rep of representativesData || []) {
-      // Get delivery tasks for this representative
-      const { data: deliveriesData, error: deliveriesError } = await supabase
+      // Build query for delivery tasks with optional date filter
+      let deliveriesQuery = supabase
         .from('delivery_tasks')
-        .select('id, status, start_timestamp, end_timestamp, start_latitude, start_longitude, end_latitude, end_longitude')
+        .select('id, status, start_timestamp, end_timestamp, start_latitude, start_longitude, end_latitude, end_longitude, created_at')
         .eq('representative_id', rep.id)
+      
+      // Apply date filter if provided
+      if (dateFrom) {
+        deliveriesQuery = deliveriesQuery.gte('created_at', dateFrom)
+      }
+      if (dateTo) {
+        deliveriesQuery = deliveriesQuery.lte('created_at', dateTo)
+      }
+
+      const { data: deliveriesData, error: deliveriesError } = await deliveriesQuery
 
       if (deliveriesError) {
         console.error(`❌ Error fetching deliveries for ${rep.name}:`, deliveriesError)
@@ -270,16 +290,29 @@ export async function getDriverPerformance(): Promise<{ data: DriverPerformanceD
 }
 
 // Fetch delivery trends (last 30 days)
-export async function getDeliveryTrends(): Promise<{ data: DeliveryTrend[] | null; error: string | null }> {
+export async function getDeliveryTrends(dateFrom?: string | null, dateTo?: string | null): Promise<{ data: DeliveryTrend[] | null; error: string | null }> {
   try {
-    console.log('📊 Fetching delivery trends...')
+    console.log('📊 Fetching delivery trends...', { dateFrom, dateTo })
 
-    // Get delivery tasks from your delivery_tasks table
-    const { data: deliveriesData, error: deliveriesError } = await supabase
+    // Build query with optional date filter
+    let deliveriesQuery = supabase
       .from('delivery_tasks')
       .select('created_at, total_value, status')
-      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()) // Last 30 days
-      .order('created_at', { ascending: true })
+    
+    // Apply date filter if provided, otherwise use last 30 days
+    if (dateFrom) {
+      deliveriesQuery = deliveriesQuery.gte('created_at', dateFrom)
+    } else {
+      deliveriesQuery = deliveriesQuery.gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+    }
+    
+    if (dateTo) {
+      deliveriesQuery = deliveriesQuery.lte('created_at', dateTo)
+    }
+    
+    deliveriesQuery = deliveriesQuery.order('created_at', { ascending: true })
+
+    const { data: deliveriesData, error: deliveriesError } = await deliveriesQuery
 
     if (deliveriesError) {
       console.error('❌ Error fetching delivery trends:', deliveriesError)
@@ -326,16 +359,29 @@ export async function getDeliveryTrends(): Promise<{ data: DeliveryTrend[] | nul
 }
 
 // Fetch revenue analytics (last 12 months) from payments table
-export async function getRevenueAnalytics(): Promise<{ data: RevenueAnalytics[] | null; error: string | null }> {
+export async function getRevenueAnalytics(dateFrom?: string | null, dateTo?: string | null): Promise<{ data: RevenueAnalytics[] | null; error: string | null }> {
   try {
-    console.log('📊 Fetching revenue analytics from payments table...')
+    console.log('📊 Fetching revenue analytics from payments table...', { dateFrom, dateTo })
 
-    // Get payments from your payments table
-    const { data: paymentsData, error: paymentsError } = await supabase
+    // Build query with optional date filter
+    let paymentsQuery = supabase
       .from('payments')
       .select('payment_date, amount, status, payment_method')
-      .gte('payment_date', new Date(Date.now() - 12 * 30 * 24 * 60 * 60 * 1000).toISOString()) // Last 12 months
-      .order('payment_date', { ascending: true })
+    
+    // Apply date filter if provided, otherwise use last 12 months
+    if (dateFrom) {
+      paymentsQuery = paymentsQuery.gte('payment_date', dateFrom)
+    } else {
+      paymentsQuery = paymentsQuery.gte('payment_date', new Date(Date.now() - 12 * 30 * 24 * 60 * 60 * 1000).toISOString())
+    }
+    
+    if (dateTo) {
+      paymentsQuery = paymentsQuery.lte('payment_date', dateTo)
+    }
+    
+    paymentsQuery = paymentsQuery.order('payment_date', { ascending: true })
+
+    const { data: paymentsData, error: paymentsError } = await paymentsQuery
 
     if (paymentsError) {
       console.error('❌ Error fetching payments:', paymentsError)
@@ -386,27 +432,48 @@ export async function getRevenueAnalytics(): Promise<{ data: RevenueAnalytics[] 
 }
 
 // Fetch payment analytics (payment methods, status trends)
-export async function getPaymentAnalytics(): Promise<{ data: any | null; error: string | null }> {
+export async function getPaymentAnalytics(dateFrom?: string | null, dateTo?: string | null): Promise<{ data: any | null; error: string | null }> {
   try {
-    console.log('📊 Fetching payment analytics...')
+    console.log('📊 Fetching payment analytics...', { dateFrom, dateTo })
 
-    // Get payment method distribution
-    const { data: paymentMethodsData, error: methodsError } = await supabase
+    // Build query for payment methods with optional date filter
+    let paymentMethodsQuery = supabase
       .from('payments')
-      .select('payment_method, amount, status')
+      .select('payment_method, amount, status, payment_date')
       .eq('status', 'completed')
+    
+    if (dateFrom) {
+      paymentMethodsQuery = paymentMethodsQuery.gte('payment_date', dateFrom)
+    }
+    if (dateTo) {
+      paymentMethodsQuery = paymentMethodsQuery.lte('payment_date', dateTo)
+    }
+
+    const { data: paymentMethodsData, error: methodsError } = await paymentMethodsQuery
 
     if (methodsError) {
       console.error('❌ Error fetching payment methods:', methodsError)
       return { data: null, error: `Failed to fetch payment methods: ${methodsError.message}` }
     }
 
-    // Get payment status trends (last 30 days)
-    const { data: statusTrendsData, error: statusError } = await supabase
+    // Build query for payment status trends with optional date filter
+    let statusTrendsQuery = supabase
       .from('payments')
       .select('payment_date, status, amount')
-      .gte('payment_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-      .order('payment_date', { ascending: true })
+    
+    if (dateFrom) {
+      statusTrendsQuery = statusTrendsQuery.gte('payment_date', dateFrom)
+    } else {
+      statusTrendsQuery = statusTrendsQuery.gte('payment_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+    }
+    
+    if (dateTo) {
+      statusTrendsQuery = statusTrendsQuery.lte('payment_date', dateTo)
+    }
+    
+    statusTrendsQuery = statusTrendsQuery.order('payment_date', { ascending: true })
+
+    const { data: statusTrendsData, error: statusError } = await statusTrendsQuery
 
     if (statusError) {
       console.error('❌ Error fetching payment status trends:', statusError)
@@ -476,14 +543,27 @@ export async function getPaymentAnalytics(): Promise<{ data: any | null; error: 
 }
 
 // Fetch payment status summary
-export async function getPaymentStatusSummary(): Promise<{ data: any | null; error: string | null }> {
+export async function getPaymentStatusSummary(dateFrom?: string | null, dateTo?: string | null): Promise<{ data: any | null; error: string | null }> {
   try {
-    console.log('📊 Fetching payment status summary...')
+    console.log('📊 Fetching payment status summary...', { dateFrom, dateTo })
 
-    const { data: paymentsData, error: paymentsError } = await supabase
+    // Build query with optional date filter
+    let paymentsQuery = supabase
       .from('payments')
       .select('status, amount, payment_date')
-      .gte('payment_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()) // Last 30 days
+    
+    // Apply date filter if provided, otherwise use last 30 days
+    if (dateFrom) {
+      paymentsQuery = paymentsQuery.gte('payment_date', dateFrom)
+    } else {
+      paymentsQuery = paymentsQuery.gte('payment_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+    }
+    
+    if (dateTo) {
+      paymentsQuery = paymentsQuery.lte('payment_date', dateTo)
+    }
+
+    const { data: paymentsData, error: paymentsError } = await paymentsQuery
 
     if (paymentsError) {
       console.error('❌ Error fetching payment status summary:', paymentsError)
@@ -537,15 +617,26 @@ export async function getPaymentStatusSummary(): Promise<{ data: any | null; err
 }
 
 // Fetch product analytics
-export async function getProductAnalytics(): Promise<{ data: any | null; error: string | null }> {
+export async function getProductAnalytics(dateFrom?: string | null, dateTo?: string | null): Promise<{ data: any | null; error: string | null }> {
   try {
-    console.log('📊 Fetching product analytics...')
+    console.log('📊 Fetching product analytics...', { dateFrom, dateTo })
 
-    // Get all products data
-    const { data: productsData, error: productsError } = await supabase
+    // Build query with optional date filter
+    let productsQuery = supabase
       .from('products')
       .select('*')
-      .order('created_at', { ascending: false })
+    
+    // Apply date filter if provided (filter by created_at)
+    if (dateFrom) {
+      productsQuery = productsQuery.gte('created_at', dateFrom)
+    }
+    if (dateTo) {
+      productsQuery = productsQuery.lte('created_at', dateTo)
+    }
+    
+    productsQuery = productsQuery.order('created_at', { ascending: false })
+
+    const { data: productsData, error: productsError } = await productsQuery
 
     if (productsError) {
       console.error('❌ Error fetching products:', productsError)
@@ -761,16 +852,29 @@ export async function getProductStockAnalytics(): Promise<{ data: any | null; er
 }
 
 // Fetch attendance analytics
-export async function getAttendanceAnalytics(): Promise<{ data: any | null; error: string | null }> {
+export async function getAttendanceAnalytics(dateFrom?: string | null, dateTo?: string | null): Promise<{ data: any | null; error: string | null }> {
   try {
-    console.log('📊 Fetching attendance analytics...')
+    console.log('📊 Fetching attendance analytics...', { dateFrom, dateTo })
 
-    // Get attendance data for the last 30 days
-    const { data: attendanceData, error: attendanceError } = await supabase
+    // Build query with optional date filter
+    let attendanceQuery = supabase
       .from('attendance')
       .select('*')
-      .gte('check_in_time', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-      .order('check_in_time', { ascending: false })
+    
+    // Apply date filter if provided, otherwise use last 30 days
+    if (dateFrom) {
+      attendanceQuery = attendanceQuery.gte('check_in_time', dateFrom)
+    } else {
+      attendanceQuery = attendanceQuery.gte('check_in_time', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+    }
+    
+    if (dateTo) {
+      attendanceQuery = attendanceQuery.lte('check_in_time', dateTo)
+    }
+    
+    attendanceQuery = attendanceQuery.order('check_in_time', { ascending: false })
+
+    const { data: attendanceData, error: attendanceError } = await attendanceQuery
 
     if (attendanceError) {
       console.error('❌ Error fetching attendance:', attendanceError)
@@ -910,16 +1014,29 @@ export async function getAttendanceAnalytics(): Promise<{ data: any | null; erro
 }
 
 // Fetch attendance trends (last 7 days)
-export async function getAttendanceTrends(): Promise<{ data: any | null; error: string | null }> {
+export async function getAttendanceTrends(dateFrom?: string | null, dateTo?: string | null): Promise<{ data: any | null; error: string | null }> {
   try {
-    console.log('📊 Fetching attendance trends...')
+    console.log('📊 Fetching attendance trends...', { dateFrom, dateTo })
 
-    // Get attendance data for the last 7 days
-    const { data: attendanceData, error: attendanceError } = await supabase
+    // Build query with optional date filter
+    let attendanceQuery = supabase
       .from('attendance')
       .select('check_in_time, check_out_time, total_hours, status, representative_id')
-      .gte('check_in_time', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-      .order('check_in_time', { ascending: true })
+    
+    // Apply date filter if provided, otherwise use last 7 days
+    if (dateFrom) {
+      attendanceQuery = attendanceQuery.gte('check_in_time', dateFrom)
+    } else {
+      attendanceQuery = attendanceQuery.gte('check_in_time', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+    }
+    
+    if (dateTo) {
+      attendanceQuery = attendanceQuery.lte('check_in_time', dateTo)
+    }
+    
+    attendanceQuery = attendanceQuery.order('check_in_time', { ascending: true })
+
+    const { data: attendanceData, error: attendanceError } = await attendanceQuery
 
     if (attendanceError) {
       console.error('❌ Error fetching attendance trends:', attendanceError)
@@ -993,15 +1110,26 @@ export async function getAttendanceTrends(): Promise<{ data: any | null; error: 
 }
 
 // Fetch customer analytics
-export async function getCustomerAnalytics(): Promise<{ data: any | null; error: string | null }> {
+export async function getCustomerAnalytics(dateFrom?: string | null, dateTo?: string | null): Promise<{ data: any | null; error: string | null }> {
   try {
-    console.log('📊 Fetching customer analytics...')
+    console.log('📊 Fetching customer analytics...', { dateFrom, dateTo })
 
-    // Get all customers data
-    const { data: customersData, error: customersError } = await supabase
+    // Build query with optional date filter
+    let customersQuery = supabase
       .from('customers')
       .select('*')
-      .order('created_at', { ascending: false })
+    
+    // Apply date filter if provided (filter by created_at or join_date)
+    if (dateFrom) {
+      customersQuery = customersQuery.gte('created_at', dateFrom)
+    }
+    if (dateTo) {
+      customersQuery = customersQuery.lte('created_at', dateTo)
+    }
+    
+    customersQuery = customersQuery.order('created_at', { ascending: false })
+
+    const { data: customersData, error: customersError } = await customersQuery
 
     if (customersError) {
       console.error('❌ Error fetching customers:', customersError)

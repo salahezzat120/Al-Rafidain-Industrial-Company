@@ -137,8 +137,8 @@ export default function AddEmployeeModal({ open, onOpenChange, onAdd }: AddEmplo
             return
           }
         } else {
-          toast.error(`Failed to create employee: ${error}`)
-          return
+        toast.error(`Failed to create employee: ${error}`)
+        return
         }
       }
 
