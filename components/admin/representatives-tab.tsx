@@ -57,6 +57,7 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [calendarByDay, setCalendarByDay] = useState<Record<string,{movements:number,visits:number}>>({});
   const [calendarRange, setCalendarRange] = useState<{start: Date, end: Date} | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'on-route' | 'offline'>('all');
 
   const { t, isRTL } = useLanguage();
 
@@ -433,10 +434,28 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
           />
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
-            <Filter className="h-4 w-4 mr-2" />
-            {t("filter")}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <Filter className="h-4 w-4 mr-2" />
+                {t("filter")}: {statusFilter === 'all' ? t("all") : t(statusFilter)}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setStatusFilter('all')}>
+                {t("all")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter('active')}>
+                {t("active")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter('on-route')}>
+                {t("onRoute")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter('offline')}>
+                {t("offline")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button onClick={() => setIsAddModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             {t("add")} {t("representative")}
@@ -461,6 +480,10 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
             rep.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             rep.phone?.includes(searchTerm)
           )
+          .filter((rep) => {
+            if (statusFilter === 'all') return true;
+            return (rep.status ?? '').toLowerCase() === statusFilter;
+          })
           .map((representative) => (
             <Card key={representative.id} className="hover:shadow-lg transition-shadow duration-200">
               <CardHeader className="pb-3">
@@ -624,6 +647,93 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddRepresentative}
       />
+      
+      {/* Assign Task Modal */}
+      <AssignTaskModal
+        isOpen={isAssignTaskModalOpen}
+        onClose={() => setIsAssignTaskModalOpen(false)}
+      />
+
+      {/* Movement Tracking */}
+      <MovementTrackingModal
+        representative={selectedMovementRepresentative}
+        isOpen={isMovementTrackingModalOpen}
+        onClose={() => {
+          setIsMovementTrackingModalOpen(false);
+          setSelectedMovementRepresentative(null);
+        }}
+      />
+
+      {/* Visit Report */}
+      <RepresentativeVisitReportModal
+        isOpen={isVisitReportModalOpen}
+        onClose={() => {
+          setIsVisitReportModalOpen(false);
+          setSelectedVisitReportRepresentative(null);
+        }}
+        representative={selectedVisitReportRepresentative}
+      />
+
+      {/* Performance Report */}
+      <RepresentativePerformanceReportModal
+        isOpen={isPerformanceReportModalOpen}
+        onClose={() => {
+          setIsPerformanceReportModalOpen(false);
+          setSelectedPerformanceReportRepresentative(null);
+        }}
+        representative={selectedPerformanceReportRepresentative}
+      />
+
+      {/* Delivery Report */}
+      <RepresentativeDeliveryReportModal
+        isOpen={isDeliveryReportModalOpen}
+        onClose={() => {
+          setIsDeliveryReportModalOpen(false);
+          setSelectedDeliveryReportRepresentative(null);
+        }}
+        representative={selectedDeliveryReportRepresentative}
+      />
+
+      {/* Simple Profile Info Modal */}
+      <Dialog open={isProfileInfoModalOpen} onOpenChange={() => setIsProfileInfoModalOpen(false)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{t("viewProfile")}</DialogTitle>
+          </DialogHeader>
+          {selectedProfileRepresentative && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={selectedProfileRepresentative.avatar_url || "/representative-avatar.png"} />
+                  <AvatarFallback>
+                    {selectedProfileRepresentative.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="text-lg font-semibold">{selectedProfileRepresentative.name}</h3>
+                  <p className="text-sm text-gray-600">ID: {selectedProfileRepresentative.id}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-700">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  <span>{selectedProfileRepresentative.email}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4" />
+                  <span>{selectedProfileRepresentative.phone}</span>
+                </div>
+                {selectedProfileRepresentative.address && (
+                  <div className="flex items-center gap-2 md:col-span-2">
+                    <MapPin className="h-4 w-4" />
+                    <span>{selectedProfileRepresentative.address}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

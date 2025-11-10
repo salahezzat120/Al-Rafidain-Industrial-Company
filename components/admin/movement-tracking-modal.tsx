@@ -17,6 +17,7 @@ import { format as formatDate } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/language-context";
 import { RepresentativeMovement, RepresentativeVisit, MovementTrackingFilters, MovementTrackingStats, MovementReportData } from "@/types/movement-tracking";
+import { getRepresentativeVisits, calculateVisitStats } from "@/lib/visits";
 import { MovementReportGenerator } from "@/lib/movement-reports";
 
 interface MovementTrackingModalProps {
@@ -48,87 +49,71 @@ export function MovementTrackingModal({ representative, isOpen, onClose }: Movem
   const fetchMovementData = async () => {
     setLoading(true);
     try {
-      // Simulate API calls - replace with actual API calls
-      const mockMovements: RepresentativeMovement[] = [
-        {
-          id: "1",
-          representative_id: representative.id,
-          latitude: 24.7136,
-          longitude: 46.6753,
-          location_name: "Downtown Riyadh",
-          activity_type: "check_in",
-          description: "Started work day",
-          duration_minutes: 0,
-          distance_km: 0,
-          speed_kmh: 0,
-          accuracy_meters: 5,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: "2",
-          representative_id: representative.id,
-          latitude: 24.7200,
-          longitude: 46.6800,
-          location_name: "Customer A Location",
-          activity_type: "delivery_start",
-          description: "Started delivery to Customer A",
-          duration_minutes: 15,
-          distance_km: 2.5,
-          speed_kmh: 25,
-          accuracy_meters: 3,
-          created_at: new Date(Date.now() - 3600000).toISOString(),
-          updated_at: new Date(Date.now() - 3600000).toISOString(),
-        },
-        {
-          id: "3",
-          representative_id: representative.id,
-          latitude: 24.7200,
-          longitude: 46.6800,
-          location_name: "Customer A Location",
-          activity_type: "delivery_complete",
-          description: "Completed delivery to Customer A",
-          duration_minutes: 30,
-          distance_km: 0,
-          speed_kmh: 0,
-          accuracy_meters: 3,
-          created_at: new Date(Date.now() - 1800000).toISOString(),
-          updated_at: new Date(Date.now() - 1800000).toISOString(),
-        },
-      ];
+      const { data: visitData } = await getRepresentativeVisits(representative.id);
 
-      const mockVisits: RepresentativeVisit[] = [
-        {
-          id: "1",
-          representative_id: representative.id,
-          visit_type: "customer_visit",
-          customer_name: "Ahmed Al-Rashid",
-          customer_address: "123 King Fahd Road, Riyadh",
-          visit_purpose: "Product demonstration",
-          scheduled_start_time: new Date().toISOString(),
-          scheduled_end_time: new Date(Date.now() + 3600000).toISOString(),
-          actual_start_time: new Date(Date.now() - 3600000).toISOString(),
-          actual_end_time: new Date(Date.now() - 1800000).toISOString(),
-          status: "completed",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ];
+      // Map visits from visits API into MovementTracking modal structures
+      const mappedVisits: RepresentativeVisit[] = (visitData || []).map((v) => ({
+        id: v.id,
+        representative_id: v.representative_id,
+        visit_type: "customer_visit",
+        customer_name: v.customer_name,
+        customer_address: v.customer_address,
+        customer_phone: v.customer_phone,
+        scheduled_start_time: v.scheduled_start_time,
+        scheduled_end_time: v.scheduled_end_time,
+        actual_start_time: v.actual_start_time,
+        actual_end_time: v.actual_end_time,
+        status: v.status as any,
+        notes: v.notes,
+        created_at: v.created_at,
+        updated_at: v.updated_at,
+      }));
 
-      const mockStats: MovementTrackingStats = {
-        total_movements: 3,
-        total_distance_km: 7.8,
-        total_duration_hours: 8.5,
-        unique_locations: 2,
-        most_common_activity: "delivery_start",
-        average_speed_kmh: 20,
+      // Synthesize movements based on visits (fallback if GPS not stored)
+      const synthesizedMovements: RepresentativeMovement[] = mappedVisits.flatMap((v) => {
+        const startMove: RepresentativeMovement = {
+          id: `${v.id}-start`,
+          representative_id: v.representative_id,
+          latitude: 0,
+          longitude: 0,
+          location_name: v.customer_address,
+          activity_type: "visit_start",
+          description: `Visit start: ${v.customer_name || ""}`.trim(),
+          created_at: v.actual_start_time || v.scheduled_start_time || v.created_at,
+          updated_at: v.actual_start_time || v.scheduled_start_time || v.created_at,
+        };
+        const endMove: RepresentativeMovement = {
+          id: `${v.id}-end`,
+          representative_id: v.representative_id,
+          latitude: 0,
+          longitude: 0,
+          location_name: v.customer_address,
+          activity_type: "visit_end",
+          description: `Visit end: ${v.customer_name || ""}`.trim(),
+          created_at: v.actual_end_time || v.scheduled_end_time || v.updated_at,
+          updated_at: v.actual_end_time || v.scheduled_end_time || v.updated_at,
+        };
+        return [startMove, endMove];
+      });
+
+      const visitStats = calculateVisitStats(visitData || []);
+      const computedStats: MovementTrackingStats = {
+        total_movements: synthesizedMovements.length,
+        total_distance_km: 0,
+        total_duration_hours: visitStats.averageDuration * (visitStats.completedVisits || 0) / 60,
+        unique_locations: new Set(mappedVisits.map(v => v.customer_address || '')).size,
+        most_common_activity: "visit_start",
+        average_speed_kmh: 0,
       };
 
-      setMovements(mockMovements);
-      setVisits(mockVisits);
-      setStats(mockStats);
+      setVisits(mappedVisits);
+      setMovements(synthesizedMovements);
+      setStats(computedStats);
     } catch (error) {
       console.error("Error fetching movement data:", error);
+      setVisits([]);
+      setMovements([]);
+      setStats(null);
     } finally {
       setLoading(false);
     }
