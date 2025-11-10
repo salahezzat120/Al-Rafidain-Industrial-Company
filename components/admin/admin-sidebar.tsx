@@ -86,9 +86,9 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
                 onClick={() => onTabChange(item.id)}
               >
                 {!collapsed && (
-                  <div className={cn("flex items-center w-full", isRTL ? "flex-row-reverse justify-end" : "flex-row justify-start")}>
-                    <span className={isRTL ? 'text-right' : 'text-left'}>{item.label}</span>
-                    <Icon className={cn("h-4 w-4", isRTL ? "mr-3" : "ml-3")} />
+                  <div className={cn("flex items-center w-full gap-2", isRTL ? "justify-end" : "justify-start")} dir={isRTL ? 'rtl' : 'ltr'}>
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    <span className="flex-1">{item.label}</span>
                   </div>
                 )}
                 {collapsed && <Icon className="h-4 w-4" />}

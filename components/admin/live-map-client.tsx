@@ -6,11 +6,13 @@ import L from "leaflet"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { MapPin, RefreshCw, Users, Wifi, WifiOff, Battery, Clock, Search, X } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { MapPin, RefreshCw, Users, Wifi, WifiOff, Battery, Clock, Search, X, MessageSquare } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
 import { getRepresentativeLiveLocations, getRepresentativesWithLastLocation, RepresentativeWithLocation } from "@/lib/representative-live-locations"
 import { getCustomers, Customer } from "@/lib/customers"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
 // Add bounce animation styles
 const bounceAnimation = `
@@ -96,7 +98,11 @@ const DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon
 
-export default function LiveMapClient() {
+interface LiveMapClientProps {
+  onNavigateToChatSupport?: (representativeId: string) => void
+}
+
+export default function LiveMapClient({ onNavigateToChatSupport }: LiveMapClientProps = {}) {
   const { isRTL } = useLanguage()
   const [representatives, setRepresentatives] = useState<RepresentativeWithLocation[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -117,6 +123,11 @@ export default function LiveMapClient() {
   }>({ representatives: [], customers: [] })
   const [showSearchResults, setShowSearchResults] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
+  
+  // Selected online representative for dropdown
+  const [selectedOnlineRep, setSelectedOnlineRep] = useState<string>("")
+  // Selected offline representative for dropdown
+  const [selectedOfflineRep, setSelectedOfflineRep] = useState<string>("")
 
   // Click outside handler to close search results
   const handleClickOutside = useCallback((event: MouseEvent) => {
@@ -293,6 +304,52 @@ export default function LiveMapClient() {
     }
   }
 
+  // Calculate online reps and counts using useMemo
+  const onlineReps = useMemo(() => {
+    return representatives.filter(r => r.is_online)
+  }, [representatives])
+
+  const offlineReps = useMemo(() => {
+    return representatives.filter(r => !r.is_online)
+  }, [representatives])
+
+  const onlineRepCount = useMemo(() => onlineReps.length, [onlineReps])
+  const offlineRepCount = useMemo(() => offlineReps.length, [offlineReps])
+  const customerCount = useMemo(() => customers.length, [customers])
+  const totalCount = useMemo(() => {
+    return representatives.length + customers.length
+  }, [representatives, customers])
+
+  // Handle online rep selection from dropdown
+  const handleOnlineRepSelect = (repId: string) => {
+    setSelectedOnlineRep(repId)
+    if (repId) {
+      const selectedRep = onlineReps.find(r => r.id === repId || r.representative_id === repId)
+      if (selectedRep) {
+        focusOnResult('representative', selectedRep)
+      }
+    }
+  }
+
+  // Handle offline rep selection from dropdown
+  const handleOfflineRepSelect = (repId: string) => {
+    setSelectedOfflineRep(repId)
+    if (repId) {
+      const selectedRep = offlineReps.find(r => r.id === repId || r.representative_id === repId)
+      if (selectedRep) {
+        // Focus on the representative's location on the map
+        focusOnResult('representative', selectedRep)
+      }
+    }
+  }
+
+  // Handle navigation to chat support (for both online and offline reps)
+  const handleNavigateToChat = (repId: string) => {
+    if (onNavigateToChatSupport) {
+      onNavigateToChatSupport(repId)
+    }
+  }
+
   useEffect(() => {
     setMounted(true)
     fetchData()
@@ -300,6 +357,30 @@ export default function LiveMapClient() {
     const interval = setInterval(fetchData, 60000)
     return () => clearInterval(interval)
   }, [])
+
+  // Clear selected online rep if they're no longer online or no longer in the list
+  useEffect(() => {
+    if (selectedOnlineRep) {
+      const repStillOnline = onlineReps.some(r => 
+        (r.id === selectedOnlineRep || r.representative_id === selectedOnlineRep)
+      )
+      if (!repStillOnline) {
+        setSelectedOnlineRep("")
+      }
+    }
+  }, [onlineReps, selectedOnlineRep])
+
+  // Clear selected offline rep if they're no longer offline or no longer in the list
+  useEffect(() => {
+    if (selectedOfflineRep) {
+      const repStillOffline = offlineReps.some(r => 
+        (r.id === selectedOfflineRep || r.representative_id === selectedOfflineRep)
+      )
+      if (!repStillOffline) {
+        setSelectedOfflineRep("")
+      }
+    }
+  }, [offlineReps, selectedOfflineRep])
 
   // Read URL parameter for auto-search
   useEffect(() => {
@@ -392,6 +473,12 @@ export default function LiveMapClient() {
       
       const lastSeen = new Date(rep.last_seen || rep.timestamp)
       const minutesAgo = Math.floor((Date.now() - lastSeen.getTime()) / (1000 * 60))
+      // Use id field which is the primary key in representatives table (matches chat support)
+      const repId = rep.id || rep.representative_id
+      
+      // Create a unique ID for the chat button (sanitize repId to ensure valid HTML ID)
+      const sanitizedRepId = repId.replace(/[^a-zA-Z0-9-]/g, '-')
+      const chatButtonId = `chat-btn-${sanitizedRepId}`
       
       const html = `<div style="line-height:1.3; min-width: 200px;">
         <div style="font-weight:600; font-size:14px; margin-bottom:4px;">
@@ -409,23 +496,44 @@ export default function LiveMapClient() {
             '<span style="color:#ef4444; font-size:12px;">🔴 Offline</span>'
           }
         </div>
-        <div style="font-size:11px; color:#6b7280;">
+        <div style="font-size:11px; color:#6b7280; margin-bottom:8px;">
           ${isRTL ? 'آخر ظهور:' : 'Last seen:'} ${minutesAgo} ${isRTL ? 'دقيقة' : 'min'} ago
         </div>
         ${rep.battery_level !== null ? `
-          <div style="font-size:11px; color:#6b7280; display:flex; align-items:center; gap:2px;">
+          <div style="font-size:11px; color:#6b7280; display:flex; align-items:center; gap:2px; margin-bottom:4px;">
             🔋 ${rep.battery_level}% ${rep.is_charging ? '(Charging)' : ''}
           </div>
         ` : ''}
         ${rep.speed !== null ? `
-          <div style="font-size:11px; color:#6b7280;">
+          <div style="font-size:11px; color:#6b7280; margin-bottom:8px;">
             🚗 ${rep.speed} km/h
           </div>
         ` : ''}
+        <button id="${chatButtonId}" style="width:100%; padding:8px 12px; background-color:#3b82f6; color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:500; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:8px; transition:background-color 0.2s;" onmouseover="this.style.backgroundColor='#2563eb'" onmouseout="this.style.backgroundColor='#3b82f6'">
+          💬 ${isRTL ? 'محادثة' : 'Chat'}
+        </button>
       </div>`
       
       marker.bindPopup(html)
       marker.addTo(layer)
+      
+      // Add click event listener to the chat button after popup is opened
+      marker.on('popupopen', () => {
+        // Use setTimeout to ensure DOM is ready
+        setTimeout(() => {
+          const chatButton = document.getElementById(chatButtonId)
+          if (chatButton && onNavigateToChatSupport) {
+            chatButton.onclick = (e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              if (onNavigateToChatSupport) {
+                onNavigateToChatSupport(repId)
+                marker.closePopup()
+              }
+            }
+          }
+        }, 100)
+      })
       console.log(`Added representative marker at: ${lat}, ${lng}`)
     })
     
@@ -464,12 +572,7 @@ export default function LiveMapClient() {
     })
     
     console.log(`Total markers added: ${layer.getLayers().length}`)
-  }, [representatives, customers, isRTL])
-
-  const onlineRepCount = representatives.filter(r => r.is_online).length
-  const offlineRepCount = representatives.filter(r => !r.is_online).length
-  const customerCount = customers.length
-  const totalCount = representatives.length + customers.length
+  }, [representatives, customers, isRTL, onNavigateToChatSupport])
 
   return (
     <div className="space-y-4" dir={isRTL ? "rtl" : "ltr"}>
@@ -508,24 +611,126 @@ export default function LiveMapClient() {
         
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <Wifi className="h-5 w-5 text-green-500" />
-              <div>
-                <div className="text-2xl font-bold text-green-600">{onlineRepCount}</div>
-                <div className="text-sm text-gray-600">{isRTL ? "مندوبين متصلين" : "Online Reps"}</div>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Wifi className="h-5 w-5 text-green-500" />
+                  <div>
+                    <div className="text-2xl font-bold text-green-600">{onlineRepCount}</div>
+                    <div className="text-sm text-gray-600">{isRTL ? "مندوبين متصلين" : "Online Reps"}</div>
+                  </div>
+                </div>
               </div>
+              {onlineRepCount > 0 && (
+                <div className={cn("flex items-center gap-2", isRTL ? "flex-row-reverse" : "flex-row")}>
+                  <Select value={selectedOnlineRep} onValueChange={handleOnlineRepSelect}>
+                    <SelectTrigger className="flex-1 w-full" dir={isRTL ? 'rtl' : 'ltr'}>
+                      <SelectValue placeholder={isRTL ? "اختر مندوب متصل..." : "Select online rep..."} />
+                    </SelectTrigger>
+                    <SelectContent dir={isRTL ? 'rtl' : 'ltr'}>
+                      {onlineReps.map((rep) => {
+                        const repId = rep.id || rep.representative_id
+                        return (
+                          <SelectItem 
+                            key={repId} 
+                            value={repId}
+                          >
+                            <div className={cn("flex items-center gap-2", isRTL ? "flex-row-reverse" : "flex-row")}>
+                              <div className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></div>
+                              <span className="flex-1">{rep.representative_name || (isRTL ? 'غير معروف' : 'Unknown')}</span>
+                              {rep.latitude && rep.longitude && 
+                               !isNaN(Number(rep.latitude)) && !isNaN(Number(rep.longitude)) &&
+                               Number(rep.latitude) !== 0 && Number(rep.longitude) !== 0 && (
+                                <MapPin className="h-3 w-3 text-blue-500 flex-shrink-0" />
+                              )}
+                            </div>
+                          </SelectItem>
+                        )
+                      })}
+                    </SelectContent>
+                  </Select>
+                  {selectedOnlineRep && onNavigateToChatSupport && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleNavigateToChat(selectedOnlineRep)}
+                      className={cn("flex-shrink-0", isRTL ? "flex-row-reverse" : "flex-row")}
+                      title={isRTL ? "فتح المحادثة" : "Open chat"}
+                    >
+                      <MessageSquare className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
+                      {isRTL ? "محادثة" : "Chat"}
+                    </Button>
+                  )}
+                </div>
+              )}
+              {onlineRepCount === 0 && (
+                <div className="text-xs text-gray-500 text-center py-2">
+                  {isRTL ? "لا يوجد مندوبين متصلين" : "No online representatives"}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
         
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2">
-              <WifiOff className="h-5 w-5 text-red-500" />
-              <div>
-                <div className="text-2xl font-bold text-red-600">{offlineRepCount}</div>
-                <div className="text-sm text-gray-600">{isRTL ? "مندوبين غير متصلين" : "Offline Reps"}</div>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <WifiOff className="h-5 w-5 text-red-500" />
+                  <div>
+                    <div className="text-2xl font-bold text-red-600">{offlineRepCount}</div>
+                    <div className="text-sm text-gray-600">{isRTL ? "مندوبين غير متصلين" : "Offline Reps"}</div>
+                  </div>
+                </div>
               </div>
+              {offlineRepCount > 0 && (
+                <div className={cn("flex items-center gap-2", isRTL ? "flex-row-reverse" : "flex-row")}>
+                  <Select value={selectedOfflineRep} onValueChange={handleOfflineRepSelect}>
+                    <SelectTrigger className="flex-1 w-full" dir={isRTL ? 'rtl' : 'ltr'}>
+                      <SelectValue placeholder={isRTL ? "اختر مندوب غير متصل..." : "Select offline rep..."} />
+                    </SelectTrigger>
+                    <SelectContent dir={isRTL ? 'rtl' : 'ltr'}>
+                      {offlineReps.map((rep) => {
+                        const repId = rep.id || rep.representative_id
+                        return (
+                          <SelectItem 
+                            key={repId} 
+                            value={repId}
+                          >
+                            <div className={cn("flex items-center gap-2", isRTL ? "flex-row-reverse" : "flex-row")}>
+                              <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></div>
+                              <span className="flex-1">{rep.representative_name || (isRTL ? 'غير معروف' : 'Unknown')}</span>
+                              {rep.latitude && rep.longitude && 
+                               !isNaN(Number(rep.latitude)) && !isNaN(Number(rep.longitude)) &&
+                               Number(rep.latitude) !== 0 && Number(rep.longitude) !== 0 && (
+                                <MapPin className="h-3 w-3 text-blue-500 flex-shrink-0" />
+                              )}
+                            </div>
+                          </SelectItem>
+                        )
+                      })}
+                    </SelectContent>
+                  </Select>
+                  {selectedOfflineRep && onNavigateToChatSupport && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleNavigateToChat(selectedOfflineRep)}
+                      className={cn("flex-shrink-0", isRTL ? "flex-row-reverse" : "flex-row")}
+                      title={isRTL ? "فتح المحادثة" : "Open chat"}
+                    >
+                      <MessageSquare className={cn("h-4 w-4", isRTL ? "ml-2" : "mr-2")} />
+                      {isRTL ? "محادثة" : "Chat"}
+                    </Button>
+                  )}
+                </div>
+              )}
+              {offlineRepCount === 0 && (
+                <div className="text-xs text-gray-500 text-center py-2">
+                  {isRTL ? "لا يوجد مندوبين غير متصلين" : "No offline representatives"}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

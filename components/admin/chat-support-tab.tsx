@@ -47,15 +47,34 @@ export default function ChatSupportTab() {
     const res = await getAllChatRepresentatives()
     if (res.error) {
       console.error('Error refreshing representatives:', res.error)
+      return { data: null, error: res.error }
     } else {
-      setRepresentatives(res.data || [])
+      const data = res.data || []
+      setRepresentatives(data)
+      return { data, error: null }
     }
   }
 
   useEffect(() => {
     setRepsLoading(true)
-    refreshRepresentatives().then(() => {
+    refreshRepresentatives().then((res) => {
       setRepsLoading(false)
+      
+      // Check for representative ID in URL parameter after representatives are loaded
+      const urlParams = new URLSearchParams(window.location.search)
+      const repIdParam = urlParams.get('rep')
+      if (repIdParam && res.data) {
+        // Verify the representative exists in the list
+        const repExists = res.data.some(rep => rep.id === repIdParam)
+        if (repExists) {
+          // Set the selected representative
+          setSelectedRep(repIdParam)
+        }
+        // Clear the URL parameter
+        const url = new URL(window.location.href)
+        url.searchParams.delete('rep')
+        window.history.replaceState({}, '', url.toString())
+      }
     })
     
     // Subscribe to all new messages to update unread counts
@@ -123,12 +142,26 @@ export default function ChatSupportTab() {
 
   // Fetch messages and subscribe to realtime updates
   useEffect(() => {
-    if (!selectedRep) return
+    if (!selectedRep) {
+      setMessages([])
+      return
+    }
     setLoading(true)
+    setError(null)
     getChatMessages(selectedRep).then(res => {
-      if (res.error) setError(res.error)
-      else {
-        setMessages(res.data || [])
+      if (res.error) {
+        setError(res.error)
+        setMessages([])
+      } else {
+        // Messages are fetched in descending order (newest first), but we need ascending (oldest first) for display
+        const messages = res.data || []
+        // Sort by created_at ascending (oldest first) for proper chronological display
+        const sortedMessages = [...messages].sort((a, b) => {
+          const timeA = new Date(a.created_at || 0).getTime()
+          const timeB = new Date(b.created_at || 0).getTime()
+          return timeA - timeB
+        })
+        setMessages(sortedMessages)
         // Mark messages as read when opening the chat
         markMessagesAsRead(selectedRep).then(() => {
           // Refresh representatives list to update unread counts
@@ -157,8 +190,20 @@ export default function ChatSupportTab() {
         setMessages(prev => {
           // Prevent duplicates
           if (prev.some(m => m.id === msg.id)) return prev
-          return [...prev, msg]
+          // Add new message and re-sort by created_at ascending
+          const updated = [...prev, msg]
+          return updated.sort((a, b) => {
+            const timeA = new Date(a.created_at || 0).getTime()
+            const timeB = new Date(b.created_at || 0).getTime()
+            return timeA - timeB
+          })
         })
+        // Mark as read if it's from admin (we just sent it)
+        if (msg.sender_type === 'admin') {
+          markMessagesAsRead(selectedRep).then(() => {
+            refreshRepresentatives()
+          })
+        }
       }
     )
     channel.subscribe()
@@ -180,19 +225,74 @@ export default function ChatSupportTab() {
 
   const handleSend = async () => {
     if (!selectedRep || !newMessage.trim()) return
+    
+    const messageContent = newMessage.trim()
     setSending(true)
+    
+    // Optimistic update: Add message to UI immediately
+    const tempId = `temp-${Date.now()}`
+    const optimisticMessage: ChatMessage = {
+      id: tempId,
+      representative_id: selectedRep,
+      content: messageContent,
+      sender_type: "admin",
+      message_type: "text",
+      is_read: false,
+      created_at: new Date().toISOString(),
+      updated_at: null,
+    }
+    setMessages(prev => [...prev, optimisticMessage])
+    setNewMessage("")
+    inputRef.current?.focus()
+    
+    // Send message to server
     const res = await sendChatMessage({
       representative_id: selectedRep,
-      content: newMessage,
+      content: messageContent,
       sender_type: "admin",
       message_type: "text",
     })
+    
     setSending(false)
-    if (!res.error) {
-      setNewMessage("")
-      inputRef.current?.focus()
+    
+    if (!res.error && res.data) {
+      // Replace optimistic message with real message from server
+      // The real-time subscription should also catch this, but we handle it here as fallback
+      setMessages(prev => {
+        // Remove temp message
+        const filtered = prev.filter(m => m.id !== tempId)
+        // Check if real message already exists (from real-time subscription)
+        const messageExists = filtered.some(m => m.id === res.data!.id)
+        if (!messageExists) {
+          // Add real message and sort chronologically
+          const updated = [...filtered, res.data!]
+          return updated.sort((a, b) => {
+            const timeA = new Date(a.created_at || 0).getTime()
+            const timeB = new Date(b.created_at || 0).getTime()
+            return timeA - timeB
+          })
+        }
+        // If message already exists, just return filtered (real-time subscription already added it)
+        return filtered
+      })
       // Refresh representatives list to update last message time
       refreshRepresentatives()
+    } else {
+      // Remove optimistic message on error
+      setMessages(prev => prev.filter(m => m.id !== tempId))
+      const errorMsg = res.error || 'Failed to send message'
+      setError(errorMsg)
+      console.error('Error sending message:', errorMsg)
+      console.error('Message data that failed:', {
+        representative_id: selectedRep,
+        content: messageContent,
+        sender_type: "admin",
+        message_type: "text",
+      })
+      // Show error to user - you might want to use a toast notification here
+      alert(isRTL ? `فشل إرسال الرسالة: ${errorMsg}` : `Failed to send message: ${errorMsg}`)
+      // Restore message text so user can retry
+      setNewMessage(messageContent)
     }
   }
 

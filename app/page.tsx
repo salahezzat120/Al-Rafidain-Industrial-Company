@@ -149,7 +149,15 @@ function Dashboard() {
             {activeTab === "payments" && <PaymentsTab />}
             {activeTab === "deliveries" && <DeliveriesTab />}
             {activeTab === "vehicles" && <VehiclesTab />}
-            {activeTab === "live-map" && <LiveMapTab />}
+            {activeTab === "live-map" && <LiveMapTab onNavigateToChatSupport={(representativeId) => {
+              setActiveTab("chat-support")
+              // Store representative ID in URL for chat support to pick up
+              if (representativeId) {
+                const url = new URL(window.location.href)
+                url.searchParams.set('rep', representativeId)
+                window.history.replaceState({}, '', url.toString())
+              }
+            }} />}
             {activeTab === "analytics" && <AnalyticsTab />}
             {activeTab === "reports" && <ReportsTab />}
             {activeTab === "loyalty" && <LoyaltyTab />}

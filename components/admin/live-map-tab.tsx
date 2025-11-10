@@ -13,6 +13,10 @@ const LiveMapClient = dynamic(() => import("./live-map-client"), {
   )
 })
 
-export default function LiveMapTab() {
-  return <LiveMapClient />
+interface LiveMapTabProps {
+  onNavigateToChatSupport?: (representativeId: string) => void
+}
+
+export default function LiveMapTab({ onNavigateToChatSupport }: LiveMapTabProps = {}) {
+  return <LiveMapClient onNavigateToChatSupport={onNavigateToChatSupport} />
 }

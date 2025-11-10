@@ -48,10 +48,8 @@ export async function getRepresentativeLiveLocations(): Promise<{
           console.warn(`Error fetching location for representative ${rep.id}:`, locError)
         }
 
-        // Calculate online status (within last 65 seconds - 60s + 5s buffer)
-        const isOnline = latestLocation ? 
-          ((new Date().getTime() - new Date(latestLocation.timestamp).getTime()) / (1000 * 60) <= 1.08) : 
-          false
+        // Use isonline column from representatives table instead of calculating from timestamp
+        const isOnline = rep.isonline || false
 
         return {
           ...rep,
@@ -74,14 +72,14 @@ export async function getRepresentativeLiveLocations(): Promise<{
         }
       } catch (err) {
         console.error(`Error processing representative ${rep.id}:`, err)
-        // Return representative without location data
+        // Return representative without location data, but use isonline from representatives table
         return {
           ...rep,
           representative_name: rep.name,
           representative_phone: rep.phone,
           latitude: null,
           longitude: null,
-          is_online: false,
+          is_online: rep.isonline || false,
           last_seen: null,
         }
       }
@@ -177,9 +175,8 @@ export async function getRepresentativesWithLastLocation(): Promise<{
     // Combine representatives with their latest locations
     const results: RepresentativeWithLocation[] = reps.map(rep => {
       const latestLocation = locationMap.get(rep.id)
-      const isOnline = latestLocation ? 
-        ((new Date().getTime() - new Date(latestLocation.timestamp).getTime()) / (1000 * 60) <= 1.08) : 
-        false
+      // Use isonline column from representatives table instead of calculating from timestamp
+      const isOnline = rep.isonline || false
 
       return {
         ...rep,
@@ -380,30 +377,48 @@ export async function getAttendanceRecords(): Promise<{
 // Fetch chat messages for a representative
 export async function getChatMessages(representative_id: string): Promise<{ data: ChatMessage[] | null; error: string | null }> {
   try {
+    console.log('Fetching chat messages for representative:', representative_id)
     const { data, error } = await supabase
       .from('chat_messages')
       .select('*')
       .eq('representative_id', representative_id)
-      .order('created_at', { ascending: false });
-    if (error) return { data: null, error: error.message };
+      .order('created_at', { ascending: true }); // Changed to ascending for chronological order
+    
+    if (error) {
+      console.error('Error fetching chat messages:', error)
+      console.error('Error details:', JSON.stringify(error, null, 2))
+      return { data: null, error: error.message };
+    }
+    
+    console.log(`Fetched ${data?.length || 0} chat messages for representative ${representative_id}`)
     return { data, error: null };
   } catch (err) {
-    return { data: null, error: 'An unexpected error occurred' };
+    console.error('Unexpected error fetching chat messages:', err)
+    return { data: null, error: err instanceof Error ? err.message : 'An unexpected error occurred' };
   }
 }
 
 // Send a new chat message
 export async function sendChatMessage(message: CreateChatMessageData): Promise<{ data: ChatMessage | null; error: string | null }> {
   try {
+    console.log('Sending chat message:', message)
     const { data, error } = await supabase
       .from('chat_messages')
       .insert([message])
       .select()
       .single();
-    if (error) return { data: null, error: error.message };
+    
+    if (error) {
+      console.error('Error inserting chat message:', error)
+      console.error('Error details:', JSON.stringify(error, null, 2))
+      return { data: null, error: error.message };
+    }
+    
+    console.log('Chat message sent successfully:', data)
     return { data, error: null };
   } catch (err) {
-    return { data: null, error: 'An unexpected error occurred' };
+    console.error('Unexpected error sending chat message:', err)
+    return { data: null, error: err instanceof Error ? err.message : 'An unexpected error occurred' };
   }
 }
 
@@ -433,10 +448,10 @@ export async function markMessagesAsRead(representative_id: string): Promise<{ e
 // Fetch all representatives for chat (not just those with messages)
 export async function getAllChatRepresentatives(): Promise<{ data: { id: string; name: string; phone: string; is_online?: boolean; last_seen?: string; unread_count?: number; last_message_time?: string | null }[] | null; error: string | null }> {
   try {
-    // Fetch all representatives
+    // Fetch all representatives with isonline column
     const { data: reps, error: repsError } = await supabase
       .from('representatives')
-      .select('id, name, phone')
+      .select('id, name, phone, isonline')
     
     if (repsError) return { data: null, error: repsError.message };
     if (!reps || reps.length === 0) return { data: [], error: null };
@@ -471,7 +486,7 @@ export async function getAllChatRepresentatives(): Promise<{ data: { id: string;
       })
     }
     
-    // Get latest location for online status
+    // Get latest location for last_seen timestamp (but use isonline from representatives table for online status)
     const results = []
     for (const rep of reps) {
       const { data: loc } = await supabase
@@ -482,7 +497,8 @@ export async function getAllChatRepresentatives(): Promise<{ data: { id: string;
         .limit(1)
         .maybeSingle()
       
-      const is_online = loc ? ((new Date().getTime() - new Date(loc.timestamp).getTime()) / (1000 * 60) <= 1.08) : false
+      // Use isonline column from representatives table instead of calculating from timestamp
+      const is_online = rep.isonline || false
       
       results.push({
         ...rep,
