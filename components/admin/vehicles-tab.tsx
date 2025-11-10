@@ -4,12 +4,14 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { 
   Plus, 
   Search, 
@@ -54,6 +56,41 @@ export function VehiclesTab() {
   const [isViewDetailsOpen, setIsViewDetailsOpen] = useState(false)
   const [isEditVehicleOpen, setIsEditVehicleOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
+  const [isAddMaintenanceOpen, setIsAddMaintenanceOpen] = useState(false)
+  const [isAddFuelOpen, setIsAddFuelOpen] = useState(false)
+
+  type MaintenanceRecord = {
+    id: string
+    vehicle_id: string
+    type: string
+    scheduled_date: string
+    notes?: string
+  }
+  type FuelRecord = {
+    id: string
+    vehicle_id: string
+    liters: number
+    cost: number
+    date: string
+    location?: string
+  }
+  const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([])
+  const [fuelRecords, setFuelRecords] = useState<FuelRecord[]>([])
+  const [newMaintenance, setNewMaintenance] = useState<MaintenanceRecord>({
+    id: '',
+    vehicle_id: '',
+    type: 'service',
+    scheduled_date: new Date().toISOString().slice(0, 10),
+    notes: ''
+  })
+  const [newFuel, setNewFuel] = useState<FuelRecord>({
+    id: '',
+    vehicle_id: '',
+    liters: 0,
+    cost: 0,
+    date: new Date().toISOString().slice(0, 10),
+    location: ''
+  })
 
   useEffect(() => {
     loadData()
@@ -197,6 +234,41 @@ export function VehiclesTab() {
     vehicle.model.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
+  const handleAddMaintenanceSave = () => {
+    if (!newMaintenance.vehicle_id) return
+    const record: MaintenanceRecord = {
+      ...newMaintenance,
+      id: `mnt_${Date.now()}`
+    }
+    setMaintenanceRecords(prev => [record, ...prev])
+    setIsAddMaintenanceOpen(false)
+    setNewMaintenance({
+      id: '',
+      vehicle_id: '',
+      type: 'service',
+      scheduled_date: new Date().toISOString().slice(0, 10),
+      notes: ''
+    })
+  }
+
+  const handleAddFuelSave = () => {
+    if (!newFuel.vehicle_id || newFuel.liters <= 0) return
+    const record: FuelRecord = {
+      ...newFuel,
+      id: `fuel_${Date.now()}`
+    }
+    setFuelRecords(prev => [record, ...prev])
+    setIsAddFuelOpen(false)
+    setNewFuel({
+      id: '',
+      vehicle_id: '',
+      liters: 0,
+      cost: 0,
+      date: new Date().toISOString().slice(0, 10),
+      location: ''
+    })
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -318,6 +390,11 @@ export function VehiclesTab() {
                 placeholder="Search vehicles..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && filteredVehicles.length > 0) {
+                    handleViewDetails(filteredVehicles[0])
+                  }
+                }}
                 className="pl-10"
               />
             </div>
@@ -390,13 +467,32 @@ export function VehiclesTab() {
         <TabsContent value="maintenance" className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">Maintenance Schedule</h3>
-            <Button>
+            <Button onClick={() => setIsAddMaintenanceOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Maintenance
             </Button>
           </div>
 
           <div className="grid gap-4">
+            {/* Newly added maintenance records */}
+            {maintenanceRecords.map((rec) => {
+              const v = vehicles.find(v => v.vehicle_id === rec.vehicle_id)
+              return (
+                <Card key={rec.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold">{rec.vehicle_id} - {v ? `${v.make} ${v.model}` : ''}</h3>
+                        <p className="text-sm text-gray-600">Type: {rec.type} | Scheduled: {rec.scheduled_date}</p>
+                        {rec.notes && <p className="text-sm text-gray-600">Notes: {rec.notes}</p>}
+                      </div>
+                      <Badge variant="outline">Scheduled</Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+
             {vehicles.filter(v => v.status === 'maintenance').map((vehicle) => (
               <Card key={vehicle.id}>
                 <CardContent className="p-4">
@@ -424,13 +520,31 @@ export function VehiclesTab() {
         <TabsContent value="fuel" className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">Fuel Management</h3>
-            <Button>
+            <Button onClick={() => setIsAddFuelOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Fuel Record
             </Button>
           </div>
 
           <div className="grid gap-4">
+            {/* Newly added fuel records */}
+            {fuelRecords.map((rec) => {
+              const v = vehicles.find(v => v.vehicle_id === rec.vehicle_id)
+              return (
+                <Card key={rec.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold">{rec.vehicle_id} {v ? `- ${v.make} ${v.model}` : ''}</h3>
+                        <p className="text-sm text-gray-600">{rec.date} • {rec.liters} L • ${rec.cost.toFixed(2)} {rec.location ? `• ${rec.location}` : ''}</p>
+                      </div>
+                      <Badge variant="outline">Recorded</Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+
             {vehicles.map((vehicle) => (
               <Card key={vehicle.id}>
                 <CardContent className="p-4">
@@ -613,6 +727,147 @@ export function VehiclesTab() {
               <Edit className="h-4 w-4 mr-2" />
               Edit Vehicle
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Maintenance Modal */}
+      <Dialog open={isAddMaintenanceOpen} onOpenChange={setIsAddMaintenanceOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Maintenance</DialogTitle>
+            <DialogDescription>Schedule a maintenance task for a vehicle</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Vehicle</Label>
+              <Select
+                value={newMaintenance.vehicle_id}
+                onValueChange={(v) => setNewMaintenance(prev => ({ ...prev, vehicle_id: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select vehicle" />
+                </SelectTrigger>
+                <SelectContent>
+                  {vehicles.map(v => (
+                    <SelectItem key={v.id} value={v.vehicle_id}>
+                      {v.vehicle_id} - {v.make} {v.model}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select
+                value={newMaintenance.type}
+                onValueChange={(v) => setNewMaintenance(prev => ({ ...prev, type: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="service">Service</SelectItem>
+                  <SelectItem value="oil_change">Oil Change</SelectItem>
+                  <SelectItem value="inspection">Inspection</SelectItem>
+                  <SelectItem value="repair">Repair</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Scheduled Date</Label>
+              <Input
+                type="date"
+                value={newMaintenance.scheduled_date}
+                onChange={(e) => setNewMaintenance(prev => ({ ...prev, scheduled_date: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Input
+                placeholder="Optional notes"
+                value={newMaintenance.notes}
+                onChange={(e) => setNewMaintenance(prev => ({ ...prev, notes: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddMaintenanceOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddMaintenanceSave} disabled={!newMaintenance.vehicle_id}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Fuel Record Modal */}
+      <Dialog open={isAddFuelOpen} onOpenChange={setIsAddFuelOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Fuel Record</DialogTitle>
+            <DialogDescription>Log a fuel purchase for a vehicle</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Vehicle</Label>
+              <Select
+                value={newFuel.vehicle_id}
+                onValueChange={(v) => setNewFuel(prev => ({ ...prev, vehicle_id: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select vehicle" />
+                </SelectTrigger>
+                <SelectContent>
+                  {vehicles.map(v => (
+                    <SelectItem key={v.id} value={v.vehicle_id}>
+                      {v.vehicle_id} - {v.make} {v.model}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Liters</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={newFuel.liters}
+                  onChange={(e) => setNewFuel(prev => ({ ...prev, liters: Number(e.target.value) }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Cost (USD)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={newFuel.cost}
+                  onChange={(e) => setNewFuel(prev => ({ ...prev, cost: Number(e.target.value) }))}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={newFuel.date}
+                  onChange={(e) => setNewFuel(prev => ({ ...prev, date: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Location</Label>
+                <Input
+                  placeholder="Optional"
+                  value={newFuel.location}
+                  onChange={(e) => setNewFuel(prev => ({ ...prev, location: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddFuelOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddFuelSave} disabled={!newFuel.vehicle_id || newFuel.liters <= 0}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
