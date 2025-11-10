@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -141,27 +141,6 @@ export function DeliveriesTab() {
   const [customStartDate, setCustomStartDate] = useState<string>("")
   const [customEndDate, setCustomEndDate] = useState<string>("")
 
-  // Load delivery tasks from Supabase with pagination
-  const loadDeliveryTasks = useCallback(async () => {
-    try {
-      setIsLoading(true)
-      const data = await getDeliveryTasks()
-      setTasks(data)
-      
-      // Load real-time locations for assigned representatives
-      await loadRepresentativeLocations(data)
-    } catch (error) {
-      console.error('Error loading delivery tasks:', error)
-      toast({
-        title: "Error",
-        description: "Failed to load delivery tasks",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }, [toast])
-
   // Load representative locations for real-time tracking
   const loadRepresentativeLocations = useCallback(async (tasks: DeliveryTask[]) => {
     try {
@@ -216,6 +195,123 @@ export function DeliveriesTab() {
     }
   }, [supabase])
 
+  // Load delivery tasks from Supabase with pagination
+  const loadDeliveryTasks = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const data = await getDeliveryTasks()
+      setTasks(data)
+      
+      // Load real-time locations for assigned representatives
+      await loadRepresentativeLocations(data)
+    } catch (error) {
+      console.error('Error loading delivery tasks:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load delivery tasks",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }, [toast, loadRepresentativeLocations])
+
+  // Get date range based on filter - improved with better validation
+  const getDateRange = useCallback(() => {
+    const now = new Date()
+    switch (dateFilter) {
+      case "today":
+        return {
+          start: startOfDay(now).toISOString(),
+          end: endOfDay(now).toISOString()
+        }
+      case "week":
+        return {
+          start: startOfWeek(now, { weekStartsOn: 1 }).toISOString(),
+          end: endOfWeek(now, { weekStartsOn: 1 }).toISOString()
+        }
+      case "month":
+        return {
+          start: startOfMonth(now).toISOString(),
+          end: endOfMonth(now).toISOString()
+        }
+      case "custom":
+        try {
+          const startDate = customStartDate ? new Date(customStartDate) : null
+          const endDate = customEndDate ? new Date(customEndDate + 'T23:59:59') : null
+          
+          // Validate custom dates
+          if (startDate && isNaN(startDate.getTime())) {
+            console.warn('Invalid custom start date:', customStartDate)
+            return { start: null, end: null }
+          }
+          if (endDate && isNaN(endDate.getTime())) {
+            console.warn('Invalid custom end date:', customEndDate)
+            return { start: null, end: null }
+          }
+          
+          // Ensure end date is after start date
+          if (startDate && endDate && endDate < startDate) {
+            console.warn('End date before start date, swapping')
+            return { 
+              start: endDate.toISOString(), 
+              end: startDate.toISOString() 
+            }
+          }
+          
+          return {
+            start: startDate ? startDate.toISOString() : null,
+            end: endDate ? endDate.toISOString() : null
+          }
+        } catch (error) {
+          console.error('Custom date range error:', error)
+          return { start: null, end: null }
+        }
+      default:
+        return { start: null, end: null }
+    }
+  }, [dateFilter, customStartDate, customEndDate])
+
+  // Filter tasks based on search and date filter
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((task) => {
+      // Search filter
+      const matchesSearch = 
+        task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.task_id.toLowerCase().includes(searchTerm.toLowerCase())
+      
+      if (!matchesSearch) return false
+
+      // Date filter - improved logic with better date field selection
+      if (dateFilter === "all") return true
+      
+      const dateRange = getDateRange()
+      if (!dateRange.start || !dateRange.end) return true
+      
+      // Use created_at as primary date field, fallback to scheduled_for
+      const taskDateStr = task.created_at || task.scheduled_for
+      if (!taskDateStr) return true
+      
+      try {
+        const taskDate = new Date(taskDateStr)
+        const startDate = new Date(dateRange.start)
+        const endDate = new Date(dateRange.end)
+        
+        // Validate dates
+        if (isNaN(taskDate.getTime()) || isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+          console.warn('Invalid date found:', { taskDateStr, dateRange })
+          return true // Include task if date parsing fails
+        }
+        
+        return taskDate >= startDate && taskDate <= endDate
+      } catch (error) {
+        console.error('Date filtering error:', error)
+        return true // Include task on error
+      }
+    })
+  }, [tasks, searchTerm, dateFilter, getDateRange])
+
   // Set up real-time location updates
   useEffect(() => {
     // Initial load
@@ -261,9 +357,9 @@ export function DeliveriesTab() {
   }, [])
 
   useEffect(() => {
-    fetchTasks()
+    loadDeliveryTasks()
     fetchStats()
-  }, [fetchTasks, fetchStats])
+  }, [loadDeliveryTasks, fetchStats])
 
   const handleExportTasks = () => {
     try {
@@ -339,99 +435,6 @@ export function DeliveriesTab() {
     }
   }
 
-  // Get date range based on filter - improved with better validation
-  const getDateRange = () => {
-    const now = new Date()
-    switch (dateFilter) {
-      case "today":
-        return {
-          start: startOfDay(now).toISOString(),
-          end: endOfDay(now).toISOString()
-        }
-      case "week":
-        return {
-          start: startOfWeek(now, { weekStartsOn: 1 }).toISOString(),
-          end: endOfWeek(now, { weekStartsOn: 1 }).toISOString()
-        }
-      case "month":
-        return {
-          start: startOfMonth(now).toISOString(),
-          end: endOfMonth(now).toISOString()
-        }
-      case "custom":
-        try {
-          const startDate = customStartDate ? new Date(customStartDate) : null
-          const endDate = customEndDate ? new Date(customEndDate + 'T23:59:59') : null
-          
-          // Validate custom dates
-          if (startDate && isNaN(startDate.getTime())) {
-            console.warn('Invalid custom start date:', customStartDate)
-            return { start: null, end: null }
-          }
-          if (endDate && isNaN(endDate.getTime())) {
-            console.warn('Invalid custom end date:', customEndDate)
-            return { start: null, end: null }
-          }
-          
-          // Ensure end date is after start date
-          if (startDate && endDate && endDate < startDate) {
-            console.warn('End date before start date, swapping')
-            return { 
-              start: endDate.toISOString(), 
-              end: startDate.toISOString() 
-            }
-          }
-          
-          return {
-            start: startDate ? startDate.toISOString() : null,
-            end: endDate ? endDate.toISOString() : null
-          }
-        } catch (error) {
-          console.error('Custom date range error:', error)
-          return { start: null, end: null }
-        }
-      default:
-        return { start: null, end: null }
-    }
-  }
-
-  // Filter tasks based on search and date filter
-  const filteredTasks = tasks.filter((task) => {
-    // Search filter
-    const matchesSearch = 
-      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.task_id.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    if (!matchesSearch) return false
-
-    // Date filter - improved logic with better date field selection
-    if (dateFilter === "all") return true
-    
-    const dateRange = getDateRange()
-    if (!dateRange.start || !dateRange.end) return true
-    
-    // Use created_at as primary date field, fallback to scheduled_for
-    const taskDateStr = task.created_at || task.scheduled_for
-    if (!taskDateStr) return true
-    
-    try {
-      const taskDate = new Date(taskDateStr)
-      const startDate = new Date(dateRange.start)
-      const endDate = new Date(dateRange.end)
-      
-      // Validate dates
-      if (isNaN(taskDate.getTime()) || isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-        console.warn('Invalid date found:', { taskDateStr, dateRange })
-        return true // Include task if date parsing fails
-      }
-      
-      return taskDate >= startDate && taskDate <= endDate
-    } catch (error) {
-      console.error('Date filtering error:', error)
-      return true // Include task on error
-    }
-  })
 
   // Helper function to escape CSV values properly
   const escapeCSV = (value: any): string => {
@@ -594,7 +597,7 @@ export function DeliveriesTab() {
         variant: "destructive",
       })
       // Revert the local change on error
-      await fetchTasks()
+      await loadDeliveryTasks()
     }
   }
 
@@ -640,7 +643,7 @@ export function DeliveriesTab() {
 
   const handleCreateTask = async (newTask: DeliveryTask) => {
     try {
-      await fetchTasks() // Refresh the tasks list
+      await loadDeliveryTasks() // Refresh the tasks list
       await fetchStats() // Refresh the stats
       toast({
         title: "Success",
