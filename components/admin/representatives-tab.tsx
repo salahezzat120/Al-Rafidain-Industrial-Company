@@ -58,6 +58,10 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
   const [calendarByDay, setCalendarByDay] = useState<Record<string,{movements:number,visits:number}>>({});
   const [calendarRange, setCalendarRange] = useState<{start: Date, end: Date} | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'on-route' | 'offline'>('all');
+  const [performanceStats, setPerformanceStats] = useState<any>(null);
+  const [loadingPerformance, setLoadingPerformance] = useState(false);
+  const [representativesWithVisits, setRepresentativesWithVisits] = useState<Set<string>>(new Set());
+  const [representativesCheckedIn, setRepresentativesCheckedIn] = useState<Set<string>>(new Set());
 
   const { t, isRTL } = useLanguage();
 
@@ -65,7 +69,13 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
     const fetchRepresentatives = async () => {
       const { data, error } = await getRepresentatives();
       if (error) {
-        console.error('Error fetching representatives:', error);
+        console.error('Error fetching representatives:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+          error: error
+        });
       } else {
         setRepresentatives(data || []);
       }
@@ -73,6 +83,140 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
 
     fetchRepresentatives();
   }, []);
+
+  // Fetch representatives with visits in progress
+  useEffect(() => {
+    const fetchVisitsInProgress = async () => {
+      try {
+        const { data: visits, error } = await supabase
+          .from('visit_management')
+          .select('delegate_id, status, delegate_name')
+          .eq('status', 'in_progress');
+
+        if (error) {
+          console.error('Error fetching visits in progress:', {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint,
+            error: error
+          });
+          setRepresentativesWithVisits(new Set());
+        } else {
+          // Filter out null/undefined delegate_ids and normalize (trim whitespace)
+          const repIds = new Set(
+            (visits || [])
+              .map(v => v.delegate_id?.trim())
+              .filter((id): id is string => !!id)
+          );
+          
+          console.log('🔍 Visits in progress:', visits?.length || 0);
+          console.log('📋 Visit details:', visits);
+          console.log('👥 Representatives with visits:', repIds.size);
+          console.log('🆔 Representative IDs with visits:', Array.from(repIds));
+          
+          setRepresentativesWithVisits(repIds);
+        }
+      } catch (error) {
+        console.error('Unexpected error fetching visits in progress:', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          error: error
+        });
+        setRepresentativesWithVisits(new Set());
+      }
+    };
+
+    fetchVisitsInProgress();
+    // Refresh every 30 seconds to get updated visit status
+    const interval = setInterval(fetchVisitsInProgress, 30000);
+    return () => clearInterval(interval);
+  }, [representatives]);
+
+  // Fetch representatives who have checked in today
+  useEffect(() => {
+    const fetchCheckedInRepresentatives = async () => {
+      try {
+        // Get today's date range
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        // Query attendance table for today's check-ins
+        const { data: attendance, error: attendanceError } = await supabase
+          .from('attendance')
+          .select('representative_id, check_in_time, check_out_time, status')
+          .gte('check_in_time', today.toISOString())
+          .lt('check_in_time', tomorrow.toISOString());
+
+        if (attendanceError) {
+          console.error('Error fetching attendance from attendance table:', {
+            message: attendanceError.message,
+            code: attendanceError.code,
+            details: attendanceError.details,
+            hint: attendanceError.hint,
+            error: attendanceError
+          });
+          setRepresentativesCheckedIn(new Set());
+          return;
+        }
+
+        // Filter for those who checked in and haven't checked out
+        const checkedInIds = new Set(
+          (attendance || [])
+            .filter(a => a.representative_id && (!a.check_out_time || a.status === 'checked_in' || a.status === 'break'))
+            .map(a => a.representative_id?.trim())
+            .filter((id): id is string => !!id)
+        );
+
+        console.log('✅ Representatives checked in today:', checkedInIds.size);
+        console.log('🆔 Checked in IDs:', Array.from(checkedInIds));
+        
+        setRepresentativesCheckedIn(checkedInIds);
+      } catch (error) {
+        console.error('Unexpected error fetching checked in representatives:', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          error: error
+        });
+        setRepresentativesCheckedIn(new Set());
+      }
+    };
+
+    fetchCheckedInRepresentatives();
+    // Refresh every 30 seconds to get updated attendance status
+    const interval = setInterval(fetchCheckedInRepresentatives, 30000);
+    return () => clearInterval(interval);
+  }, [representatives]);
+
+  // Fetch performance stats for average rating
+  useEffect(() => {
+    const fetchPerformanceStats = async () => {
+      setLoadingPerformance(true);
+      try {
+        const { data, error } = await getPerformanceStats(30);
+        if (error) {
+          console.error('Error fetching performance stats:', {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint,
+            error: error
+          });
+        } else {
+          setPerformanceStats(data);
+        }
+      } catch (error) {
+        console.error('Unexpected error fetching performance stats:', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          error: error
+        });
+      } finally {
+        setLoadingPerformance(false);
+      }
+    };
+
+    fetchPerformanceStats();
+  }, [representatives.length]);
 
   // Track scroll progress for profile modal
   useEffect(() => {
@@ -236,7 +380,13 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
         .eq('id', representativeId);
 
       if (repError) {
-        console.error('Error deleting representative:', repError);
+        console.error('Error deleting representative from representatives table:', {
+          message: repError.message,
+          code: repError.code,
+          details: repError.details,
+          hint: repError.hint,
+          error: repError
+        });
         alert(t("representative.deleteError") || `Failed to delete representative: ${repError.message}`);
         return;
       }
@@ -249,32 +399,79 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
         .eq('role', 'representative');
 
       if (userError) {
-        console.error('Error deleting user entry:', userError);
+        console.error('Error deleting user entry (non-critical):', {
+          message: userError.message,
+          code: userError.code,
+          details: userError.details,
+          hint: userError.hint,
+          error: userError
+        });
         // Don't fail if user entry doesn't exist
       }
 
       // Refresh the list
       const { data, error } = await getRepresentatives();
       if (error) {
-        console.error('Error fetching representatives:', error);
+        console.error('Error fetching representatives after deletion:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+          error: error
+        });
       } else {
         setRepresentatives(data || []);
       }
     } catch (error: any) {
-      console.error('Error deleting representative:', error);
-      alert(t("representative.deleteError") || `Failed to delete representative: ${error.message}`);
+      console.error('Unexpected error deleting representative:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        error: error
+      });
+      alert(t("representative.deleteError") || `Failed to delete representative: ${error?.message || 'Unknown error'}`);
     } finally {
       setDeleteLoading(null);
     }
   };
 
   const getStatusStats = () => {
-    const active = representatives.filter((d) => d.status === "active").length;
-    const onRoute = representatives.filter((d) => d.status === "on-route").length;
-    const offline = representatives.filter((d) => d.status === "offline").length;
-    const avgRating = representatives.reduce((sum, d) => sum + d.rating, 0) / representatives.length;
+    // Count representatives with in-progress visits as "On Visit"
+    const onVisit = representatives.filter((d) => {
+      const normalizedId = d.id?.trim();
+      return normalizedId && representativesWithVisits.has(normalizedId);
+    }).length;
+    
+    // Active representatives: checked in today but NOT on visit
+    const active = representatives.filter((d) => {
+      const normalizedId = d.id?.trim();
+      const hasVisitInProgress = normalizedId && representativesWithVisits.has(normalizedId);
+      const isCheckedIn = normalizedId && representativesCheckedIn.has(normalizedId);
+      
+      // Active = checked in AND not on visit
+      return isCheckedIn && !hasVisitInProgress;
+    }).length;
+    
+    // Offline representatives: not checked in and not on visit
+    const offline = representatives.filter((d) => {
+      const normalizedId = d.id?.trim();
+      const hasVisitInProgress = normalizedId && representativesWithVisits.has(normalizedId);
+      const isCheckedIn = normalizedId && representativesCheckedIn.has(normalizedId);
+      
+      // Offline = not checked in AND not on visit
+      return !isCheckedIn && !hasVisitInProgress;
+    }).length;
+    
+    // Calculate average rating from performance stats
+    let avgRating = 0;
+    if (performanceStats && performanceStats.average_visit_rating && performanceStats.average_delivery_rating) {
+      // Average of visit and delivery ratings
+      avgRating = (performanceStats.average_visit_rating + performanceStats.average_delivery_rating) / 2;
+    } else if (performanceStats && performanceStats.average_visit_rating) {
+      avgRating = performanceStats.average_visit_rating;
+    } else if (performanceStats && performanceStats.average_delivery_rating) {
+      avgRating = performanceStats.average_delivery_rating;
+    }
 
-    return { active, onRoute, offline, avgRating: avgRating.toFixed(1) };
+    return { active, onRoute: onVisit, offline, avgRating: avgRating > 0 ? avgRating.toFixed(1) : '0.0' };
   };
 
   const stats = getStatusStats();
@@ -317,72 +514,66 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
   // };
 
   const handleDownloadExcelReport = async () => {
+    setLoadingPerformance(true);
     try {
-      // Get performance data for all representatives
-      const performanceData = await getAllRepresentativesPerformance();
+      // Fetch performance data for all representatives
+      const { data: performanceData, error } = await getAllRepresentativesPerformance(30);
       
-      if (!performanceData || performanceData.length === 0) {
-        alert(t("representative.noPerformanceData") || "No performance data available for report.");
+      if (error || !performanceData || performanceData.length === 0) {
+        alert(t("representative.noPerformanceData") || "No performance data available to download.");
         return;
       }
 
-      // Calculate average performance metrics
-      const totalRepresentatives = performanceData.length;
-      const avgVisits = performanceData.reduce((sum, rep) => sum + (rep.total_visits || 0), 0) / totalRepresentatives;
-      const avgDeliveries = performanceData.reduce((sum, rep) => sum + (rep.total_deliveries || 0), 0) / totalRepresentatives;
-      const avgDistance = performanceData.reduce((sum, rep) => sum + (rep.total_distance || 0), 0) / totalRepresentatives;
-      const avgRating = performanceData.reduce((sum, rep) => sum + (rep.average_rating || 0), 0) / totalRepresentatives;
+      // Get performance stats for summary
+      const { data: stats } = await getPerformanceStats(30);
 
-      // Create summary report
-      const summaryData = [
-        { metric: 'Total Representatives', value: totalRepresentatives },
-        { metric: 'Average Visits per Representative', value: avgVisits.toFixed(1) },
-        { metric: 'Average Deliveries per Representative', value: avgDeliveries.toFixed(1) },
-        { metric: 'Average Distance per Representative (km)', value: avgDistance.toFixed(2) },
-        { metric: 'Average Rating', value: avgRating.toFixed(2) }
-      ];
-
-      // Create detailed performance data
-      const detailedData = performanceData.map(rep => ({
-        'Representative ID': rep.representative_id,
-        'Name': rep.representative_name,
-        'Total Visits': rep.total_visits || 0,
-        'Total Deliveries': rep.total_deliveries || 0,
-        'Total Distance (km)': rep.total_distance || 0,
-        'Average Rating': rep.average_rating || 0,
-        'Performance Score': rep.performance_score || 0,
-        'Status': rep.status || 'Unknown',
-        'Last Active': rep.last_active ? new Date(rep.last_active).toLocaleDateString() : 'N/A'
+      // Prepare export data
+      const exportData = performanceData.map(perf => ({
+        [t("representative.name") || "Representative Name"]: perf.representative_name,
+        [t("representative.id") || "Representative ID"]: perf.representative_id,
+        [t("representative.phone") || "Phone"]: perf.representative_phone,
+        [t("representative.averageVisits") || "Average Visits per Day"]: perf.average_visits,
+        [t("representative.averageDeliveries") || "Average Deliveries per Day"]: perf.average_order_deliveries,
+        [t("representative.visitRating") || "Visit Rating"]: perf.visit_rating,
+        [t("representative.deliveryRating") || "Delivery Rating"]: perf.delivery_rating,
+        [t("representative.totalVisits") || "Total Visits"]: perf.total_visits,
+        [t("representative.completedVisits") || "Completed Visits"]: perf.completed_visits,
+        [t("representative.visitSuccessRate") || "Visit Success Rate (%)"]: perf.visit_success_rate,
+        [t("representative.totalDeliveries") || "Total Deliveries"]: perf.total_deliveries,
+        [t("representative.completedDeliveries") || "Completed Deliveries"]: perf.completed_deliveries,
+        [t("representative.deliverySuccessRate") || "Delivery Success Rate (%)"]: perf.delivery_success_rate,
+        [t("representative.performancePeriod") || "Performance Period"]: perf.performance_period
       }));
 
-      // Create workbook with multiple sheets
+      // Create workbook with two sheets: Performance Data and Summary
       const workbook = XLSX.utils.book_new();
       
+      // Performance data sheet
+      const performanceSheet = XLSX.utils.json_to_sheet(exportData);
+      XLSX.utils.book_append_sheet(workbook, performanceSheet, t("representative.performanceData") || "Performance Data");
+
       // Summary sheet
-      const summarySheet = XLSX.utils.json_to_sheet(summaryData);
-      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Performance Summary');
-      
-      // Detailed data sheet
-      const detailedSheet = XLSX.utils.json_to_sheet(detailedData);
-      XLSX.utils.book_append_sheet(workbook, detailedSheet, 'Detailed Performance');
+      if (stats) {
+        const summaryData = [{
+          [t("representative.totalRepresentatives") || "Total Representatives"]: stats.total_representatives,
+          [t("representative.averageVisitRating") || "Average Visit Rating"]: stats.average_visit_rating,
+          [t("representative.averageDeliveryRating") || "Average Delivery Rating"]: stats.average_delivery_rating,
+          [t("representative.topPerformer") || "Top Performer"]: stats.top_performer,
+          [t("representative.totalVisits") || "Total Visits"]: stats.total_visits,
+          [t("representative.totalDeliveries") || "Total Deliveries"]: stats.total_deliveries
+        }];
+        const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+        XLSX.utils.book_append_sheet(workbook, summarySheet, t("representative.summary") || "Summary");
+      }
 
-      // Add headers and styling
-      const summaryRange = XLSX.utils.decode_range(summarySheet['!ref'] || 'A1:B6');
-      const detailedRange = XLSX.utils.decode_range(detailedSheet['!ref'] || 'A1:J1');
-
-      // Auto-size columns
-      summarySheet['!cols'] = [{ wch: 30 }, { wch: 15 }];
-      detailedSheet['!cols'] = [
-        { wch: 15 }, { wch: 20 }, { wch: 12 }, { wch: 15 }, 
-        { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 10 }, { wch: 12 }
-      ];
-
-      // Download the file
-      XLSX.writeFile(workbook, `representatives-performance-report-${new Date().toISOString().split('T')[0]}.xlsx`);
-      
+      // Generate filename with current date
+      const fileName = `Representatives_Performance_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
     } catch (error) {
-      console.error('Error generating performance report:', error);
-      alert(t("representative.reportError") || "Error generating performance report. Please try again.");
+      console.error('Error downloading performance report:', error);
+      alert(t("representative.downloadError") || "Failed to download performance report. Please try again.");
+    } finally {
+      setLoadingPerformance(false);
     }
   };
 
@@ -478,7 +669,7 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
                 <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
               </div>
               <div>
-                <p className="text-sm text-gray-600">{t("onRoute")}</p>
+                <p className="text-sm text-gray-600">{t("onVisit") || "On Visit"}</p>
                 <p className="text-xl font-bold">{stats.onRoute}</p>
               </div>
             </div>
@@ -535,7 +726,7 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
             <DropdownMenuTrigger asChild>
               <Button variant="outline">
                 <Filter className="h-4 w-4 mr-2" />
-                {t("filter")}: {statusFilter === 'all' ? t("all") : t(statusFilter)}
+                {t("filter")}: {statusFilter === 'all' ? t("all") : statusFilter === 'on-route' ? (t("onVisit") || "On Visit") : t(statusFilter)}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -546,7 +737,7 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
                 {t("active")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setStatusFilter('on-route')}>
-                {t("onRoute")}
+                {t("onVisit") || "On Visit"}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setStatusFilter('offline')}>
                 {t("offline")}
@@ -565,9 +756,25 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
             <FileText className="h-4 w-4 mr-2" />
             {t("export")} PDF
           </Button>
-          <Button variant="outline" onClick={handleDownloadExcelReport}>
-            <Star className="h-4 w-4 mr-2" />
-            {t("export")} Performance Report
+          <Button 
+            variant="outline" 
+            onClick={handleDownloadExcelReport}
+            disabled={loadingPerformance}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {loadingPerformance ? (
+              <>
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></div>
+                {t("loading") || "Loading..."}
+              </>
+            ) : (
+              <>
+                {isRTL 
+                  ? `تحميل ${t("representative.performanceReport") || "تقرير الأداء"}`
+                  : `Download ${t("representative.performanceReport") || "Performance Report"}`
+                }
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -583,7 +790,27 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
           )
           .filter((rep) => {
             if (statusFilter === 'all') return true;
-            return (rep.status ?? '').toLowerCase() === statusFilter;
+            
+            const normalizedId = rep.id?.trim();
+            const hasVisitInProgress = normalizedId && representativesWithVisits.has(normalizedId);
+            const isCheckedIn = normalizedId && representativesCheckedIn.has(normalizedId);
+            
+            if (statusFilter === 'on-route') {
+              // Only show representatives with actual visits in progress
+              return hasVisitInProgress;
+            }
+            
+            if (statusFilter === 'active') {
+              // Active = checked in but not on visit
+              return isCheckedIn && !hasVisitInProgress;
+            }
+            
+            if (statusFilter === 'offline') {
+              // Offline = not checked in and not on visit
+              return !isCheckedIn && !hasVisitInProgress;
+            }
+            
+            return false;
           })
           .map((representative) => (
             <Card key={representative.id} className="hover:shadow-lg transition-shadow duration-200">
@@ -697,12 +924,35 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
                   </div>
                 )}
                 <div className="flex items-center justify-between">
-                  <Badge className={getStatusColor(representative.status)}>
-                    {representative.status}
-                  </Badge>
+                  {(() => {
+                    const normalizedId = representative.id?.trim();
+                    const hasVisitInProgress = normalizedId && representativesWithVisits.has(normalizedId);
+                    const isCheckedIn = normalizedId && representativesCheckedIn.has(normalizedId);
+                    
+                    // Priority: On Visit > Active (checked in) > Offline
+                    let displayStatus: string;
+                    let displayText: string;
+                    
+                    if (hasVisitInProgress) {
+                      displayStatus = 'on-route';
+                      displayText = t("onVisit") || "On Visit";
+                    } else if (isCheckedIn) {
+                      displayStatus = 'active';
+                      displayText = 'active';
+                    } else {
+                      displayStatus = 'offline';
+                      displayText = 'offline';
+                    }
+                    
+                    return (
+                      <Badge className={getStatusColor(displayStatus)}>
+                        {displayText}
+                      </Badge>
+                    );
+                  })()}
                   <div className="flex items-center gap-1">
                     <Star className="h-4 w-4 text-yellow-500" />
-                    <span className="text-sm font-medium">{representative.rating || 0}</span>
+                    <span className="text-sm font-medium">4.5</span>
                   </div>
                 </div>
                 {representative.coverage_areas && representative.coverage_areas.length > 0 && (

@@ -219,11 +219,11 @@ export function DeliveriesTab() {
   // Set up real-time location updates
   useEffect(() => {
     // Initial load
-    loadRepresentativeLocations(filteredTasks)
+    loadRepresentativeLocations(tasks)
 
     // Set up interval for real-time updates (every 30 seconds)
     const interval = setInterval(() => {
-      loadRepresentativeLocations(filteredTasks)
+      loadRepresentativeLocations(tasks)
     }, 30000)
 
     setLocationUpdateInterval(interval)
@@ -234,7 +234,7 @@ export function DeliveriesTab() {
         clearInterval(interval)
       }
     }
-  }, [filteredTasks, loadRepresentativeLocations])
+  }, [tasks, loadRepresentativeLocations])
 
   // Cleanup interval when component unmounts
   useEffect(() => {
@@ -261,9 +261,9 @@ export function DeliveriesTab() {
   }, [])
 
   useEffect(() => {
-    fetchTasks()
+    loadDeliveryTasks()
     fetchStats()
-  }, [fetchTasks, fetchStats])
+  }, [loadDeliveryTasks, fetchStats])
 
   const handleExportTasks = () => {
     try {
@@ -594,7 +594,7 @@ export function DeliveriesTab() {
         variant: "destructive",
       })
       // Revert the local change on error
-      await fetchTasks()
+      await loadDeliveryTasks()
     }
   }
 
@@ -640,7 +640,7 @@ export function DeliveriesTab() {
 
   const handleCreateTask = async (newTask: DeliveryTask) => {
     try {
-      await fetchTasks() // Refresh the tasks list
+      await loadDeliveryTasks() // Refresh the tasks list
       await fetchStats() // Refresh the stats
       toast({
         title: "Success",

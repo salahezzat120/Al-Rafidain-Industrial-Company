@@ -78,12 +78,51 @@ export function NotificationDetailModal({ isOpen, onClose, alertId }: Notificati
   const [alert, setAlert] = useState<FullAlertDetails | null>(null)
   const [loading, setLoading] = useState(false)
   const [markingAsRead, setMarkingAsRead] = useState(false)
+  const [delegateHasVisit, setDelegateHasVisit] = useState(false)
 
   useEffect(() => {
     if (isOpen && alertId) {
       loadAlertDetails()
     }
   }, [isOpen, alertId])
+
+  // Check if delegate has an active visit
+  useEffect(() => {
+    const checkDelegateVisit = async () => {
+      if (!alert?.delegate_id) {
+        setDelegateHasVisit(false)
+        return
+      }
+
+      try {
+        const { data: visits, error } = await supabase
+          .from('visit_management')
+          .select('id')
+          .eq('delegate_id', alert.delegate_id)
+          .eq('status', 'in_progress')
+          .limit(1)
+
+        if (error) {
+          console.error('Error checking delegate visit:', error)
+          setDelegateHasVisit(false)
+        } else {
+          setDelegateHasVisit((visits?.length || 0) > 0)
+        }
+      } catch (error) {
+        console.error('Error checking delegate visit:', error)
+        setDelegateHasVisit(false)
+      }
+    }
+
+    if (alert?.delegate_id) {
+      checkDelegateVisit()
+      // Refresh every 30 seconds to get updated visit status
+      const interval = setInterval(checkDelegateVisit, 30000)
+      return () => clearInterval(interval)
+    } else {
+      setDelegateHasVisit(false)
+    }
+  }, [alert?.delegate_id])
 
   const loadAlertDetails = async () => {
     if (!alertId) return
@@ -326,6 +365,11 @@ export function NotificationDetailModal({ isOpen, onClose, alertId }: Notificati
                           <User className="h-4 w-4 text-gray-400" />
                           <span className="text-gray-600">{t("alerts.name") || "الاسم"}:</span>
                           <span className="font-medium">{alert.delegate_name}</span>
+                          {delegateHasVisit && (
+                            <Badge className="bg-blue-100 text-blue-800 border-blue-200 ml-2">
+                              {t("onVisit") || "On Visit"}
+                            </Badge>
+                          )}
                         </div>
                       )}
                       {alert.delegate_id && (
