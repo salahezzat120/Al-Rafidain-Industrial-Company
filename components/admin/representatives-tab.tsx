@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Star, Truck, Filter, Download, Navigation, User, Calendar, Shield, Car, Clock, Copy, X, Activity, History, ChevronUp, ChevronDown, FileText, Package, Trash2 } from "lucide-react";
+import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Star, Truck, Filter, Download, Navigation, User, Calendar, Shield, Car, Clock, Copy, X, Activity, History, ChevronUp, ChevronDown, FileText, Package, Trash2, MessageSquare } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Dialog as UIDialog, DialogContent as UIDialogContent, DialogHeader as UIDialogHeader, DialogTitle as UIDialogTitle } from "@/components/ui/dialog";
@@ -187,6 +187,17 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
     
     // Navigate to chat support tab
     if (onNavigateToChatSupport) {
+      if (representative) {
+        try {
+          localStorage.setItem('chatTargetRepresentative', JSON.stringify({
+            id: representative.id,
+            name: representative.name,
+            phone: representative.phone,
+            email: representative.email,
+            avatar_url: representative.avatar_url
+          }));
+        } catch {}
+      }
       onNavigateToChatSupport();
     }
   };
@@ -360,6 +371,21 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
     }
   };
 
+  const startChatFromSearch = () => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return;
+    const match = representatives.find((rep) =>
+      rep.name?.toLowerCase().includes(term) ||
+      rep.email?.toLowerCase().includes(term) ||
+      rep.phone?.includes(searchTerm)
+    );
+    if (match) {
+      handleSendMessage(match);
+    } else {
+      alert(t("noRepresentatives") || "No matching representative found.");
+    }
+  };
+
   return (
     <div className="space-y-6">
 
@@ -430,6 +456,11 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
             placeholder={t("searchRepresentatives")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                startChatFromSearch();
+              }
+            }}
             className="pl-10"
           />
         </div>
@@ -456,6 +487,10 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <Button variant="outline" onClick={startChatFromSearch}>
+            <MessageSquare className="h-4 w-4 mr-2" />
+            {t("sendMessage")}
+          </Button>
           <Button onClick={() => setIsAddModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             {t("add")} {t("representative")}
