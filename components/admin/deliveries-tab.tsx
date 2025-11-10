@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Search, Plus, MoreHorizontal, MapPin, Clock, Package, Filter, Download, User, Truck, Trash2, Calendar, X } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subWeeks, subMonths } from "date-fns"
@@ -130,20 +130,28 @@ export function DeliveriesTab() {
     in_progress: 0,
     completed: 0
   })
+  // Add real-time location tracking for assigned representatives
+  const [representativeLocations, setRepresentativeLocations] = useState<Record<string, {lat: number, lng: number, timestamp: string}>>({})
+  const [locationUpdateInterval, setLocationUpdateInterval] = useState<NodeJS.Timeout | null>(null)
+  const [isLocationLoading, setIsLocationLoading] = useState(false)
   
   // Date filtering states
   const [dateFilter, setDateFilter] = useState<string>("all") // all, today, week, month, custom
   const [customStartDate, setCustomStartDate] = useState<string>("")
   const [customEndDate, setCustomEndDate] = useState<string>("")
 
-  // Fetch tasks from Supabase
-  const fetchTasks = useCallback(async () => {
+  // Load delivery tasks from Supabase with pagination
+  const loadDeliveryTasks = useCallback(async () => {
     try {
       setIsLoading(true)
-      const tasksData = await getDeliveryTasks()
-      setTasks(tasksData)
+      const data = await getDeliveryTasks()
+      setTasks(data)
+      setFilteredTasks(data)
+      
+      // Load real-time locations for assigned representatives
+      await loadRepresentativeLocations(data)
     } catch (error) {
-      console.error('Error fetching tasks:', error)
+      console.error('Error loading delivery tasks:', error)
       toast({
         title: "Error",
         description: "Failed to load delivery tasks",
@@ -153,6 +161,89 @@ export function DeliveriesTab() {
       setIsLoading(false)
     }
   }, [toast])
+
+  // Load representative locations for real-time tracking
+  const loadRepresentativeLocations = useCallback(async (tasks: DeliveryTask[]) => {
+    try {
+      setIsLocationLoading(true)
+      
+      // Get unique representative IDs from assigned tasks
+      const assignedRepresentativeIds = [...new Set(
+        tasks
+          .filter(task => task.representative_id && task.status === 'in_progress')
+          .map(task => task.representative_id)
+      )]
+
+      if (assignedRepresentativeIds.length === 0) {
+        setRepresentativeLocations({})
+        setIsLocationLoading(false)
+        return
+      }
+
+      // Fetch live locations for assigned representatives (only locations updated within last 30 minutes)
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+      const { data: locations, error } = await supabase
+        .from('representative_live_locations')
+        .select('representative_id, latitude, longitude, timestamp')
+        .in('representative_id', assignedRepresentativeIds)
+        .gte('timestamp', thirtyMinutesAgo)
+        .order('timestamp', { ascending: false })
+
+      if (error) {
+        console.error('Error loading representative locations:', error)
+        setIsLocationLoading(false)
+        return
+      }
+
+      if (locations) {
+        const locationMap: Record<string, {lat: number, lng: number, timestamp: string}> = {}
+        locations.forEach(loc => {
+          if (loc.latitude && loc.longitude) {
+            locationMap[loc.representative_id] = {
+              lat: loc.latitude,
+              lng: loc.longitude,
+              timestamp: loc.timestamp
+            }
+          }
+        })
+        setRepresentativeLocations(locationMap)
+      }
+      
+      setIsLocationLoading(false)
+    } catch (error) {
+      console.error('Error loading representative locations:', error)
+      setIsLocationLoading(false)
+    }
+  }, [supabase])
+
+  // Set up real-time location updates
+  useEffect(() => {
+    // Initial load
+    loadRepresentativeLocations(filteredTasks)
+
+    // Set up interval for real-time updates (every 30 seconds)
+    const interval = setInterval(() => {
+      loadRepresentativeLocations(filteredTasks)
+    }, 30000)
+
+    setLocationUpdateInterval(interval)
+
+    // Cleanup on unmount
+    return () => {
+      if (interval) {
+        clearInterval(interval)
+      }
+    }
+  }, [filteredTasks, loadRepresentativeLocations])
+
+  // Cleanup interval when component unmounts
+  useEffect(() => {
+    return () => {
+      if (locationUpdateInterval) {
+        clearInterval(locationUpdateInterval)
+      }
+    }
+  }, [locationUpdateInterval])
 
   // Fetch stats
   const fetchStats = useCallback(async () => {
@@ -248,7 +339,7 @@ export function DeliveriesTab() {
     }
   }
 
-  // Get date range based on filter
+  // Get date range based on filter - improved with better validation
   const getDateRange = () => {
     const now = new Date()
     switch (dateFilter) {
@@ -268,9 +359,36 @@ export function DeliveriesTab() {
           end: endOfMonth(now).toISOString()
         }
       case "custom":
-        return {
-          start: customStartDate ? new Date(customStartDate).toISOString() : null,
-          end: customEndDate ? new Date(customEndDate + 'T23:59:59').toISOString() : null
+        try {
+          const startDate = customStartDate ? new Date(customStartDate) : null
+          const endDate = customEndDate ? new Date(customEndDate + 'T23:59:59') : null
+          
+          // Validate custom dates
+          if (startDate && isNaN(startDate.getTime())) {
+            console.warn('Invalid custom start date:', customStartDate)
+            return { start: null, end: null }
+          }
+          if (endDate && isNaN(endDate.getTime())) {
+            console.warn('Invalid custom end date:', customEndDate)
+            return { start: null, end: null }
+          }
+          
+          // Ensure end date is after start date
+          if (startDate && endDate && endDate < startDate) {
+            console.warn('End date before start date, swapping')
+            return { 
+              start: endDate.toISOString(), 
+              end: startDate.toISOString() 
+            }
+          }
+          
+          return {
+            start: startDate ? startDate.toISOString() : null,
+            end: endDate ? endDate.toISOString() : null
+          }
+        } catch (error) {
+          console.error('Custom date range error:', error)
+          return { start: null, end: null }
         }
       default:
         return { start: null, end: null }
@@ -287,20 +405,32 @@ export function DeliveriesTab() {
     
     if (!matchesSearch) return false
 
-    // Date filter
+    // Date filter - improved logic with better date field selection
     if (dateFilter === "all") return true
     
     const dateRange = getDateRange()
     if (!dateRange.start || !dateRange.end) return true
     
-    const taskDate = task.created_at || task.scheduled_for
-    if (!taskDate) return true
+    // Use created_at as primary date field, fallback to scheduled_for
+    const taskDateStr = task.created_at || task.scheduled_for
+    if (!taskDateStr) return true
     
-    const taskDateObj = new Date(taskDate)
-    const startDate = new Date(dateRange.start)
-    const endDate = new Date(dateRange.end)
-    
-    return taskDateObj >= startDate && taskDateObj <= endDate
+    try {
+      const taskDate = new Date(taskDateStr)
+      const startDate = new Date(dateRange.start)
+      const endDate = new Date(dateRange.end)
+      
+      // Validate dates
+      if (isNaN(taskDate.getTime()) || isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        console.warn('Invalid date found:', { taskDateStr, dateRange })
+        return true // Include task if date parsing fails
+      }
+      
+      return taskDate >= startDate && taskDate <= endDate
+    } catch (error) {
+      console.error('Date filtering error:', error)
+      return true // Include task on error
+    }
   })
 
   // Helper function to escape CSV values properly
@@ -433,6 +563,51 @@ export function DeliveriesTab() {
     setIsDetailsModalOpen(true)
   }
 
+  const handleUpdateTaskStatus = async (taskId: string, newStatus: DeliveryTask['status'], notes?: string) => {
+    try {
+      // Update the task locally first for immediate UI feedback
+      setTasks(prevTasks => 
+        prevTasks.map(task => 
+          task.id === taskId 
+            ? { 
+                ...task, 
+                status: newStatus,
+                ...(newStatus === 'completed' ? { completed_at: new Date().toISOString() } : {}),
+                updated_at: new Date().toISOString()
+              }
+            : task
+        )
+      )
+
+      // Refresh stats to reflect the status change
+      await fetchStats()
+
+      toast({
+        title: "Success",
+        description: `Task status updated to ${newStatus}`,
+      })
+    } catch (error) {
+      console.error('Error updating task status:', error)
+      toast({
+        title: "Error",
+        description: "Failed to update task status",
+        variant: "destructive",
+      })
+      // Revert the local change on error
+      await fetchTasks()
+    }
+  }
+
+  const handleAssignRepresentative = (task: DeliveryTask) => {
+    // Open representative assignment modal with pre-filled task data
+    setSelectedTask(task)
+    setIsCreateModalOpen(true)
+    toast({
+      title: "Assign Representative",
+      description: `Assign representative to delivery task #${task.id.slice(-6)}`,
+    })
+  }
+
   const handleCancelTask = (task: DeliveryTask) => {
     setTaskToDelete(task)
     setIsDeleteDialogOpen(true)
@@ -490,7 +665,12 @@ export function DeliveriesTab() {
           <h2 className="text-2xl font-bold text-gray-900">{t("deliveryTaskManagement")}</h2>
           <p className="text-gray-600">{t("createAssignTrackTasks")}</p>
         </div>
-        <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+        <div className={`flex items-center gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
+          {isLocationLoading && (
+            <Badge variant="secondary" className="animate-pulse">
+              📍 Updating locations...
+            </Badge>
+          )}
           <Button variant="outline" onClick={handleExport} className={isRTL ? 'flex-row-reverse' : ''}>
             <Download className={`h-4 w-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
             {t("export")}
@@ -670,7 +850,7 @@ export function DeliveriesTab() {
               <p className="text-gray-500">{isRTL ? "لا توجد مهام" : "No tasks found"}</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto">
               <div className={`flex items-center justify-between mb-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
                 <p className="text-sm text-gray-600">
                   {isRTL ? `تم العثور على ${filteredTasks.length} من ${tasks.length} مهمة` : `Showing ${filteredTasks.length} of ${tasks.length} tasks`}
@@ -726,7 +906,19 @@ export function DeliveriesTab() {
                   </div>
 
                   <div>
-                    <Badge className={getStatusColor(task.status)}>{t(task.status.replace("-", ""))}</Badge>
+                    <div className="flex items-center space-x-2">
+                      <Badge className={getStatusColor(task.status)}>{t(task.status.replace("-", ""))}</Badge>
+                      {task.representative_id && (
+                        <Badge variant="outline" className="text-xs">
+                          Rep: {task.representative_id.slice(0, 8)}
+                        </Badge>
+                      )}
+                      {task.representative_id && representativeLocations[task.representative_id] && (
+                        <Badge variant="secondary" className="text-xs animate-pulse">
+                          🟢 Live Location
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-600 mt-1">
                       {task.scheduled_for ? new Date(task.scheduled_for).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : 'Not scheduled'}
                     </p>
@@ -758,8 +950,33 @@ export function DeliveriesTab() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => handleViewDetails(task)}>{t("viewDetails")}</DropdownMenuItem>
-                        <DropdownMenuItem>{t("assignRepresentative")}</DropdownMenuItem>
-                        <DropdownMenuItem>{t("updateStatus")}</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleAssignRepresentative(task)}>{t("assignRepresentative")}</DropdownMenuItem>
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger>{t("updateStatus")}</DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent>
+                            <DropdownMenuItem onClick={() => handleUpdateTaskStatus(task.id, 'pending')}>
+                              <span className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></span>
+                              {t("pending")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleUpdateTaskStatus(task.id, 'assigned')}>
+                              <span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>
+                              {t("assigned")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleUpdateTaskStatus(task.id, 'in_progress')}>
+                              <span className="w-2 h-2 bg-purple-400 rounded-full mr-2"></span>
+                              {t("inProgress")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleUpdateTaskStatus(task.id, 'completed')}>
+                              <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                              {t("completed")}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleUpdateTaskStatus(task.id, 'cancelled')} className="text-red-600">
+                              <span className="w-2 h-2 bg-red-400 rounded-full mr-2"></span>
+                              {t("cancelled")}
+                            </DropdownMenuItem>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
                         <DropdownMenuItem>{t("trackLocation")}</DropdownMenuItem>
                         <DropdownMenuItem 
                           onClick={() => handleCancelTask(task)}

@@ -316,8 +316,74 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
   //   }
   // };
 
-  const handleDownloadExcelReport = () => {
-    alert("Excel report is temporarily disabled.");
+  const handleDownloadExcelReport = async () => {
+    try {
+      // Get performance data for all representatives
+      const performanceData = await getAllRepresentativesPerformance();
+      
+      if (!performanceData || performanceData.length === 0) {
+        alert(t("representative.noPerformanceData") || "No performance data available for report.");
+        return;
+      }
+
+      // Calculate average performance metrics
+      const totalRepresentatives = performanceData.length;
+      const avgVisits = performanceData.reduce((sum, rep) => sum + (rep.total_visits || 0), 0) / totalRepresentatives;
+      const avgDeliveries = performanceData.reduce((sum, rep) => sum + (rep.total_deliveries || 0), 0) / totalRepresentatives;
+      const avgDistance = performanceData.reduce((sum, rep) => sum + (rep.total_distance || 0), 0) / totalRepresentatives;
+      const avgRating = performanceData.reduce((sum, rep) => sum + (rep.average_rating || 0), 0) / totalRepresentatives;
+
+      // Create summary report
+      const summaryData = [
+        { metric: 'Total Representatives', value: totalRepresentatives },
+        { metric: 'Average Visits per Representative', value: avgVisits.toFixed(1) },
+        { metric: 'Average Deliveries per Representative', value: avgDeliveries.toFixed(1) },
+        { metric: 'Average Distance per Representative (km)', value: avgDistance.toFixed(2) },
+        { metric: 'Average Rating', value: avgRating.toFixed(2) }
+      ];
+
+      // Create detailed performance data
+      const detailedData = performanceData.map(rep => ({
+        'Representative ID': rep.representative_id,
+        'Name': rep.representative_name,
+        'Total Visits': rep.total_visits || 0,
+        'Total Deliveries': rep.total_deliveries || 0,
+        'Total Distance (km)': rep.total_distance || 0,
+        'Average Rating': rep.average_rating || 0,
+        'Performance Score': rep.performance_score || 0,
+        'Status': rep.status || 'Unknown',
+        'Last Active': rep.last_active ? new Date(rep.last_active).toLocaleDateString() : 'N/A'
+      }));
+
+      // Create workbook with multiple sheets
+      const workbook = XLSX.utils.book_new();
+      
+      // Summary sheet
+      const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Performance Summary');
+      
+      // Detailed data sheet
+      const detailedSheet = XLSX.utils.json_to_sheet(detailedData);
+      XLSX.utils.book_append_sheet(workbook, detailedSheet, 'Detailed Performance');
+
+      // Add headers and styling
+      const summaryRange = XLSX.utils.decode_range(summarySheet['!ref'] || 'A1:B6');
+      const detailedRange = XLSX.utils.decode_range(detailedSheet['!ref'] || 'A1:J1');
+
+      // Auto-size columns
+      summarySheet['!cols'] = [{ wch: 30 }, { wch: 15 }];
+      detailedSheet['!cols'] = [
+        { wch: 15 }, { wch: 20 }, { wch: 12 }, { wch: 15 }, 
+        { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 10 }, { wch: 12 }
+      ];
+
+      // Download the file
+      XLSX.writeFile(workbook, `representatives-performance-report-${new Date().toISOString().split('T')[0]}.xlsx`);
+      
+    } catch (error) {
+      console.error('Error generating performance report:', error);
+      alert(t("representative.reportError") || "Error generating performance report. Please try again.");
+    }
   };
 
   const handleExportPDF = () => {
@@ -499,6 +565,10 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
             <FileText className="h-4 w-4 mr-2" />
             {t("export")} PDF
           </Button>
+          <Button variant="outline" onClick={handleDownloadExcelReport}>
+            <Star className="h-4 w-4 mr-2" />
+            {t("export")} Performance Report
+          </Button>
         </div>
       </div>
 
@@ -632,7 +702,7 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
                   </Badge>
                   <div className="flex items-center gap-1">
                     <Star className="h-4 w-4 text-yellow-500" />
-                    <span className="text-sm font-medium">4.5</span>
+                    <span className="text-sm font-medium">{representative.rating || 0}</span>
                   </div>
                 </div>
                 {representative.coverage_areas && representative.coverage_areas.length > 0 && (
