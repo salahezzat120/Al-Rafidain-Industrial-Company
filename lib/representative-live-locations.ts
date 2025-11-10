@@ -720,3 +720,77 @@ export async function logCallAttempt(representative_id: string, phone_number: st
     return { data: null, error: 'An unexpected error occurred' }
   }
 }
+
+export async function updateRepresentativeStatus(): Promise<{
+  data: { updated: number; statuses: Array<{id: string; name: string; oldStatus: string; newStatus: string}> } | null
+  error: string | null
+}> {
+  try {
+    console.log('🔄 Starting representative status update (attendance table only)...')
+
+    const { data: representatives, error: repsError } = await supabase
+      .from('representatives')
+      .select('id, name, status')
+
+    if (repsError) {
+      console.error('❌ Error fetching representatives:', repsError)
+      return { data: null, error: repsError.message }
+    }
+    if (!representatives || representatives.length === 0) {
+      return { data: { updated: 0, statuses: [] }, error: null }
+    }
+
+    // Compute start/end of today in ISO
+    const start = new Date(); start.setHours(0,0,0,0)
+    const end = new Date(start); end.setDate(end.getDate() + 1)
+
+    // Fetch today's attendance by check_in_time window (no reliance on 'date' column)
+    const { data: attendanceRecords, error: attendanceError } = await supabase
+      .from('attendance')
+      .select('id, representative_id, employee_id, check_in_time, check_out_time')
+      .gte('check_in_time', start.toISOString())
+      .lt('check_in_time', end.toISOString())
+
+    if (attendanceError) {
+      console.error('❌ Error fetching attendance records:', attendanceError)
+      return { data: null, error: attendanceError.message }
+    }
+
+    const statusUpdates: Array<{id: string; name: string; oldStatus: string; newStatus: string}> = []
+    let updatedCount = 0
+
+    for (const rep of representatives) {
+      // Accept either representative_id or (legacy) employee_id mapping
+      const attended = (attendanceRecords || []).filter(r => {
+        return r.representative_id === rep.id || r.employee_id === rep.id
+      })
+
+      const latest = attended.sort((a, b) =>
+        new Date(b.check_in_time || 0).getTime() - new Date(a.check_in_time || 0).getTime()
+      )[0]
+
+      let newStatus = 'offline'
+      if (latest && latest.check_in_time && !latest.check_out_time) {
+        newStatus = 'active'
+      }
+
+      if (rep.status !== newStatus) {
+        const { error: updateError } = await supabase
+          .from('representatives')
+          .update({ status: newStatus, updated_at: new Date().toISOString() })
+          .eq('id', rep.id)
+        if (!updateError) {
+          statusUpdates.push({ id: rep.id, name: rep.name, oldStatus: rep.status, newStatus })
+          updatedCount++
+        } else {
+          console.error(`Error updating status for ${rep.name}:`, updateError)
+        }
+      }
+    }
+
+    return { data: { updated: updatedCount, statuses: statusUpdates }, error: null }
+  } catch (err) {
+    console.error('❌ Unexpected error in updateRepresentativeStatus (attendance fallback):', err)
+    return { data: null, error: 'An unexpected error occurred' }
+  }
+}

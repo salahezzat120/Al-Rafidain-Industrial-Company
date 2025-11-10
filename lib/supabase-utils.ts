@@ -87,12 +87,10 @@ export const safeSupabaseQuery = async <T>(
 export const getRepresentatives = async (): Promise<{ data: any[]; error: string | null }> => {
   try {
     console.log('🔍 Fetching representatives from supabase-utils...')
-    
-    // Get representatives first
+    // Get ALL representatives (do not filter by status)
     const { data: representatives, error: repsError } = await supabase
       .from('representatives')
       .select('*')
-      .in('status', ['active', 'on-route'])
       .order('name', { ascending: true })
 
     if (repsError) {
