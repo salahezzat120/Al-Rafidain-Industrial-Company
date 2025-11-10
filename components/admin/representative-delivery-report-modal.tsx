@@ -82,6 +82,7 @@ export function RepresentativeDeliveryReportModal({
         'successfully': 'Successfully',
         'failed': 'Failed',
         'order_value': 'Order Value',
+        'paid_amount': 'Paid Amount',
         'notes': 'Notes',
         'no_notes': 'No notes',
         'representative_id': 'Representative ID',
@@ -126,6 +127,7 @@ export function RepresentativeDeliveryReportModal({
         'successfully': 'نجح',
         'failed': 'فشل',
         'order_value': 'قيمة الطلب',
+        'paid_amount': 'المبلغ المدفوع',
         'notes': 'ملاحظات',
         'no_notes': 'لا توجد ملاحظات',
         'representative_id': 'رقم المندوب',
@@ -437,6 +439,7 @@ export function RepresentativeDeliveryReportModal({
                     <TableHead className={isRTL ? 'text-right' : 'text-left'}>{translate('status')}</TableHead>
                     <TableHead className={isRTL ? 'text-right' : 'text-left'}>{translate('success')}</TableHead>
                     <TableHead className={isRTL ? 'text-right' : 'text-left'}>{translate('order_value')}</TableHead>
+                    <TableHead className={isRTL ? 'text-right' : 'text-left'}>{translate('paid_amount')}</TableHead>
                     <TableHead className={isRTL ? 'text-right' : 'text-left'}>{translate('notes')}</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -484,6 +487,9 @@ export function RepresentativeDeliveryReportModal({
                       </TableCell>
                       <TableCell className={isRTL ? 'text-right' : 'text-left'}>
                         {formatCurrency(delivery.total_value, delivery.currency)}
+                      </TableCell>
+                      <TableCell className={isRTL ? 'text-right' : 'text-left'}>
+                        {formatCurrency(delivery.payment_amount || 0, delivery.currency)}
                       </TableCell>
                       <TableCell>
                         <span className={`text-sm text-gray-600 ${isRTL ? 'text-right' : 'text-left'}`}>

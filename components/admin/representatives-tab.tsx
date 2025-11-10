@@ -487,10 +487,6 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" onClick={startChatFromSearch}>
-            <MessageSquare className="h-4 w-4 mr-2" />
-            {t("sendMessage")}
-          </Button>
           <Button onClick={() => setIsAddModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             {t("add")} {t("representative")}
