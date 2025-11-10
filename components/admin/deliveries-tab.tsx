@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Search, Plus, MoreHorizontal, MapPin, Clock, Package, Filter, Download, User, Truck, Trash2, Calendar, X } from "lucide-react"
+import { supabase } from "@/lib/supabase"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -146,7 +147,6 @@ export function DeliveriesTab() {
       setIsLoading(true)
       const data = await getDeliveryTasks()
       setTasks(data)
-      setFilteredTasks(data)
       
       // Load real-time locations for assigned representatives
       await loadRepresentativeLocations(data)
