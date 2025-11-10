@@ -15,6 +15,8 @@ export interface DeliveryReport {
   status: string;
   total_value: number;
   currency: string;
+  // Sum of completed payments associated with this delivery (payments.order_id = delivery_tasks.id)
+  payment_amount?: number;
   notes?: string;
   created_at: string;
   completed_at?: string;
@@ -69,6 +71,26 @@ export async function getRepresentativeDeliveries(
       return { data: [], error: deliveriesError.message };
     }
 
+    // Fetch completed payments for the listed deliveries and sum by order_id
+    const deliveryIds = (deliveries || []).map(d => d.id);
+    let paymentsByOrderId = new Map<string, number>();
+    if (deliveryIds.length > 0) {
+      const { data: payments, error: paymentsError } = await supabase
+        .from('payments')
+        .select('order_id, amount, status')
+        .in('order_id', deliveryIds)
+        .eq('status', 'completed');
+
+      if (paymentsError) {
+        console.error('❌ Error fetching payments for deliveries:', paymentsError);
+      } else if (payments) {
+        for (const p of payments) {
+          const current = paymentsByOrderId.get(p.order_id) || 0;
+          paymentsByOrderId.set(p.order_id, current + (Number(p.amount) || 0));
+        }
+      }
+    }
+
     // Get representative name from representatives table
     const { data: repData, error: repDataError } = await supabase
       .from('representatives')
@@ -92,6 +114,7 @@ export async function getRepresentativeDeliveries(
       status: delivery.status,
       total_value: delivery.total_value || 0,
       currency: delivery.currency || 'IQD',
+      payment_amount: paymentsByOrderId.get(delivery.id) || 0,
       notes: delivery.notes,
       created_at: delivery.created_at,
       completed_at: delivery.completed_at
@@ -149,6 +172,26 @@ export async function getAllDeliveryReports(
       return { data: [], error: deliveriesError.message };
     }
 
+    // Fetch completed payments for these deliveries and sum by order_id
+    const deliveryIds = (deliveries || []).map(d => d.id);
+    let paymentsByOrderId = new Map<string, number>();
+    if (deliveryIds.length > 0) {
+      const { data: payments, error: paymentsError } = await supabase
+        .from('payments')
+        .select('order_id, amount, status')
+        .in('order_id', deliveryIds)
+        .eq('status', 'completed');
+
+      if (paymentsError) {
+        console.error('❌ Error fetching payments for deliveries:', paymentsError);
+      } else if (payments) {
+        for (const p of payments) {
+          const current = paymentsByOrderId.get(p.order_id) || 0;
+          paymentsByOrderId.set(p.order_id, current + (Number(p.amount) || 0));
+        }
+      }
+    }
+
     // Create a map of representative IDs to names
     const repNameMap = new Map(
       representatives?.map(rep => [rep.id, rep.name]) || []
@@ -170,6 +213,7 @@ export async function getAllDeliveryReports(
       status: delivery.status,
       total_value: delivery.total_value || 0,
       currency: delivery.currency || 'IQD',
+      payment_amount: paymentsByOrderId.get(delivery.id) || 0,
       notes: delivery.notes,
       created_at: delivery.created_at,
       completed_at: delivery.completed_at
@@ -231,6 +275,7 @@ export function exportDeliveryToExcel(deliveries: DeliveryReport[], language: st
     [language === 'ar' ? 'هل تم تسليم المنتج بنجاح أم فشل؟' : 'Was the Product Delivered Successfully or Failed?']: delivery.delivery_success ? (language === 'ar' ? 'نجح' : 'Successfully') : (language === 'ar' ? 'فشل' : 'Failed'),
     [language === 'ar' ? 'حالة التسليم' : 'Delivery Status']: delivery.status,
     [language === 'ar' ? 'قيمة الطلب' : 'Order Value']: `${delivery.total_value} ${delivery.currency}`,
+    [language === 'ar' ? 'المبلغ المدفوع' : 'Paid Amount']: `${(delivery.payment_amount || 0)} ${delivery.currency}`,
     [language === 'ar' ? 'ملاحظات' : 'Notes']: delivery.notes || (language === 'ar' ? 'لا توجد ملاحظات' : 'No notes'),
     [language === 'ar' ? 'تاريخ الإنشاء' : 'Created At']: new Date(delivery.created_at).toLocaleString()
   }));

@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Star, Truck, Filter, Download, Navigation, User, Calendar, Shield, Car, Clock, Copy, X, Activity, History, ChevronUp, ChevronDown, FileText, Package, Trash2 } from "lucide-react";
+import { Search, Plus, MoreHorizontal, MapPin, Phone, Mail, Star, Truck, Filter, Download, Navigation, User, Calendar, Shield, Car, Clock, Copy, X, Activity, History, ChevronUp, ChevronDown, FileText, Package, Trash2, MessageSquare } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Dialog as UIDialog, DialogContent as UIDialogContent, DialogHeader as UIDialogHeader, DialogTitle as UIDialogTitle } from "@/components/ui/dialog";
 import { AddRepresentativeModal } from "./add-representative-modal";
 import { AssignTaskModal } from "./assign-task-modal";
 import { MovementTrackingModal } from "./movement-tracking-modal";
@@ -19,9 +19,10 @@ import { getRepresentatives, generateRepresentativeId } from "@/lib/supabase-uti
 import { supabase } from "@/lib/supabase";
 import * as XLSX from 'xlsx';
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription, AlertCircle } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MovementReportGenerator } from "@/lib/movement-reports";
 import { getAllRepresentativesMovementData } from "@/lib/movement-data";
+import { getAllRepresentativesPerformance, getPerformanceStats } from "@/lib/performance";
 
 interface RepresentativesTabProps {
   onNavigateToChatSupport?: () => void
@@ -51,6 +52,12 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
   const [scrollProgress, setScrollProgress] = useState(0);
   const [showScrollHint, setShowScrollHint] = useState(false);
   const profileModalRef = useRef<HTMLDivElement>(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyRows, setHistoryRows] = useState<any[]>([]);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [calendarByDay, setCalendarByDay] = useState<Record<string,{movements:number,visits:number}>>({});
+  const [calendarRange, setCalendarRange] = useState<{start: Date, end: Date} | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'on-route' | 'offline'>('all');
 
   const { t, isRTL } = useLanguage();
 
@@ -180,6 +187,17 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
     
     // Navigate to chat support tab
     if (onNavigateToChatSupport) {
+      if (representative) {
+        try {
+          localStorage.setItem('chatTargetRepresentative', JSON.stringify({
+            id: representative.id,
+            name: representative.name,
+            phone: representative.phone,
+            email: representative.email,
+            avatar_url: representative.avatar_url
+          }));
+        } catch {}
+      }
       onNavigateToChatSupport();
     }
   };
@@ -273,153 +291,169 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
     setFormData(prev => ({ ...prev, id: representativeId }));
   };
 
-  const handleDownloadPDFReport = async () => {
-    try {
-      console.log('Generating PDF report for all representatives...');
-      
-      // Get date range (last 30 days)
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 30);
-      
-      const { data: movementData, error } = await getAllRepresentativesMovementData({
-        start_date: startDate.toISOString(),
-        end_date: endDate.toISOString()
-      });
-      
-      if (error) {
-        console.error('Error fetching movement data:', error);
-        alert('Error generating report: ' + error);
-        return;
-      }
-      
-      if (!movementData || movementData.length === 0) {
-        alert('No movement data found for the selected period.');
-        return;
-      }
-      
-      // Generate PDF report for the first representative (or combine all)
-      const reportData = movementData[0]; // For now, use first representative
-      const filters = {
-        representative_id: reportData.representative_id,
-        start_date: startDate.toISOString(),
-        end_date: endDate.toISOString(),
-        include_movements: true,
-        include_visits: true,
-        include_summary: true
-      };
-      
-      const pdfBlob = await MovementReportGenerator.generatePDFReport(reportData, filters);
-      const filename = `movement_report_${reportData.representative_name.replace(/\s+/g, '_')}_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}.pdf`;
-      
-      MovementReportGenerator.downloadBlob(pdfBlob, filename);
-      console.log('PDF report downloaded successfully');
-    } catch (error) {
-      console.error('Error generating PDF report:', error);
-      alert('Error generating PDF report. Please try again.');
-    }
-  };
+  // const handleDownloadPDFReport = async () => {
+  //   if (!filteredMovementData) {
+  //     alert('No movement data available to generate a PDF report.');
+  //     return;
+  //   }
+  //
+  //   try {
+  //     const pdfBlob = await pdf(
+  //       <MovementReportPDF movementData={filteredMovementData} />
+  //     ).toBlob();
+  //
+  //     const url = URL.createObjectURL(pdfBlob);
+  //     const a = document.createElement('a');
+  //     a.href = url;
+  //     a.download = 'movement-report.pdf';
+  //     document.body.appendChild(a);
+  //     a.click();
+  //     document.body.removeChild(a);
+  //     URL.revokeObjectURL(url);
+  //   } catch (error) {
+  //     console.error('Error generating PDF report:', error);
+  //     alert('Failed to generate PDF report. Please try again.');
+  //   }
+  // };
 
   const handleDownloadExcelReport = async () => {
     try {
-      console.log('Generating Excel report for all representatives...');
+      // Get performance data for all representatives
+      const performanceData = await getAllRepresentativesPerformance();
       
-      // Get date range (last 30 days)
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 30);
-      
-      const { data: movementData, error } = await getAllRepresentativesMovementData({
-        start_date: startDate.toISOString(),
-        end_date: endDate.toISOString()
-      });
-      
-      if (error) {
-        console.error('Error fetching movement data:', error);
-        alert('Error generating report: ' + error);
+      if (!performanceData || performanceData.length === 0) {
+        alert(t("representative.noPerformanceData") || "No performance data available for report.");
         return;
       }
+
+      // Calculate average performance metrics
+      const totalRepresentatives = performanceData.length;
+      const avgVisits = performanceData.reduce((sum, rep) => sum + (rep.total_visits || 0), 0) / totalRepresentatives;
+      const avgDeliveries = performanceData.reduce((sum, rep) => sum + (rep.total_deliveries || 0), 0) / totalRepresentatives;
+      const avgDistance = performanceData.reduce((sum, rep) => sum + (rep.total_distance || 0), 0) / totalRepresentatives;
+      const avgRating = performanceData.reduce((sum, rep) => sum + (rep.average_rating || 0), 0) / totalRepresentatives;
+
+      // Create summary report
+      const summaryData = [
+        { metric: 'Total Representatives', value: totalRepresentatives },
+        { metric: 'Average Visits per Representative', value: avgVisits.toFixed(1) },
+        { metric: 'Average Deliveries per Representative', value: avgDeliveries.toFixed(1) },
+        { metric: 'Average Distance per Representative (km)', value: avgDistance.toFixed(2) },
+        { metric: 'Average Rating', value: avgRating.toFixed(2) }
+      ];
+
+      // Create detailed performance data
+      const detailedData = performanceData.map(rep => ({
+        'Representative ID': rep.representative_id,
+        'Name': rep.representative_name,
+        'Total Visits': rep.total_visits || 0,
+        'Total Deliveries': rep.total_deliveries || 0,
+        'Total Distance (km)': rep.total_distance || 0,
+        'Average Rating': rep.average_rating || 0,
+        'Performance Score': rep.performance_score || 0,
+        'Status': rep.status || 'Unknown',
+        'Last Active': rep.last_active ? new Date(rep.last_active).toLocaleDateString() : 'N/A'
+      }));
+
+      // Create workbook with multiple sheets
+      const workbook = XLSX.utils.book_new();
       
-      if (!movementData || movementData.length === 0) {
-        alert('No movement data found for the selected period.');
-        return;
-      }
+      // Summary sheet
+      const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Performance Summary');
       
-      // Generate Excel report for the first representative (or combine all)
-      const reportData = movementData[0]; // For now, use first representative
-      const filters = {
-        representative_id: reportData.representative_id,
-        start_date: startDate.toISOString(),
-        end_date: endDate.toISOString(),
-        include_movements: true,
-        include_visits: true,
-        include_summary: true
-      };
+      // Detailed data sheet
+      const detailedSheet = XLSX.utils.json_to_sheet(detailedData);
+      XLSX.utils.book_append_sheet(workbook, detailedSheet, 'Detailed Performance');
+
+      // Add headers and styling
+      const summaryRange = XLSX.utils.decode_range(summarySheet['!ref'] || 'A1:B6');
+      const detailedRange = XLSX.utils.decode_range(detailedSheet['!ref'] || 'A1:J1');
+
+      // Auto-size columns
+      summarySheet['!cols'] = [{ wch: 30 }, { wch: 15 }];
+      detailedSheet['!cols'] = [
+        { wch: 15 }, { wch: 20 }, { wch: 12 }, { wch: 15 }, 
+        { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 10 }, { wch: 12 }
+      ];
+
+      // Download the file
+      XLSX.writeFile(workbook, `representatives-performance-report-${new Date().toISOString().split('T')[0]}.xlsx`);
       
-      const excelBlob = await MovementReportGenerator.generateExcelReport(reportData, filters);
-      const filename = `movement_report_${reportData.representative_name.replace(/\s+/g, '_')}_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}.xlsx`;
-      
-      MovementReportGenerator.downloadBlob(excelBlob, filename);
-      console.log('Excel report downloaded successfully');
     } catch (error) {
-      console.error('Error generating Excel report:', error);
-      alert('Error generating Excel report. Please try again.');
+      console.error('Error generating performance report:', error);
+      alert(t("representative.reportError") || "Error generating performance report. Please try again.");
     }
   };
 
+  const handleExportPDF = () => {
+    // Create a minimal printable HTML with representatives table
+    const columns = ["ID", "Name", "Email", "Phone", "Status"];
+    const rows = representatives.map((r) => [
+      r.id ?? "",
+      r.name ?? "",
+      r.email ?? "",
+      r.phone ?? "",
+      r.status ?? "",
+    ]);
+    const tableHead = `<tr>${columns.map((c) => `<th style="text-align:left;border-bottom:1px solid #ddd;padding:8px;">${c}</th>`).join("")}</tr>`;
+    const tableRows = rows
+      .map(
+        (cells) =>
+          `<tr>${cells
+            .map((v) => `<td style="padding:8px;border-bottom:1px solid #f0f0f0;">${String(v)}</td>`)
+            .join("")}</tr>`
+      )
+      .join("");
+    const html = `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Representatives</title>
+          <style>
+            body { font-family: Arial, Helvetica, sans-serif; padding: 20px; color: #111827; }
+            h1 { font-size: 18px; margin-bottom: 12px; }
+            table { width: 100%; border-collapse: collapse; }
+          </style>
+        </head>
+        <body>
+          <h1>Representatives</h1>
+          <table>
+            <thead>${tableHead}</thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+          <script>
+            window.onload = () => { window.print(); };
+          </script>
+        </body>
+      </html>`;
+    const w = window.open("", "_blank");
+    if (w) {
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+    } else {
+      alert("Popup blocked. Please allow popups to export PDF.");
+    }
+  };
+
+  const startChatFromSearch = () => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return;
+    const match = representatives.find((rep) =>
+      rep.name?.toLowerCase().includes(term) ||
+      rep.email?.toLowerCase().includes(term) ||
+      rep.phone?.includes(searchTerm)
+    );
+    if (match) {
+      handleSendMessage(match);
+    } else {
+      alert(t("noRepresentatives") || "No matching representative found.");
+    }
+  };
 
   return (
-    <div className={`space-y-6 ${isRTL ? 'text-right' : 'text-left'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      {/* Header */}
-      <div className={`flex justify-between items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
-        <div className={isRTL ? 'text-right' : 'text-left'}>
-          <h2 className="text-2xl font-bold text-gray-900">{t("representativeManagement")}</h2>
-          <p className="text-gray-600">{t("manageDeliveryTeam")}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => exportToExcel(representatives)}>
-            <Download className="h-4 w-4 mr-2" />
-            {t("export")}
-          </Button>
-          <Button onClick={() => setIsAddModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            {t("add")} {t("representative")}
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => {
-                if (representatives.length > 0) {
-                  handleViewMovementHistory(representatives[0]);
-                }
-              }}>
-                <History className="h-4 w-4 mr-2" />
-                {t("viewHistoricalLogs")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {
-                if (representatives.length > 0) {
-                  handleViewMovementHistory(representatives[0]);
-                }
-              }}>
-                <Calendar className="h-4 w-4 mr-2" />
-                {t("calendarView")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDownloadPDFReport}>
-                <Download className="h-4 w-4 mr-2" />
-                {t("downloadPDFReport")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDownloadExcelReport}>
-                <Download className="h-4 w-4 mr-2" />
-                {t("downloadExcelReport")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+    <div className="space-y-6">
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -480,21 +514,62 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
         </Card>
       </div>
 
-      {/* Search and Filter */}
-      <div className="flex gap-4 items-center">
+      {/* Search, Filter and Actions */}
+      <div className="flex items-center justify-between gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
             placeholder={t("searchRepresentatives")}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                startChatFromSearch();
+              }
+            }}
             className="pl-10"
           />
         </div>
-        <Button variant="outline">
-          <Filter className="h-4 w-4 mr-2" />
-          {t("filter")}
-        </Button>
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <Filter className="h-4 w-4 mr-2" />
+                {t("filter")}: {statusFilter === 'all' ? t("all") : t(statusFilter)}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setStatusFilter('all')}>
+                {t("all")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter('active')}>
+                {t("active")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter('on-route')}>
+                {t("onRoute")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStatusFilter('offline')}>
+                {t("offline")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button onClick={() => setIsAddModalOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            {t("add")} {t("representative")}
+          </Button>
+          <Button variant="outline" onClick={() => exportToExcel(representatives)}>
+            <Download className="h-4 w-4 mr-2" />
+            {t("export")} Excel
+          </Button>
+          <Button variant="outline" onClick={handleExportPDF}>
+            <FileText className="h-4 w-4 mr-2" />
+            {t("export")} PDF
+          </Button>
+          <Button variant="outline" onClick={handleDownloadExcelReport}>
+            <Star className="h-4 w-4 mr-2" />
+            {t("export")} Performance Report
+          </Button>
+        </div>
       </div>
 
 
@@ -506,6 +581,10 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
             rep.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             rep.phone?.includes(searchTerm)
           )
+          .filter((rep) => {
+            if (statusFilter === 'all') return true;
+            return (rep.status ?? '').toLowerCase() === statusFilter;
+          })
           .map((representative) => (
             <Card key={representative.id} className="hover:shadow-lg transition-shadow duration-200">
               <CardHeader className="pb-3">
@@ -514,7 +593,7 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
                     <Avatar className="h-12 w-12">
                       <AvatarImage src={representative.avatar_url || "/representative-avatar.png"} />
                       <AvatarFallback>
-                        {representative.name?.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        {representative.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div>
@@ -623,7 +702,7 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
                   </Badge>
                   <div className="flex items-center gap-1">
                     <Star className="h-4 w-4 text-yellow-500" />
-                    <span className="text-sm font-medium">4.5</span>
+                    <span className="text-sm font-medium">{representative.rating || 0}</span>
                   </div>
                 </div>
                 {representative.coverage_areas && representative.coverage_areas.length > 0 && (
@@ -663,329 +742,97 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
         </div>
       )}
 
-      {/* Modals */}
+      {/* Add Representative Modal */}
       <AddRepresentativeModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleAddRepresentative}
       />
-
+      
+      {/* Assign Task Modal */}
       <AssignTaskModal
         isOpen={isAssignTaskModalOpen}
         onClose={() => setIsAssignTaskModalOpen(false)}
-        onAssign={(taskData) => {
-          console.log('Task assigned:', taskData);
-          setIsAssignTaskModalOpen(false);
-        }}
       />
 
+      {/* Movement Tracking */}
       <MovementTrackingModal
         representative={selectedMovementRepresentative}
         isOpen={isMovementTrackingModalOpen}
-        onClose={() => setIsMovementTrackingModalOpen(false)}
+        onClose={() => {
+          setIsMovementTrackingModalOpen(false);
+          setSelectedMovementRepresentative(null);
+        }}
       />
 
+      {/* Visit Report */}
       <RepresentativeVisitReportModal
-        representative={selectedVisitReportRepresentative}
         isOpen={isVisitReportModalOpen}
-        onClose={() => setIsVisitReportModalOpen(false)}
+        onClose={() => {
+          setIsVisitReportModalOpen(false);
+          setSelectedVisitReportRepresentative(null);
+        }}
+        representative={selectedVisitReportRepresentative}
       />
 
+      {/* Performance Report */}
       <RepresentativePerformanceReportModal
-        representative={selectedPerformanceReportRepresentative}
         isOpen={isPerformanceReportModalOpen}
-        onClose={() => setIsPerformanceReportModalOpen(false)}
+        onClose={() => {
+          setIsPerformanceReportModalOpen(false);
+          setSelectedPerformanceReportRepresentative(null);
+        }}
+        representative={selectedPerformanceReportRepresentative}
       />
 
+      {/* Delivery Report */}
       <RepresentativeDeliveryReportModal
-        representative={selectedDeliveryReportRepresentative}
         isOpen={isDeliveryReportModalOpen}
-        onClose={() => setIsDeliveryReportModalOpen(false)}
+        onClose={() => {
+          setIsDeliveryReportModalOpen(false);
+          setSelectedDeliveryReportRepresentative(null);
+        }}
+        representative={selectedDeliveryReportRepresentative}
       />
 
-      {/* Enhanced Profile Information Modal */}
-      <Dialog open={isProfileInfoModalOpen} onOpenChange={setIsProfileInfoModalOpen}>
-        <DialogContent 
-          ref={profileModalRef}
-          onKeyDown={handleKeyDown}
-          className="max-w-4xl max-h-[95vh] overflow-hidden"
-        >
-          {/* Scroll Progress Bar */}
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gray-200 z-10">
-            <div 
-              className="h-full bg-blue-500 transition-all duration-300 ease-out"
-              style={{ width: `${scrollProgress}%` }}
-            />
-          </div>
-
-          <DialogHeader className="pb-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50 -m-6 mb-0 p-6">
-            <DialogTitle className="flex items-center gap-3">
-              <Avatar className="h-12 w-12">
-                <AvatarImage src={selectedProfileRepresentative?.avatar_url} />
-                <AvatarFallback className="text-lg">
-                  {selectedProfileRepresentative?.name?.charAt(0) || 'R'}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <h2 className="text-2xl font-bold">{selectedProfileRepresentative?.name || 'Representative'}</h2>
-                <p className="text-gray-600">ID: {selectedProfileRepresentative?.id || 'N/A'}</p>
-              </div>
-            </DialogTitle>
-            <DialogDescription>
-              Complete profile information for this representative
-            </DialogDescription>
+      {/* Simple Profile Info Modal */}
+      <Dialog open={isProfileInfoModalOpen} onOpenChange={() => setIsProfileInfoModalOpen(false)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{t("viewProfile")}</DialogTitle>
           </DialogHeader>
-
-          <div className="overflow-y-auto max-h-[calc(95vh-200px)] px-6">
-            <div className="space-y-6 py-6">
-            {/* Basic Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Basic Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-500">Full Name</Label>
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">{selectedProfileRepresentative?.name || 'N/A'}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(selectedProfileRepresentative?.name || '')}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-500">Status</Label>
-                    <Badge className={getStatusColor(selectedProfileRepresentative?.status)}>
-                      {selectedProfileRepresentative?.status || 'N/A'}
-                    </Badge>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-500">Email</Label>
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-gray-400" />
-                      <span className="text-base">{selectedProfileRepresentative?.email || 'N/A'}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(selectedProfileRepresentative?.email || '')}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-500">Phone</Label>
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-gray-400" />
-                      <span className="text-base">{selectedProfileRepresentative?.phone || 'N/A'}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(selectedProfileRepresentative?.phone || '')}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+          {selectedProfileRepresentative && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={selectedProfileRepresentative.avatar_url || "/representative-avatar.png"} />
+                  <AvatarFallback>
+                    {selectedProfileRepresentative.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="text-lg font-semibold">{selectedProfileRepresentative.name}</h3>
+                  <p className="text-sm text-gray-600">ID: {selectedProfileRepresentative.id}</p>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Location & Coverage */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Location & Coverage
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-500">Address</Label>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-gray-400" />
-                      <span className="text-base">{selectedProfileRepresentative?.address || 'N/A'}</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-500">Current Location</Label>
-                    <div className="flex items-center gap-2">
-                      <Navigation className="h-4 w-4 text-gray-400" />
-                      <span className="text-base">{selectedProfileRepresentative?.location || 'N/A'}</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label className="text-sm font-medium text-gray-500">Coverage Areas</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedProfileRepresentative?.coverage_areas?.length > 0 ? (
-                        selectedProfileRepresentative.coverage_areas.map((area: string, index: number) => (
-                          <Badge key={index} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                            {area}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-gray-500">No coverage areas specified</span>
-                      )}
-                    </div>
-                  </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-700">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  <span>{selectedProfileRepresentative.email}</span>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Professional Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  Professional Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-500">License Number</Label>
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-gray-400" />
-                      <span className="text-base">{selectedProfileRepresentative?.license_number || 'N/A'}</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-500">Transportation Type</Label>
-                    <div className="flex items-center gap-2">
-                      <Car className="h-4 w-4 text-gray-400" />
-                      <span className="text-base capitalize">{selectedProfileRepresentative?.transportation_type || 'N/A'}</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-500">Vehicle</Label>
-                    <div className="flex items-center gap-2">
-                      <Truck className="h-4 w-4 text-gray-400" />
-                      <span className="text-base">{selectedProfileRepresentative?.vehicle || 'N/A'}</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-500">Emergency Contact</Label>
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-gray-400" />
-                      <span className="text-base">{selectedProfileRepresentative?.emergency_contact || 'N/A'}</span>
-                    </div>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4" />
+                  <span>{selectedProfileRepresentative.phone}</span>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* System Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="h-5 w-5" />
-                  System Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-500">Created At</Label>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-gray-400" />
-                      <span className="text-base">
-                        {selectedProfileRepresentative?.created_at 
-                          ? new Date(selectedProfileRepresentative.created_at).toLocaleString()
-                          : 'N/A'
-                        }
-                      </span>
-                    </div>
+                {selectedProfileRepresentative.address && (
+                  <div className="flex items-center gap-2 md:col-span-2">
+                    <MapPin className="h-4 w-4" />
+                    <span>{selectedProfileRepresentative.address}</span>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-500">Last Updated</Label>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-gray-400" />
-                      <span className="text-base">
-                        {selectedProfileRepresentative?.updated_at 
-                          ? new Date(selectedProfileRepresentative.updated_at).toLocaleString()
-                          : 'N/A'
-                        }
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            </div>
-          </div>
-
-          {/* Scroll Navigation Buttons */}
-          {scrollProgress > 5 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={scrollToTop}
-              className="absolute top-20 right-4 z-20 bg-white shadow-lg"
-              title="Scroll to top (Ctrl+↑)"
-            >
-              <ChevronUp className="h-4 w-4" />
-            </Button>
-          )}
-          
-          {scrollProgress < 95 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={scrollToBottom}
-              className="absolute bottom-20 right-4 z-20 bg-white shadow-lg"
-              title="Scroll to bottom (Ctrl+↓)"
-            >
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          )}
-
-          {/* Scroll Hint Overlay */}
-          {showScrollHint && (
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-30">
-              <div className="bg-white p-6 rounded-lg shadow-lg text-center">
-                <div className="text-lg font-semibold mb-2">📜 Scrollable Content</div>
-                <div className="text-sm text-gray-600 mb-4">
-                  Use mouse wheel, scrollbar, or keyboard shortcuts to navigate
-                </div>
-                <div className="text-xs text-gray-500">
-                  <div>Ctrl + ↑ : Scroll to top</div>
-                  <div>Ctrl + ↓ : Scroll to bottom</div>
-                </div>
+                )}
               </div>
             </div>
           )}
-
-          <div className="flex justify-end gap-3 pt-4 border-t px-6">
-            <Button
-              variant="outline"
-              onClick={() => {
-                const profileText = `
-Representative: ${selectedProfileRepresentative?.name || 'N/A'}
-ID: ${selectedProfileRepresentative?.id || 'N/A'}
-Email: ${selectedProfileRepresentative?.email || 'N/A'}
-Phone: ${selectedProfileRepresentative?.phone || 'N/A'}
-Status: ${selectedProfileRepresentative?.status || 'N/A'}
-Location: ${selectedProfileRepresentative?.location || 'N/A'}
-                `.trim();
-                copyToClipboard(profileText);
-              }}
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              Copy Profile
-            </Button>
-            <Button onClick={() => setIsProfileInfoModalOpen(false)}>
-              Close
-            </Button>
-          </div>
         </DialogContent>
       </Dialog>
 
