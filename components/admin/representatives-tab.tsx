@@ -23,6 +23,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { MovementReportGenerator } from "@/lib/movement-reports";
 import { getAllRepresentativesMovementData } from "@/lib/movement-data";
 import { getAllRepresentativesPerformance, getPerformanceStats } from "@/lib/performance";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 
 interface RepresentativesTabProps {
   onNavigateToChatSupport?: () => void
@@ -62,6 +63,7 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
   const [loadingPerformance, setLoadingPerformance] = useState(false);
   const [representativesWithVisits, setRepresentativesWithVisits] = useState<Set<string>>(new Set());
   const [representativesCheckedIn, setRepresentativesCheckedIn] = useState<Set<string>>(new Set());
+  const [dropdownSelections, setDropdownSelections] = useState({ active: '', onVisit: '', offline: '' });
 
   const { t, isRTL } = useLanguage();
 
@@ -648,6 +650,7 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Active Representatives Card */}
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -657,11 +660,41 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
               <div>
                 <p className="text-sm text-gray-600">{t("activeRepresentatives")}</p>
                 <p className="text-xl font-bold">{stats.active}</p>
+                {/* Drop-down: Active Representatives */}
+                <Select
+                  value={dropdownSelections.active}
+                  onValueChange={(value) => setDropdownSelections(prev => ({ ...prev, active: value }))}
+                >
+                  <SelectTrigger className="mt-2 w-full">
+                    <SelectValue placeholder={t("selectRepresentative") || "Select representative"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {representatives.filter((rep) => {
+                      const normalizedId = rep.id?.trim();
+                      const isCheckedIn = normalizedId && representativesCheckedIn.has(normalizedId);
+                      const hasVisitInProgress = normalizedId && representativesWithVisits.has(normalizedId);
+                      return isCheckedIn && !hasVisitInProgress;
+                    }).map((rep) => (
+                      <SelectItem key={rep.id} value={rep.id}>{rep.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!!dropdownSelections.active && (
+                  <Button
+                    className="mt-2 ml-2"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSendMessage(representatives.find(r => r.id === dropdownSelections.active))}
+                  >
+                    <MessageSquare className="h-4 w-4 mr-1" />
+                    {t("chat") || "Chat"}
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
-
+        {/* On Visit Card */}
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -671,11 +704,39 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
               <div>
                 <p className="text-sm text-gray-600">{t("onVisit") || "On Visit"}</p>
                 <p className="text-xl font-bold">{stats.onRoute}</p>
+                {/* Drop-down: On Visit Representatives */}
+                <Select
+                  value={dropdownSelections.onVisit}
+                  onValueChange={(value) => setDropdownSelections(prev => ({ ...prev, onVisit: value }))}
+                >
+                  <SelectTrigger className="mt-2 w-full">
+                    <SelectValue placeholder={t("selectRepresentative") || "Select representative"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {representatives.filter((rep) => {
+                      const normalizedId = rep.id?.trim();
+                      return normalizedId && representativesWithVisits.has(normalizedId);
+                    }).map((rep) => (
+                      <SelectItem key={rep.id} value={rep.id}>{rep.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!!dropdownSelections.onVisit && (
+                  <Button
+                    className="mt-2 ml-2"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSendMessage(representatives.find(r => r.id === dropdownSelections.onVisit))}
+                  >
+                    <MessageSquare className="h-4 w-4 mr-1" />
+                    {t("chat") || "Chat"}
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
-
+        {/* Offline Card */}
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -685,11 +746,41 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
               <div>
                 <p className="text-sm text-gray-600">{t("offline")}</p>
                 <p className="text-xl font-bold">{stats.offline}</p>
+                {/* Drop-down: Offline Representatives */}
+                <Select
+                  value={dropdownSelections.offline}
+                  onValueChange={(value) => setDropdownSelections(prev => ({ ...prev, offline: value }))}
+                >
+                  <SelectTrigger className="mt-2 w-full">
+                    <SelectValue placeholder={t("selectRepresentative") || "Select representative"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {representatives.filter((rep) => {
+                      const normalizedId = rep.id?.trim();
+                      const isCheckedIn = normalizedId && representativesCheckedIn.has(normalizedId);
+                      const hasVisitInProgress = normalizedId && representativesWithVisits.has(normalizedId);
+                      return !isCheckedIn && !hasVisitInProgress;
+                    }).map((rep) => (
+                      <SelectItem key={rep.id} value={rep.id}>{rep.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!!dropdownSelections.offline && (
+                  <Button
+                    className="mt-2 ml-2"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSendMessage(representatives.find(r => r.id === dropdownSelections.offline))}
+                  >
+                    <MessageSquare className="h-4 w-4 mr-1" />
+                    {t("chat") || "Chat"}
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
-
+        {/* Average Rating Card */}
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -699,6 +790,7 @@ export function RepresentativesTab({ onNavigateToChatSupport, onNavigateToDelive
               <div>
                 <p className="text-sm text-gray-600">{t("avgRating")}</p>
                 <p className="text-xl font-bold">{stats.avgRating}</p>
+                {/* Removed representative drop-down, as requested */}
               </div>
             </div>
           </CardContent>
