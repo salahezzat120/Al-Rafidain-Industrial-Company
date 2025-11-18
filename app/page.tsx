@@ -174,7 +174,15 @@ function Dashboard() {
             }} />}
             {activeTab === "settings" && <SettingsTab />}
             {activeTab === "attendance" && <AttendanceTab />}
-            {activeTab === "chat-support" && <ChatSupportTab />}
+            {activeTab === "chat-support" && <ChatSupportTab onNavigateToLiveMap={(representativeName) => {
+              setActiveTab("live-map")
+              // Store representative name in URL for the live map to pick up
+              if (representativeName) {
+                const url = new URL(window.location.href)
+                url.searchParams.set('search', representativeName)
+                window.history.replaceState({}, '', url.toString())
+              }
+            }} />}
           </main>
         </div>
         </div>
@@ -286,7 +294,15 @@ function Dashboard() {
                 }} />}
                 {activeTab === "settings" && <SettingsTab />}
                 {activeTab === "attendance" && <AttendanceTab />}
-                {activeTab === "chat-support" && <ChatSupportTab />}
+                {activeTab === "chat-support" && <ChatSupportTab onNavigateToLiveMap={(representativeName) => {
+                  setActiveTab("live-map")
+                  // Store representative name in URL for the live map to pick up
+                  if (representativeName) {
+                    const url = new URL(window.location.href)
+                    url.searchParams.set('search', representativeName)
+                    window.history.replaceState({}, '', url.toString())
+                  }
+                }} />}
               </main>
             </div>
           </div>

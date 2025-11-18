@@ -715,6 +715,32 @@ export async function getRepresentativeStatusDetails(representativeId: string): 
   }
 }
 
+// Get last location for a specific representative
+export async function getLastLocationForRepresentative(representative_id: string): Promise<{
+  data: RepresentativeLiveLocation | null
+  error: string | null
+}> {
+  try {
+    const { data, error } = await supabase
+      .from('representative_live_locations')
+      .select('*')
+      .eq('representative_id', representative_id)
+      .order('timestamp', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (error) {
+      console.error('Error fetching last location:', error)
+      return { data: null, error: error.message }
+    }
+
+    return { data, error: null }
+  } catch (err) {
+    console.error('Unexpected error getting last location:', err)
+    return { data: null, error: 'An unexpected error occurred' }
+  }
+}
+
 // Log call attempt for tracking
 export async function logCallAttempt(representative_id: string, phone_number: string, call_type: 'outgoing' | 'incoming' = 'outgoing'): Promise<{ data: any | null; error: string | null }> {
   try {

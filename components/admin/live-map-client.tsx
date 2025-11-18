@@ -123,6 +123,7 @@ export default function LiveMapClient({ onNavigateToChatSupport }: LiveMapClient
   }>({ representatives: [], customers: [] })
   const [showSearchResults, setShowSearchResults] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
+  const autoFocusRef = useRef(false) // Track if we should auto-focus from URL
   
   // Selected online representative for dropdown
   const [selectedOnlineRep, setSelectedOnlineRep] = useState<string>("")
@@ -391,6 +392,7 @@ export default function LiveMapClient({ onNavigateToChatSupport }: LiveMapClient
     if (searchParam) {
       console.log('LiveMapClient: Setting search term to:', searchParam)
       setSearchTerm(searchParam)
+      autoFocusRef.current = true // Mark that we should auto-focus
       // Clear the URL parameter after reading it
       const url = new URL(window.location.href)
       url.searchParams.delete('search')
@@ -405,6 +407,32 @@ export default function LiveMapClient({ onNavigateToChatSupport }: LiveMapClient
       performSearch(searchTerm)
     }
   }, [searchTerm, representatives, customers])
+
+  // Auto-focus on first result when search results are populated from URL
+  useEffect(() => {
+    if (autoFocusRef.current && (searchResults.representatives.length > 0 || searchResults.customers.length > 0)) {
+      // Wait a bit for map to be ready, then auto-focus on first representative
+      setTimeout(() => {
+        if (searchResults.representatives.length > 0) {
+          const firstRep = searchResults.representatives[0]
+          if (firstRep.latitude && firstRep.longitude && 
+              !isNaN(Number(firstRep.latitude)) && !isNaN(Number(firstRep.longitude)) &&
+              Number(firstRep.latitude) !== 0 && Number(firstRep.longitude) !== 0) {
+            focusOnResult('representative', firstRep)
+            autoFocusRef.current = false // Reset flag after focusing
+          }
+        } else if (searchResults.customers.length > 0) {
+          const firstCustomer = searchResults.customers[0]
+          if (firstCustomer.latitude && firstCustomer.longitude &&
+              !isNaN(Number(firstCustomer.latitude)) && !isNaN(Number(firstCustomer.longitude)) &&
+              Number(firstCustomer.latitude) !== 0 && Number(firstCustomer.longitude) !== 0) {
+            focusOnResult('customer', firstCustomer)
+            autoFocusRef.current = false // Reset flag after focusing
+          }
+        }
+      }, 1000) // Wait 1s for map and search results to be ready
+    }
+  }, [searchResults])
 
   // Inject bounce animation CSS
   useEffect(() => {

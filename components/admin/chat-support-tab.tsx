@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from "react"
-import { getChatMessages, sendChatMessage, getAllChatRepresentatives, logCallAttempt, markMessagesAsRead } from "@/lib/representative-live-locations"
-import { ChatMessage } from "@/types/representative-live-locations"
+import { getChatMessages, sendChatMessage, getAllChatRepresentatives, logCallAttempt, markMessagesAsRead, getLastLocationForRepresentative } from "@/lib/representative-live-locations"
+import { ChatMessage, RepresentativeLiveLocation } from "@/types/representative-live-locations"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -21,12 +21,17 @@ import {
   MoreVertical,
   Phone,
   Info,
-  Search
+  Search,
+  Navigation
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useLanguage } from "@/contexts/language-context"
 
-export default function ChatSupportTab() {
+interface ChatSupportTabProps {
+  onNavigateToLiveMap?: (representativeName: string) => void
+}
+
+export default function ChatSupportTab({ onNavigateToLiveMap }: ChatSupportTabProps = {}) {
   const { language, t, isRTL } = useLanguage()
   const [representatives, setRepresentatives] = useState<{ id: string; name: string; phone?: string; is_online?: boolean; last_seen?: string; unread_count?: number; last_message_time?: string | null }[]>([])
   const [selectedRep, setSelectedRep] = useState<string | null>(null)
@@ -38,6 +43,8 @@ export default function ChatSupportTab() {
   const [repsLoading, setRepsLoading] = useState(true)
   const [isTyping, setIsTyping] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
+  const [lastLocation, setLastLocation] = useState<RepresentativeLiveLocation | null>(null)
+  const [loadingLocation, setLoadingLocation] = useState(false)
   const subscriptionRef = useRef<any>(null)
   const chatEndRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -139,6 +146,46 @@ export default function ChatSupportTab() {
       return a.name.localeCompare(b.name)
     })
   }, [representatives, searchTerm])
+
+  // Fetch last location when representative is selected
+  useEffect(() => {
+    if (!selectedRep) {
+      setLastLocation(null)
+      return
+    }
+    
+    setLoadingLocation(true)
+    getLastLocationForRepresentative(selectedRep).then(res => {
+      if (res.error) {
+        console.error('Error fetching last location:', res.error)
+        setLastLocation(null)
+      } else {
+        setLastLocation(res.data)
+      }
+      setLoadingLocation(false)
+    })
+    
+    // Subscribe to location updates for this representative
+    const locationChannel = supabase.channel(`location-updates-${selectedRep}`)
+    locationChannel.on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'representative_live_locations',
+        filter: `representative_id=eq.${selectedRep}`,
+      },
+      (payload: any) => {
+        const newLocation = payload.new as RepresentativeLiveLocation
+        setLastLocation(newLocation)
+      }
+    )
+    locationChannel.subscribe()
+    
+    return () => {
+      supabase.removeChannel(locationChannel)
+    }
+  }, [selectedRep])
 
   // Fetch messages and subscribe to realtime updates
   useEffect(() => {
@@ -389,6 +436,49 @@ export default function ChatSupportTab() {
     }
   }
 
+  const handleRequestLocation = () => {
+    if (!selectedRep) return
+    
+    // Get the representative name
+    const representative = representatives.find(r => r.id === selectedRep)
+    if (!representative) return
+    
+    // Navigate to live map with the representative name for search/focus
+    if (onNavigateToLiveMap) {
+      onNavigateToLiveMap(representative.name)
+    } else {
+      // Fallback: use URL parameters and navigate manually
+      const url = new URL(window.location.href)
+      url.searchParams.set('tab', 'live-map')
+      url.searchParams.set('search', representative.name)
+      window.location.href = url.toString()
+    }
+  }
+
+  const formatLocationTime = (timestamp: string) => {
+    const date = new Date(timestamp)
+    const now = new Date()
+    const diffInMinutes = (now.getTime() - date.getTime()) / (1000 * 60)
+    
+    if (diffInMinutes < 1) {
+      return language === 'ar' ? 'الآن' : 'Just now'
+    } else if (diffInMinutes < 60) {
+      return language === 'ar' 
+        ? `منذ ${Math.floor(diffInMinutes)} دقيقة` 
+        : `${Math.floor(diffInMinutes)}m ago`
+    } else if (diffInMinutes < 1440) {
+      const hours = Math.floor(diffInMinutes / 60)
+      return language === 'ar' 
+        ? `منذ ${hours} ساعة` 
+        : `${hours}h ago`
+    } else {
+      const days = Math.floor(diffInMinutes / 1440)
+      return language === 'ar' 
+        ? `منذ ${days} يوم` 
+        : `${days}d ago`
+    }
+  }
+
   return (
     <div className="flex h-[75vh] bg-white rounded-lg shadow-sm border overflow-hidden">
       {/* Representatives Sidebar */}
@@ -519,10 +609,47 @@ export default function ChatSupportTab() {
                     </h4>
                     <div className="flex items-center gap-2">
                       {getRepresentativeStatus(representatives.find(r => r.id === selectedRep))}
+                      {lastLocation && (
+                        <Badge variant="outline" className="text-xs flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          <span className="text-gray-600">
+                            {language === 'ar' ? 'آخر موقع' : 'Last location'}: {formatLocationTime(lastLocation.timestamp)}
+                          </span>
+                        </Badge>
+                      )}
+                      {loadingLocation && (
+                        <Badge variant="outline" className="text-xs">
+                          <Loader2 className="w-3 h-3 animate-spin inline mr-1" />
+                          {language === 'ar' ? 'جاري التحميل...' : 'Loading...'}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {lastLocation && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => {
+                        // Open location in Google Maps
+                        const url = `https://www.google.com/maps?q=${lastLocation.latitude},${lastLocation.longitude}`
+                        window.open(url, '_blank')
+                      }}
+                      title={language === 'ar' ? 'عرض الموقع على الخريطة' : 'View location on map'}
+                    >
+                      <Navigation className="w-4 h-4" />
+                    </Button>
+                  )}
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={handleRequestLocation}
+                    title={language === 'ar' ? 'عرض الموقع على الخريطة' : 'View location on map'}
+                    disabled={sending}
+                  >
+                    <MapPin className="w-4 h-4" />
+                  </Button>
                   <Button 
                     variant="ghost" 
                     size="sm"
