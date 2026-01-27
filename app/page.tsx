@@ -12,6 +12,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { LogOut, Users, Package, BarChart3 } from "lucide-react"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
+import { AdminDashboardHome } from "@/components/admin/admin-dashboard-home"
+import { ArrowLeft, ArrowRight } from "lucide-react"
 import { OverviewTab } from "@/components/admin/overview-tab"
 import { UsersTabSimple } from "@/components/admin/users-tab-simple"
 import { SupervisorDashboard } from "@/components/supervisor/supervisor-dashboard"
@@ -45,7 +47,7 @@ import ChatSupportTab from "@/components/admin/chat-support-tab"
 function Dashboard() {
   const { user, logout } = useAuth()
   const { t, isRTL } = useLanguage()
-  const [activeTab, setActiveTab] = useState("overview")
+  const [activeTab, setActiveTab] = useState("home")
   
   // Handle URL parameters for tab navigation
   useEffect(() => {
@@ -54,6 +56,7 @@ function Dashboard() {
     if (tabParam) {
       setActiveTab(tabParam)
     }
+    // Otherwise keep "home" as default (no need to set it again)
   }, [])
   
   // Debug logging
@@ -81,16 +84,53 @@ function Dashboard() {
   }
 
   if (user?.role === "admin") {
+    // Show card-based home dashboard
+    if (activeTab === "home") {
+      return (
+        <PermissionProviderSimple>
+          <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" dir={isRTL ? "rtl" : "ltr"}>
+            {/* Top bar with language switcher and logout */}
+            <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className={`${getRoleColor(user?.role || "")} text-xs`}>
+                  {user?.name}
+                </Badge>
+              </div>
+              <div className="flex items-center gap-3">
+                <LanguageSwitcher />
+                <Button variant="outline" size="sm" onClick={logout} className="bg-white/10 border-white/20 text-white hover:bg-white/20">
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <AdminDashboardHome
+              onTabChange={setActiveTab}
+              userName={user?.name}
+            />
+          </div>
+        </PermissionProviderSimple>
+      )
+    }
+
+    // Show specific tab content with back button
     return (
       <PermissionProviderSimple>
-        <div className="min-h-screen bg-gray-50 flex" dir={isRTL ? "rtl" : "ltr"}>
-          <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
-
-        <div className="flex-1 flex flex-col">
+        <div className="min-h-screen bg-gray-50" dir={isRTL ? "rtl" : "ltr"}>
           <header className="bg-white shadow-sm border-b">
             <div className="px-6 py-4">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setActiveTab("home")}
+                    className="flex items-center gap-2"
+                  >
+                    {isRTL ? <ArrowRight className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
+                    {isRTL ? "الرئيسية" : "Home"}
+                  </Button>
+                  <div className="h-6 w-px bg-gray-300" />
                   <Image
                     src="/logo.png"
                     alt="Al-Rafidain Industrial Company"
@@ -128,7 +168,7 @@ function Dashboard() {
             </div>
           </header>
 
-          <main className="flex-1 p-6">
+          <main className="p-6">
             {activeTab === "overview" && <OverviewTab />}
             {activeTab === "users" && <UsersTabSimple />}
             {activeTab === "employees" && <EmployeesTab />}
@@ -163,7 +203,7 @@ function Dashboard() {
             {activeTab === "loyalty" && <LoyaltyTab />}
             {activeTab === "alerts" && <AlertsTab />}
             {activeTab === "visits" && <VisitManagementSingleTab />}
-                {activeTab === "after-sales" && <AfterSalesTab onNavigateToLiveMap={(representativeName) => {
+            {activeTab === "after-sales" && <AfterSalesTab onNavigateToLiveMap={(representativeName) => {
               setActiveTab("live-map");
               // Store representative name in URL for the live map to pick up
               if (representativeName) {
@@ -184,7 +224,6 @@ function Dashboard() {
               }
             }} />}
           </main>
-        </div>
         </div>
       </PermissionProviderSimple>
     )
