@@ -248,7 +248,7 @@ export async function getAllVisits(): Promise<{ data: Visit[]; error: string | n
     if (visitError) {
       console.log('⚠️ visit_management table error:', visitError.message);
       console.log('🔄 Trying representative_visits table as fallback...');
-      
+
       // Fallback to representative_visits table
       const { data: fallbackData, error: fallbackError } = await supabase
         .from('representative_visits')
@@ -258,7 +258,7 @@ export async function getAllVisits(): Promise<{ data: Visit[]; error: string | n
       if (fallbackError) {
         console.log('⚠️ representative_visits table error:', fallbackError.message);
         console.log('🔄 Trying visits table as final fallback...');
-        
+
         // Final fallback to visits table
         const { data: finalFallbackData, error: finalFallbackError } = await supabase
           .from('visits')
@@ -334,5 +334,115 @@ export async function getAllVisits(): Promise<{ data: Visit[]; error: string | n
   } catch (error) {
     console.error('❌ Exception in getAllVisits:', error);
     return { data: [], error: 'Failed to fetch visits' };
+  }
+}
+
+/**
+ * Get unread alerts
+ */
+export async function getUnreadAlerts(): Promise<{ data: any[]; error: string | null }> {
+  try {
+    const { data, error } = await supabase
+      .from('unified_alerts')
+      .select('*')
+      .eq('is_read', false)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ Error fetching unread alerts:', error);
+      return { data: [], error: error.message };
+    }
+
+    return { data: data || [], error: null };
+  } catch (error) {
+    console.error('❌ Exception in getUnreadAlerts:', error);
+    return { data: [], error: 'Failed to fetch unread alerts' };
+  }
+}
+
+/**
+ * Check for late visits
+ */
+export async function checkLateVisits(): Promise<{ error: string | null }> {
+  try {
+    console.log('🔍 Checking for late visits...');
+
+    const { data: visits, error } = await getAllVisits();
+
+    if (error) {
+      console.log('⚠️ Error fetching visits for late check:', error);
+      return { error: null }; // Non-critical error
+    }
+
+    const now = new Date();
+    const lateVisits = visits?.filter(visit => {
+      if (visit.status === 'completed' || visit.status === 'cancelled') return false;
+
+      const scheduledEnd = new Date(visit.scheduled_end_time);
+      return now > scheduledEnd;
+    }) || [];
+
+    console.log(`✅ Found ${lateVisits.length} late visits`);
+    return { error: null };
+  } catch (error) {
+    console.error('❌ Exception in checkLateVisits:', error);
+    return { error: null }; // Non-critical error
+  }
+}
+
+/**
+ * Check for visits that exceeded their time
+ */
+export async function checkExceededTimeVisits(): Promise<{ error: string | null }> {
+  try {
+    console.log('🔍 Checking for exceeded time visits...');
+
+    const { data: visits, error } = await getAllVisits();
+
+    if (error) {
+      console.log('⚠️ Error fetching visits for time check:', error);
+      return { error: null }; // Non-critical error
+    }
+
+    const exceededVisits = visits?.filter(visit => {
+      if (!visit.actual_start_time || !visit.actual_end_time) return false;
+
+      const start = new Date(visit.actual_start_time);
+      const end = new Date(visit.actual_end_time);
+      const scheduled = new Date(visit.scheduled_end_time);
+
+      return end > scheduled;
+    }) || [];
+
+    console.log(`✅ Found ${exceededVisits.length} visits that exceeded scheduled time`);
+    return { error: null };
+  } catch (error) {
+    console.error('❌ Exception in checkExceededTimeVisits:', error);
+    return { error: null }; // Non-critical error
+  }
+}
+
+/**
+ * Mark an alert as read
+ */
+export async function markAlertAsRead(alertId: string): Promise<{ error: string | null }> {
+  try {
+    console.log('📝 Marking alert as read:', alertId);
+
+    const { error } = await supabase
+      .from('unified_alerts')
+      .update({ is_read: true })
+      .eq('id', alertId);
+
+    if (error) {
+      console.error('❌ Error marking alert as read:', error);
+      return { error: error.message };
+    }
+
+    console.log('✅ Alert marked as read');
+    return { error: null };
+  } catch (error) {
+    console.error('❌ Exception in markAlertAsRead:', error);
+    return { error: 'Failed to mark alert as read' };
   }
 }

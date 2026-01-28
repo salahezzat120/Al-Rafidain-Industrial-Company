@@ -357,6 +357,21 @@ export const markPaymentAsCompleted = async (paymentId: string): Promise<{ data:
   }
 }
 
+export const markPaymentAsPaid = async (paymentId: string, paidAmount: number): Promise<{ data: Payment | null; error: string | null }> => {
+  try {
+    const updates: UpdatePaymentData = {
+      id: paymentId,
+      status: 'completed',
+      paid_amount: paidAmount
+    }
+
+    return await updatePayment(paymentId, updates)
+  } catch (err) {
+    console.error('Unexpected error marking payment as paid:', err)
+    return { data: null, error: 'An unexpected error occurred' }
+  }
+}
+
 export const generatePaymentId = async (): Promise<string> => {
   const now = new Date()
   const year = now.getFullYear()
