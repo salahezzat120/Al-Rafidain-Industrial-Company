@@ -48,7 +48,7 @@ function Dashboard() {
   const { user, logout } = useAuth()
   const { t, isRTL } = useLanguage()
   const [activeTab, setActiveTab] = useState("home")
-  
+
   // Handle URL parameters for tab navigation
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
@@ -58,7 +58,7 @@ function Dashboard() {
     }
     // Otherwise keep "home" as default (no need to set it again)
   }, [])
-  
+
   // Debug logging
   console.log('Dashboard: Current user object', user)
   console.log('Dashboard: User role', user?.role)
@@ -97,7 +97,10 @@ function Dashboard() {
                 </Badge>
               </div>
               <div className="flex items-center gap-3">
-                <LanguageSwitcher />
+                <LanguageSwitcher
+                  variant="outline"
+                  className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                />
                 <Button variant="outline" size="sm" onClick={logout} className="bg-white/10 border-white/20 text-white hover:bg-white/20">
                   <LogOut className="h-4 w-4" />
                 </Button>
@@ -233,7 +236,7 @@ function Dashboard() {
     // Check if supervisor is accessing a specific admin page
     const urlParams = new URLSearchParams(window.location.search)
     const tabParam = urlParams.get('tab')
-    
+
     // If accessing a specific tab, show admin interface
     if (tabParam) {
       return (
@@ -286,15 +289,15 @@ function Dashboard() {
               <main className="flex-1 p-6">
                 {/* Back to Dashboard button for supervisors */}
                 <div className="mb-4">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => window.location.href = '/'}
                     className="mb-4"
                   >
                     ← Back to Supervisor Dashboard
                   </Button>
                 </div>
-                
+
                 {activeTab === "overview" && <OverviewTab />}
                 {activeTab === "users" && <UsersTabSimple />}
                 {activeTab === "employees" && <EmployeesTab />}
@@ -348,7 +351,7 @@ function Dashboard() {
         </PermissionProviderSimple>
       )
     }
-    
+
     // Default supervisor dashboard
     return (
       <PermissionProviderSimple>
@@ -418,8 +421,8 @@ function Dashboard() {
               {isRTL ? 'لوحة تحكم المندوب غير متاحة' : 'Representative Dashboard Not Available'}
             </h1>
             <p className="text-gray-600 mb-6">
-              {isRTL 
-                ? 'لوحة تحكم المندوبين غير متاحة حالياً. يرجى التواصل مع الإدارة.' 
+              {isRTL
+                ? 'لوحة تحكم المندوبين غير متاحة حالياً. يرجى التواصل مع الإدارة.'
                 : 'The representative dashboard is currently not available. Please contact the administration.'}
             </p>
             <Button onClick={logout} className="bg-blue-600 hover:bg-blue-700 text-white">
@@ -574,9 +577,9 @@ function Dashboard() {
       <ReportsModal isOpen={reportsOpen} onClose={() => setReportsOpen(false)} />
       <TrackVehiclesModal isOpen={trackVehiclesOpen} onClose={() => setTrackVehiclesOpen(false)} />
       <ManageRepresentativesModal isOpen={manageRepresentativesOpen} onClose={() => setManageRepresentativesOpen(false)} />
-      
+
       {/* ChatBot */}
-      <ChatBot 
+      <ChatBot
         isMinimized={isChatBotMinimized}
         onMinimize={() => setIsChatBotMinimized(true)}
         onMaximize={() => setIsChatBotMinimized(false)}
